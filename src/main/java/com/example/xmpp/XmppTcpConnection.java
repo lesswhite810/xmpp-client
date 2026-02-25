@@ -1,0 +1,418 @@
+package com.example.xmpp;
+
+import com.example.xmpp.config.XmppClientConfig;
+import com.example.xmpp.exception.XmppDnsException;
+import com.example.xmpp.exception.XmppException;
+import com.example.xmpp.exception.XmppNetworkException;
+import com.example.xmpp.net.DnsResolver;
+import com.example.xmpp.net.SrvRecord;
+import com.example.xmpp.net.XmppNettyHandler;
+import com.example.xmpp.net.XmppStreamDecoder;
+import com.example.xmpp.protocol.model.XmppStanza;
+import com.example.xmpp.util.ConnectionUtils;
+import com.example.xmpp.net.SslUtils;
+import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.ssl.SslHandler;
+import org.apache.commons.lang3.Validate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * 基于 TCP 的 XMPP 连接实现。
+ *
+ * <p>提供完整的 XMPP over TCP 连接功能，包括 DNS SRV 解析、TLS/SSL 加密、
+ * SASL 认证和资源绑定等核心功能。</p>
+ *
+ * @since 2026-02-09
+ */
+public class XmppTcpConnection extends AbstractXmppConnection {
+
+    private static final Logger log = LoggerFactory.getLogger(XmppTcpConnection.class);
+
+    /**
+     * 客户端配置。
+     */
+    private final XmppClientConfig config;
+
+    /**
+     * Netty 工作线程组。
+     */
+    private EventLoopGroup workerGroup;
+
+    /**
+     * Netty 通道。
+     */
+    private Channel channel;
+
+    /**
+     * XMPP 协议处理器。
+     */
+    private XmppNettyHandler nettyHandler;
+
+    /**
+     * 构造 TCP 连接。
+     *
+     * @param config 客户端配置
+     * @throws IllegalArgumentException 如果 config 为 null
+     */
+    public XmppTcpConnection(XmppClientConfig config) {
+        Validate.notNull(config, "XmppClientConfig must not be null");
+        this.config = config;
+    }
+
+    /**
+     * 建立 TCP 连接。
+     *
+     * @throws XmppNetworkException 如果网络连接失败
+     * @throws XmppException        如果连接过程中发生其他错误
+     */
+    @Override
+    public void connect() throws XmppException {
+        // 每个连接使用独立的 EventLoopGroup
+        workerGroup = new NioEventLoopGroup();
+        nettyHandler = new XmppNettyHandler(config, this);
+
+        // 1. 解析连接目标列表
+        List<ConnectionTarget> targets = resolveConnectionTargets();
+        if (targets.isEmpty()) {
+            throw new XmppNetworkException("No connection targets available");
+        }
+
+        // 2. 创建 Netty Bootstrap（合并所有配置）
+        Bootstrap bootstrap = createBootstrap();
+
+        // 3. 尝试连接到目标列表
+        this.channel = connectToTargets(bootstrap, targets)
+                .orElseThrow(() -> new XmppNetworkException("All connection attempts failed"));
+    }
+
+    /**
+     * 连接目标记录。
+     *
+     * <p>封装连接目标的主机名、IP地址和端口信息。</p>
+     *
+     * @since 2026-02-09
+     */
+    private record ConnectionTarget(String host, InetAddress address, int port) {
+
+        /**
+         * 创建主机名目标。
+         *
+         * @param host 主机名
+         * @param port 端口号
+         * @return 连接目标
+         */
+        static ConnectionTarget ofHost(String host, int port) {
+            return new ConnectionTarget(host, null, port);
+        }
+
+        /**
+         * 创建 IP 地址目标。
+         *
+         * @param address IP 地址
+         * @param port    端口号
+         * @return 连接目标
+         */
+        static ConnectionTarget ofAddress(InetAddress address, int port) {
+            return new ConnectionTarget(null, address, port);
+        }
+
+        /**
+         * 获取连接地址描述。
+         *
+         * @return 地址描述字符串（用于日志）
+         */
+        String getDescription() {
+            if (address != null) {
+                return address.getHostAddress() + ":" + port;
+            }
+            return host + ":" + port;
+        }
+
+        /**
+         * 转换为 InetSocketAddress。
+         *
+         * @return InetSocketAddress 实例
+         */
+        InetSocketAddress toSocketAddress() {
+            if (address != null) {
+                return new InetSocketAddress(address, port);
+            }
+            // 对于主机名，让 Netty 处理 DNS 解析
+            return InetSocketAddress.createUnresolved(host, port);
+        }
+    }
+
+    /**
+     * 解析连接目标列表。
+     *
+     * @return 连接目标列表
+     */
+    private List<ConnectionTarget> resolveConnectionTargets() {
+        List<ConnectionTarget> targets = new ArrayList<>();
+        int defaultPort = determinePort();
+
+        // 优先级1：配置的 IP 地址
+        if (config.getHostAddress() != null) {
+            targets.add(ConnectionTarget.ofAddress(config.getHostAddress(), defaultPort));
+            return targets; // 如果明确配置了 IP，直接使用，不再尝试其他方式
+        }
+
+        // 优先级2：配置的主机名
+        if (config.getHost() != null && !config.getHost().isEmpty()) {
+            targets.add(ConnectionTarget.ofHost(config.getHost(), defaultPort));
+            return targets; // 如果明确配置了主机名，直接使用
+        }
+
+        // 优先级3：DNS SRV 记录
+        List<SrvRecord> srvRecords = resolveSrvRecords();
+        for (SrvRecord record : srvRecords) {
+            String host = normalizeHostName(record.target());
+            targets.add(ConnectionTarget.ofHost(host, record.port()));
+        }
+
+        // 优先级4：回退到服务域名
+        if (targets.isEmpty()) {
+            targets.add(ConnectionTarget.ofHost(config.getXmppServiceDomain(), defaultPort));
+        }
+
+        return targets;
+    }
+
+    /**
+     * 创建 Netty Bootstrap。
+     *
+     * @return 配置好的 Bootstrap
+     */
+    private Bootstrap createBootstrap() {
+        Bootstrap bootstrap = new Bootstrap();
+        bootstrap.group(workerGroup);
+        bootstrap.channel(NioSocketChannel.class);
+        // P2-PERF-1 修复：Netty Pipeline 优化配置
+        bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
+        bootstrap.option(ChannelOption.TCP_NODELAY, true); // 禁用 Nagle 算法，降低延迟
+        bootstrap.option(ChannelOption.SO_RCVBUF, 64 * 1024); // 接收缓冲区 64KB
+        bootstrap.option(ChannelOption.SO_SNDBUF, 64 * 1024); // 发送缓冲区 64KB
+        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeout());
+        bootstrap.handler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            protected void initChannel(SocketChannel ch) throws Exception {
+                // Direct TLS 模式：添加 SSL 处理器
+                if (config.isUsingDirectTLS()) {
+                    SslHandler sslHandler = createSslHandler(ch);
+                    ch.pipeline().addLast(sslHandler);
+                }
+                // 添加 XMPP 协议处理器
+                ch.pipeline().addLast(new XmppStreamDecoder());
+                ch.pipeline().addLast(nettyHandler);
+            }
+        });
+        return bootstrap;
+    }
+
+    /**
+     * 尝试连接到目标列表。
+     *
+     * @param bootstrap Netty Bootstrap
+     * @param targets   连接目标列表
+     * @return 成功连接的 Channel 的 Optional
+     */
+    private Optional<Channel> connectToTargets(Bootstrap bootstrap, List<ConnectionTarget> targets) {
+        for (ConnectionTarget target : targets) {
+            try {
+                log.info("Connecting to {}...", target.getDescription());
+                Channel channel = ConnectionUtils.connectSync(bootstrap, target.toSocketAddress());
+                log.info("Connected to {}", target.getDescription());
+                return Optional.of(channel);
+            } catch (InterruptedException e) {
+                log.warn("Connection interrupted to {}", target.getDescription());
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * 创建 SSL 处理器。
+     *
+     * @param ch SocketChannel 实例
+     * @return SslHandler 实例
+     * @throws XmppNetworkException 如果创建 SSL 上下文失败
+     */
+    private SslHandler createSslHandler(SocketChannel ch) throws XmppNetworkException {
+        String host = config.getHost() != null ? config.getHost() : config.getXmppServiceDomain();
+        int port = determinePort();
+
+        return SslUtils.createSslHandler(host, port, config);
+    }
+
+    /**
+     * 确定连接端口。
+     *
+     * @return 端口号
+     */
+    private int determinePort() {
+        int defaultPort = config.isUsingDirectTLS()
+                ? XmppConstants.DIRECT_TLS_PORT
+                : XmppConstants.DEFAULT_XMPP_PORT;
+        return config.getPort() > 0 ? config.getPort() : defaultPort;
+    }
+
+    /**
+     * 解析 DNS SRV 记录。
+     *
+     * @return SRV 记录列表
+     */
+    private List<SrvRecord> resolveSrvRecords() {
+        try (DnsResolver resolver = new DnsResolver()) {
+            return resolver.resolveXmppService(config.getXmppServiceDomain());
+        } catch (XmppDnsException e) {
+            log.warn("DNS SRV lookup failed: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * 规范化主机名（移除尾随点）。
+     *
+     * @param host 原始主机名
+     * @return 规范化后的主机名
+     */
+    private String normalizeHostName(String host) {
+        if (host != null && host.endsWith(".")) {
+            return host.substring(0, host.length() - 1);
+        }
+        return host;
+    }
+
+    /**
+     * 断开连接。
+     */
+    @Override
+    public void disconnect() {
+        cleanupCollectors();
+
+        if (channel != null) {
+            channel.close();
+        }
+
+        shutdownWorkerGroup();
+    }
+
+    /**
+     * 优雅关闭 Netty 工作线程组。
+     */
+    private void shutdownWorkerGroup() {
+        if (workerGroup != null) {
+            workerGroup.shutdownGracefully(
+                    XmppConstants.SHUTDOWN_QUIET_PERIOD_MS,
+                    XmppConstants.SHUTDOWN_TIMEOUT_MS,
+                    java.util.concurrent.TimeUnit.MILLISECONDS);
+            workerGroup = null;
+        }
+    }
+
+    /**
+     * 检查连接状态。
+     *
+     * @return 如果连接活跃返回 true，否则返回 false
+     */
+    @Override
+    public boolean isConnected() {
+        return channel != null && channel.isActive();
+    }
+
+    /**
+     * 检查认证状态。
+     *
+     * @return 如果已认证返回 true，否则返回 false
+     */
+    @Override
+    public boolean isAuthenticated() {
+        return nettyHandler != null && nettyHandler.isAuthenticated();
+    }
+
+    /**
+     * 发送节。
+     *
+     * @param stanza 要发送的节
+     *
+     * @throws IllegalArgumentException 如果 stanza 为 null
+     */
+    @Override
+    public void sendStanza(XmppStanza stanza) {
+        Validate.notNull(stanza, "Stanza must not be null");
+
+        if (channel != null && channel.isActive()) {
+            nettyHandler.sendStanza(channel.pipeline().lastContext(), stanza);
+        } else {
+            log.error("Channel is not active, cannot send stanza");
+        }
+    }
+
+    /**
+     * 处理接收到的节（内部 API，由 Handler 调用）。
+     *
+     * @param stanza 接收到的节
+     */
+    public void processPacket(XmppStanza stanza) {
+        invokeStanzaCollectorsAndListeners(stanza);
+    }
+
+    /**
+     * 触发连接关闭事件（内部 API，由 Handler 调用）。
+     */
+    public void fireConnectionClosed() {
+        notifyConnectionClosed();
+    }
+
+    /**
+     * 触发连接错误关闭事件（内部 API，由 Handler 调用）。
+     *
+     * @param e 导致关闭的异常
+     */
+    public void fireConnectionClosedOnError(Exception e) {
+        notifyConnectionClosedOnError(e);
+    }
+
+    /**
+     * 触发认证完成事件（内部 API，由 Handler 调用）。
+     *
+     * @param resumed 是否为恢复的会话
+     */
+    public void fireAuthenticated(boolean resumed) {
+        notifyAuthenticated(resumed);
+    }
+
+    /**
+     * 获取客户端配置。
+     *
+     * @return 客户端配置对象
+     */
+    @Override
+    public XmppClientConfig getConfig() {
+        return config;
+    }
+
+    /**
+     * 重置处理器状态。
+     */
+    @Override
+    public void resetHandlerState() {
+        if (nettyHandler != null) {
+            nettyHandler.resetState();
+        }
+    }
+}

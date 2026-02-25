@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__zread__get_repo_structure",
+      "mcp__zread__search_doc",
+      "mcp__zread__read_file",
+      "Bash(dir:*)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(mvn clean compile:*)",
+      "Bash(mvn test:*)",
+      "Bash(mvn compile:*)",
+      "Bash(findstr:*)",
+      "Bash(cd:*)",
+      "Bash(javac:*)",
+      "Bash(mvn compiler:compile:*)",
+      "Bash(mvn clean test:*)",
+      "Bash(find:*)"
+    ]
+  }
+}
