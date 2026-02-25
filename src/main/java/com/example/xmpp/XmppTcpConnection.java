@@ -4,6 +4,7 @@ import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppDnsException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
+import com.example.xmpp.logic.PingManager;
 import com.example.xmpp.net.DnsResolver;
 import com.example.xmpp.net.SrvRecord;
 import com.example.xmpp.net.XmppNettyHandler;
@@ -20,9 +21,9 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.ssl.SslHandler;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Validate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -38,9 +39,8 @@ import java.util.Optional;
  *
  * @since 2026-02-09
  */
+@Slf4j
 public class XmppTcpConnection extends AbstractXmppConnection {
-
-    private static final Logger log = LoggerFactory.getLogger(XmppTcpConnection.class);
 
     /**
      * 客户端配置。
@@ -63,6 +63,18 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     private XmppNettyHandler nettyHandler;
 
     /**
+     * Ping 管理器。
+     */
+    @Getter
+    private final PingManager pingManager;
+
+    /**
+     * 重连管理器。
+     */
+    @Getter
+    private final ReconnectionManager reconnectionManager;
+
+    /**
      * 构造 TCP 连接。
      *
      * @param config 客户端配置
@@ -71,6 +83,15 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     public XmppTcpConnection(XmppClientConfig config) {
         Validate.notNull(config, "XmppClientConfig must not be null");
         this.config = config;
+
+        // 初始化管理器
+        this.pingManager = new PingManager(this);
+        this.reconnectionManager = new ReconnectionManager(this, pingManager);
+
+        // 根据配置决定是否启用自动重连
+        if (!config.isReconnectionEnabled()) {
+            reconnectionManager.disable();
+        }
     }
 
     /**

@@ -1,7 +1,6 @@
 package com.example.xmpp.logic;
 
 import com.example.xmpp.ConnectionEvent;
-import com.example.xmpp.ConnectionListener;
 import com.example.xmpp.XmppConnection;
 import com.example.xmpp.XmppConstants;
 import com.example.xmpp.XmppScheduler;
@@ -11,12 +10,8 @@ import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.PingIq;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.extension.Ping;
+import lombok.extern.slf4j.Slf4j;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -30,16 +25,10 @@ import java.util.concurrent.TimeUnit;
  * <li>支持自定义 Ping 间隔时间</li>
  * </ul>
  *
- * <p>使用单例模式，每个连接对应一个 PingManager 实例。</p>
- *
  * @since 2026-02-09
  */
+@Slf4j
 public class PingManager implements StanzaListener {
-
-    private static final Logger log = LoggerFactory.getLogger(PingManager.class);
-
-    /** 连接到 PingManager 实例的映射 */
-    private static final Map<XmppConnection, PingManager> INSTANCES = new ConcurrentHashMap<>();
 
     /** 关联的 XMPP 连接 */
     private final XmppConnection connection;
@@ -54,11 +43,11 @@ public class PingManager implements StanzaListener {
     private volatile int pingIntervalSeconds = XmppConstants.DEFAULT_PING_INTERVAL_SECONDS;
 
     /**
-     * 私有构造器。
+     * 构造 PingManager。
      *
      * @param connection XMPP 连接实例
      */
-    private PingManager(XmppConnection connection) {
+    public PingManager(XmppConnection connection) {
         this.connection = connection;
         this.pingFilter = stanza -> {
             if (!(stanza instanceof Iq iq)) {
@@ -73,6 +62,7 @@ public class PingManager implements StanzaListener {
         // 注册为 StanzaListener 响应服务端 Ping
         connection.addAsyncStanzaListener(this, pingFilter);
 
+        // 监听连接事件
         connection.addConnectionListener(event -> {
             switch (event) {
                 case ConnectionEvent.AuthenticatedEvent e -> startKeepAlive();
@@ -81,16 +71,6 @@ public class PingManager implements StanzaListener {
                 default -> { }
             }
         });
-    }
-
-    /**
-     * 获取指定连接的 PingManager 实例。
-     *
-     * @param connection XMPP 连接实例
-     * @return PingManager 实例
-     */
-    public static PingManager getInstanceFor(XmppConnection connection) {
-        return INSTANCES.computeIfAbsent(connection, PingManager::new);
     }
 
     /**
@@ -126,12 +106,11 @@ public class PingManager implements StanzaListener {
     }
 
     /**
-     * 关闭 PingManager 并从实例缓存中移除。
+     * 关闭 PingManager。
      */
     public synchronized void shutdown() {
         stopKeepAlive();
-        INSTANCES.remove(connection);
-        log.debug("PingManager shutdown and removed from cache");
+        log.debug("PingManager shutdown");
     }
 
     /**
@@ -165,7 +144,7 @@ public class PingManager implements StanzaListener {
     @Override
     public void processStanza(XmppStanza stanza) {
         Iq iq = (Iq) stanza;
-        log.info("PingManager: Received Ping from {}", iq.getFrom() != null ? iq.getFrom() : "Server");
+        log.debug("Received Ping from {}", iq.getFrom() != null ? iq.getFrom() : "Server");
         connection.sendStanza(Iq.createResultResponse(iq, null));
     }
 }

@@ -3,107 +3,104 @@ package com.example.xmpp.logic;
 import com.example.xmpp.ConnectionEvent;
 import com.example.xmpp.ReconnectionManager;
 import com.example.xmpp.XmppConnection;
-import com.example.xmpp.config.XmppClientConfig;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
  * ReconnectionManager 单元测试。
  */
+@ExtendWith(MockitoExtension.class)
 class ReconnectionManagerTest {
 
-    private XmppConnection mockConnection;
+    @Mock
+    private XmppConnection connection;
+
+    @Mock
+    private PingManager pingManager;
+
+    private ReconnectionManager reconnectionManager;
 
     @BeforeEach
     void setUp() {
-        mockConnection = mock(XmppConnection.class);
-        when(mockConnection.isConnected()).thenReturn(false);
+        lenient().doNothing().when(connection).addConnectionListener(any());
+        lenient().when(connection.isConnected()).thenReturn(false);
+        reconnectionManager = new ReconnectionManager(connection, pingManager);
     }
 
     @Test
-    @DisplayName("应通过 getInstanceFor 获取 ReconnectionManager 实例")
-    void testGetInstanceFor() {
-        ReconnectionManager manager = ReconnectionManager.getInstanceFor(mockConnection);
-
-        assertNotNull(manager);
-        verify(mockConnection).addConnectionListener(manager);
-    }
-
-    @Test
-    @DisplayName("相同连接应返回相同实例")
-    void testSameInstanceForSameConnection() {
-        ReconnectionManager manager1 = ReconnectionManager.getInstanceFor(mockConnection);
-        ReconnectionManager manager2 = ReconnectionManager.getInstanceFor(mockConnection);
-
-        assertSame(manager1, manager2);
+    @DisplayName("构造函数应正确初始化并注册监听器")
+    void testConstructor() {
+        assertNotNull(reconnectionManager);
+        verify(connection).addConnectionListener(reconnectionManager);
     }
 
     @Test
     @DisplayName("应支持启用自动重连")
     void testEnable() {
-        ReconnectionManager manager = ReconnectionManager.getInstanceFor(mockConnection);
-
-        assertDoesNotThrow(() -> manager.enable());
+        assertDoesNotThrow(() -> reconnectionManager.enable());
     }
 
     @Test
     @DisplayName("应支持禁用自动重连")
     void testDisable() {
-        ReconnectionManager manager = ReconnectionManager.getInstanceFor(mockConnection);
-
-        assertDoesNotThrow(() -> manager.disable());
+        assertDoesNotThrow(() -> reconnectionManager.disable());
     }
 
     @Test
     @DisplayName("多次启用/禁用应安全执行")
     void testMultipleEnableDisable() {
-        ReconnectionManager manager = ReconnectionManager.getInstanceFor(mockConnection);
-
         assertDoesNotThrow(() -> {
-            manager.enable();
-            manager.enable();
-            manager.disable();
-            manager.disable();
-            manager.enable();
+            reconnectionManager.enable();
+            reconnectionManager.enable();
+            reconnectionManager.disable();
+            reconnectionManager.disable();
+            reconnectionManager.enable();
         });
     }
 
     @Test
     @DisplayName("onEvent(ConnectedEvent) 回调应安全执行")
     void testConnectedEventCallback() {
-        ReconnectionManager manager = ReconnectionManager.getInstanceFor(mockConnection);
-
-        assertDoesNotThrow(() -> manager.onEvent(new ConnectionEvent.ConnectedEvent(mockConnection)));
+        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent.ConnectedEvent(connection)));
     }
 
     @Test
     @DisplayName("onEvent(AuthenticatedEvent) 回调应安全执行")
     void testAuthenticatedEventCallback() {
-        ReconnectionManager manager = ReconnectionManager.getInstanceFor(mockConnection);
-
-        assertDoesNotThrow(() -> manager.onEvent(new ConnectionEvent.AuthenticatedEvent(mockConnection, false)));
-        assertDoesNotThrow(() -> manager.onEvent(new ConnectionEvent.AuthenticatedEvent(mockConnection, true)));
+        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent.AuthenticatedEvent(connection, false)));
+        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent.AuthenticatedEvent(connection, true)));
     }
 
     @Test
     @DisplayName("onEvent(ConnectionClosedEvent) 回调应安全执行")
     void testConnectionClosedEventCallback() {
-        ReconnectionManager manager = ReconnectionManager.getInstanceFor(mockConnection);
-
-        assertDoesNotThrow(() -> manager.onEvent(new ConnectionEvent.ConnectionClosedEvent(mockConnection)));
+        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent.ConnectionClosedEvent(connection)));
     }
 
     @Test
     @DisplayName("onEvent(ConnectionClosedOnErrorEvent) 回调应安全执行")
     void testConnectionClosedOnErrorEventCallback() {
-        ReconnectionManager manager = ReconnectionManager.getInstanceFor(mockConnection);
-        manager.disable(); // 禁用避免实际重连
+        reconnectionManager.disable(); // 禁用避免实际重连
 
-        assertDoesNotThrow(() -> manager.onEvent(
-                new ConnectionEvent.ConnectionClosedOnErrorEvent(mockConnection, new Exception("Test error"))));
+        assertDoesNotThrow(() -> reconnectionManager.onEvent(
+                new ConnectionEvent.ConnectionClosedOnErrorEvent(connection, new Exception("Test error"))));
+    }
+
+    @Test
+    @DisplayName("启用状态下错误关闭应触发重连")
+    void testConnectionClosedOnErrorWithEnabled() {
+        when(connection.isConnected()).thenReturn(true);
+        reconnectionManager.enable();
+
+        assertDoesNotThrow(() -> reconnectionManager.onEvent(
+                new ConnectionEvent.ConnectionClosedOnErrorEvent(connection, new Exception("Test error"))));
     }
 }

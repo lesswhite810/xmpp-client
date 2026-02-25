@@ -2,12 +2,10 @@ package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
-import com.example.xmpp.logic.PingManager;
 import com.example.xmpp.logic.Tr069StanzaListener;
 import com.example.xmpp.protocol.model.Message;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * XMPP 客户端示例程序主入口。
@@ -21,9 +19,8 @@ import org.slf4j.LoggerFactory;
  *
  * @since 2026-02-09
  */
+@Slf4j
 public class Main {
-
-    private static final Logger log = LoggerFactory.getLogger(Main.class);
 
     /**
      * 程序主入口。
@@ -72,14 +69,8 @@ public class Main {
                 .password(password.toCharArray())
                 .build();
 
-        // 创建连接
+        // 创建连接（PingManager 和 ReconnectionManager 自动初始化）
         XmppTcpConnection connection = new XmppTcpConnection(config);
-
-        // 启用自动重连
-        ReconnectionManager.getInstanceFor(connection);
-
-        // 启用 Ping 保活
-        PingManager.getInstanceFor(connection);
 
         // 注册消息监听器
         connection.addAsyncStanzaListener(

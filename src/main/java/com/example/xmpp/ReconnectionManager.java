@@ -1,20 +1,18 @@
 package com.example.xmpp;
 
+import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.logic.PingManager;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
-import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
  * 自动重连管理器。
  *
- * <p>实现连接断开后的自动重连逻辑，p>
+ * <p>实现连接断开后的自动重连逻辑，采用指数退避算法避免频繁重连。</p>
  *
  * <p>功能特性：</p>
  * <ul>
@@ -23,15 +21,13 @@ import java.util.concurrent.TimeUnit;
  * <li>添加随机抖动避免雷鸣羊群效应</li>
  * <li>支持启用/禁用重连功能</li>
  * <li>正常关闭连接时不触发重连</li>
+ * <li>重连成功后自动停止定时任务</li>
  * </ul>
- *
- * <p>使用单例模式，每个连接对应一个 ReconnectionManager 实例。</p>
  *
  * @since 2026-02-09
  */
+@Slf4j
 public class ReconnectionManager implements ConnectionListener {
-
-    private static final Logger log = LoggerFactory.getLogger(ReconnectionManager.class);
 
     /** 基础重连延迟（秒） */
     private static final int BASE_DELAY_SECONDS = XmppConstants.RECONNECT_BASE_DELAY_SECONDS;
@@ -42,11 +38,11 @@ public class ReconnectionManager implements ConnectionListener {
     /** 最大重连尝试次数 */
     private static final int MAX_RECONNECT_ATTEMPTS = XmppConstants.MAX_RECONNECT_ATTEMPTS;
 
-    /** 每个连接的 ReconnectionManager 实例缓存 */
-    private static final Map<XmppConnection, ReconnectionManager> INSTANCES = new ConcurrentHashMap<>();
-
     /** 关联的 XMPP 连接 */
     private final XmppConnection connection;
+
+    /** 关联的 PingManager */
+    private final PingManager pingManager;
 
     /** 当前重连任务 */
     private volatile ScheduledFuture<?> currentTask;
@@ -61,28 +57,17 @@ public class ReconnectionManager implements ConnectionListener {
     private volatile int attemptCount = 0;
 
     /**
-     * 私有构造器。
+     * 构造 ReconnectionManager。
      *
-     * @param connection XMPP 连接实例
+     * @param connection   XMPP 连接实例
+     * @param pingManager  PingManager 实例
      */
-    private ReconnectionManager(XmppConnection connection) {
+    public ReconnectionManager(XmppConnection connection, PingManager pingManager) {
         this.connection = connection;
-    }
+        this.pingManager = pingManager;
 
-    /**
-     * 获取指定连接的 ReconnectionManager 实例。
-     *
-     * <p>如果实例不存在则自动创建，使用单例模式确保每个连接只有一个 ReconnectionManager。</p>
-     *
-     * @param connection XMPP 连接实例
-     * @return 对应的 ReconnectionManager 实例
-     */
-    public static ReconnectionManager getInstanceFor(XmppConnection connection) {
-        return INSTANCES.computeIfAbsent(connection, conn -> {
-            ReconnectionManager manager = new ReconnectionManager(conn);
-            conn.addConnectionListener(manager);
-            return manager;
-        });
+        // 注册连接监听器
+        connection.addConnectionListener(this);
     }
 
     /**
@@ -99,9 +84,7 @@ public class ReconnectionManager implements ConnectionListener {
      */
     public void disable() {
         this.enabled = false;
-        if (currentTask != null) {
-            currentTask.cancel(true);
-        }
+        stopReconnectTask();
     }
 
     /**
@@ -113,36 +96,46 @@ public class ReconnectionManager implements ConnectionListener {
     public void onEvent(ConnectionEvent event) {
         switch (event) {
             case ConnectionEvent.ConnectedEvent e -> onConnected();
-            case ConnectionEvent.AuthenticatedEvent e -> { /* Ready */ }
+            case ConnectionEvent.AuthenticatedEvent e -> onAuthenticated();
             case ConnectionEvent.ConnectionClosedEvent e -> onConnectionClosed();
             case ConnectionEvent.ConnectionClosedOnErrorEvent e -> onConnectionClosedOnError(e.error());
-            }
+            default -> { }
+        }
     }
 
     private void onConnected() {
         attemptCount = 0;
-        if (currentTask != null) {
-            currentTask.cancel(true);
-            currentTask = null;
-        }
+        stopReconnectTask();
+        log.debug("Connection established, reconnection task stopped");
+    }
+
+    private void onAuthenticated() {
+        attemptCount = 0;
+        stopReconnectTask();
     }
 
     private void onConnectionClosed() {
-        if (currentTask != null) {
-            currentTask.cancel(true);
-        }
-        // 从实例缓存中移除
-        INSTANCES.remove(connection);
+        stopReconnectTask();
+        log.debug("Connection closed normally");
     }
 
     private void onConnectionClosedOnError(Exception e) {
         if (!enabled) {
-            // 从实例缓存中移除
-            INSTANCES.remove(connection);
+            log.debug("Reconnection disabled, not attempting to reconnect");
             return;
         }
         log.info("Connection closed on error. Starting reconnection...", e);
         scheduleReconnect(0);
+    }
+
+    /**
+     * 停止重连任务。
+     */
+    private synchronized void stopReconnectTask() {
+        if (currentTask != null) {
+            currentTask.cancel(true);
+            currentTask = null;
+        }
     }
 
     /**
@@ -161,7 +154,6 @@ public class ReconnectionManager implements ConnectionListener {
         if (attempt >= MAX_RECONNECT_ATTEMPTS) {
             log.error("Max reconnection attempts ({}) reached, stopping reconnection", MAX_RECONNECT_ATTEMPTS);
             attemptCount = 0;
-            INSTANCES.remove(connection);
             return;
         }
 
@@ -171,24 +163,26 @@ public class ReconnectionManager implements ConnectionListener {
 
         log.info("Reconnecting in {} seconds (Attempt {}/{})...", delay, attempt + 1, MAX_RECONNECT_ATTEMPTS);
 
-        currentTask = XmppScheduler.getScheduler().schedule(() -> {
-            try {
-                if (connection.isConnected()) {
-                    attemptCount = 0;
-                    return;
+        synchronized (this) {
+            currentTask = XmppScheduler.getScheduler().schedule(() -> {
+                try {
+                    if (connection.isConnected()) {
+                        attemptCount = 0;
+                        log.debug("Already connected, skipping reconnection");
+                        return;
+                    }
+                    log.info("Retrying connection...");
+                    connection.resetHandlerState();
+                    connection.connect();
+                    log.info("Reconnection successful");
+                } catch (XmppException e) {
+                    log.error("Reconnection failed: {}", e.getMessage());
+                    scheduleReconnect(attempt + 1);
+                } catch (RuntimeException e) {
+                    log.error("Unexpected runtime error during reconnection: {}", e.getMessage(), e);
+                    scheduleReconnect(attempt + 1);
                 }
-                log.info("Retrying connection...");
-                connection.resetHandlerState();
-                connection.connect();
-                attemptCount = 0;
-                PingManager.getInstanceFor(connection).startKeepAlive();
-            } catch (com.example.xmpp.exception.XmppException e) {
-                log.error("Reconnection failed: {}", e.getMessage());
-                scheduleReconnect(attempt + 1);
-            } catch (RuntimeException e) {
-                log.error("Unexpected runtime error during reconnection: {}", e.getMessage(), e);
-                scheduleReconnect(attempt + 1);
-            }
-        }, delay, TimeUnit.SECONDS);
+            }, delay, TimeUnit.SECONDS);
+        }
     }
 }

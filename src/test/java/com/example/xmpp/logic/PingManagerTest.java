@@ -1,5 +1,6 @@
 package com.example.xmpp.logic;
 
+import com.example.xmpp.ConnectionEvent;
 import com.example.xmpp.XmppConnection;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.extension.Ping;
@@ -23,50 +24,46 @@ class PingManagerTest {
     @Mock
     private XmppConnection connection;
 
+    private PingManager pingManager;
+
     @BeforeEach
     void setUp() {
         lenient().doNothing().when(connection).addConnectionListener(any());
         lenient().doNothing().when(connection).addAsyncStanzaListener(any(), any());
+        pingManager = new PingManager(connection);
     }
 
     @Test
-    @DisplayName("getInstanceFor 应返回同一实例")
-    void testGetInstanceFor() {
-        PingManager instance1 = PingManager.getInstanceFor(connection);
-        PingManager instance2 = PingManager.getInstanceFor(connection);
-        
-        assertSame(instance1, instance2);
+    @DisplayName("构造函数应正确初始化")
+    void testConstructor() {
+        assertNotNull(pingManager);
+        verify(connection).addConnectionListener(any());
+        verify(connection).addAsyncStanzaListener(any(), any());
     }
 
     @Test
     @DisplayName("setPingInterval 应更新间隔")
     void testSetPingInterval() {
-        PingManager manager = PingManager.getInstanceFor(connection);
-        
-        assertDoesNotThrow(() -> manager.setPingInterval(30));
+        assertDoesNotThrow(() -> pingManager.setPingInterval(30));
     }
 
     @Test
     @DisplayName("shutdown 应安全执行")
     void testShutdown() {
-        PingManager manager = PingManager.getInstanceFor(connection);
-        
-        assertDoesNotThrow(() -> manager.shutdown());
+        assertDoesNotThrow(() -> pingManager.shutdown());
     }
 
     @Test
     @DisplayName("processStanza 应处理 Ping IQ 并发送响应")
     void testProcessStanza() {
-        PingManager manager = PingManager.getInstanceFor(connection);
-        
         Iq pingIq = new Iq(Iq.Type.get, "ping-1", "from@example.com", "to@example.com", null, null);
-        
+
         // Mock sendStanza
         lenient().doNothing().when(connection).sendStanza(any());
-        
+
         // processStanza 返回 void，通过验证 sendStanza 调用来确认行为
-        manager.processStanza(pingIq);
-        
+        pingManager.processStanza(pingIq);
+
         // 验证发送了响应
         verify(connection).sendStanza(any(Iq.class));
     }
@@ -74,17 +71,13 @@ class PingManagerTest {
     @Test
     @DisplayName("setPingInterval 为 0 应禁用 keepalive")
     void testDisableKeepAlive() {
-        PingManager manager = PingManager.getInstanceFor(connection);
-        
-        assertDoesNotThrow(() -> manager.setPingInterval(0));
+        assertDoesNotThrow(() -> pingManager.setPingInterval(0));
     }
 
     @Test
     @DisplayName("setPingInterval 负值应被处理")
     void testNegativePingInterval() {
-        PingManager manager = PingManager.getInstanceFor(connection);
-        
         // 负值应该被处理（可能使用默认值）
-        assertDoesNotThrow(() -> manager.setPingInterval(-1));
+        assertDoesNotThrow(() -> pingManager.setPingInterval(-1));
     }
 }
