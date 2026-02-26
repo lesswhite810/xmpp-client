@@ -26,7 +26,7 @@ public final class Iq extends Stanza {
                 builder.childElement != null || builder.error != null || builder.getExtensions() != null
                         ? consolidateExtensions(builder.childElement, builder.error, builder.getExtensions())
                         : null);
-        this.type = builder.type != null ? builder.type : Type.get;
+        this.type = builder.type != null ? builder.type : Type.GET;
         this.childElement = builder.childElement;
         this.error = builder.error;
     }
@@ -53,7 +53,7 @@ public final class Iq extends Stanza {
      * 空构造器，用于解析时创建实例。
      */
     public Iq() {
-        this(Type.get, null, null, null, null, null);
+        this(Type.GET, null, null, null, null, null);
     }
 
     /**
@@ -70,7 +70,7 @@ public final class Iq extends Stanza {
         super(id, from, to, childElement != null || error != null
                 ? consolidateExtensions(childElement, error, null)
                 : null);
-        this.type = type != null ? type : Type.get;
+        this.type = type != null ? type : Type.GET;
         this.childElement = childElement;
         this.error = error;
     }
@@ -83,7 +83,7 @@ public final class Iq extends Stanza {
      * @return 错误响应 IQ
      */
     public static Iq createErrorResponse(Iq request, XmppError error) {
-        return new Builder(Type.error)
+        return new Builder(Type.ERROR)
                 .id(request.getId())
                 .to(request.getFrom())
                 .from(request.getTo())
@@ -99,7 +99,7 @@ public final class Iq extends Stanza {
      * @return 结果响应 IQ
      */
     public static Iq createResultResponse(Iq request, ExtensionElement childElement) {
-        return new Builder(Type.result)
+        return new Builder(Type.RESULT)
                 .id(request.getId())
                 .to(request.getFrom())
                 .from(request.getTo())
@@ -131,7 +131,7 @@ public final class Iq extends Stanza {
      * @return 是错误类型返回 true
      */
     public boolean isError() {
-        return type == Type.error;
+        return type == Type.ERROR;
     }
 
     /**
@@ -140,7 +140,7 @@ public final class Iq extends Stanza {
      * @return 是结果类型返回 true
      */
     public boolean isResult() {
-        return type == Type.result;
+        return type == Type.RESULT;
     }
 
     /**
@@ -149,7 +149,7 @@ public final class Iq extends Stanza {
      * @return 是获取类型返回 true
      */
     public boolean isGet() {
-        return type == Type.get;
+        return type == Type.GET;
     }
 
     /**
@@ -158,7 +158,7 @@ public final class Iq extends Stanza {
      * @return 是设置类型返回 true
      */
     public boolean isSet() {
-        return type == Type.set;
+        return type == Type.SET;
     }
 
     /**
@@ -225,7 +225,7 @@ public final class Iq extends Stanza {
          * @param type IQ 类型字符串
          */
         public Builder(String type) {
-            this.type = Type.fromStringOrDefault(type, Type.get);
+            this.type = Type.fromStringOrDefault(type, Type.GET);
         }
 
         @Override
@@ -251,7 +251,7 @@ public final class Iq extends Stanza {
          * @return this
          */
         public Builder type(String type) {
-            this.type = Type.fromStringOrDefault(type, Type.get);
+            this.type = Type.fromStringOrDefault(type, Type.GET);
             return self();
         }
 
@@ -285,7 +285,7 @@ public final class Iq extends Stanza {
         @Override
         public Iq build() {
             if (type == null) {
-                type = Type.get;
+                type = Type.GET;
             }
             return new Iq(this);
         }
@@ -298,13 +298,18 @@ public final class Iq extends Stanza {
      */
     public enum Type {
         /** 获取类型 */
-        get,
+        GET,
         /** 设置类型 */
-        set,
+        SET,
         /** 结果类型 */
-        result,
+        RESULT,
         /** 错误类型 */
-        error;
+        ERROR;
+
+        @Override
+        public String toString() {
+            return name().toLowerCase();
+        }
 
         /**
          * 从字符串解析 IQ 类型。
@@ -318,7 +323,7 @@ public final class Iq extends Stanza {
                 throw new IllegalArgumentException("IQ type cannot be null");
             }
             try {
-                return valueOf(type.toLowerCase());
+                return valueOf(type.toUpperCase());
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Invalid IQ type: '" + type
                         + "'. Valid types are: get, set, result, error");
@@ -337,7 +342,7 @@ public final class Iq extends Stanza {
                 return defaultValue;
             }
             try {
-                return valueOf(type.toLowerCase());
+                return valueOf(type.toUpperCase());
             } catch (IllegalArgumentException e) {
                 return defaultValue;
             }

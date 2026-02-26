@@ -36,7 +36,7 @@ class ProviderRegistryTest {
     @Test
     @DisplayName("应包含默认的 BindProvider")
     void testDefaultBindProvider() {
-        Provider<?> provider = registry.getProvider("bind", "urn:ietf:params:xml:ns:xmpp-bind").orElse(null);
+        ExtensionElementProvider<?> provider = registry.getExtensionProvider("bind", "urn:ietf:params:xml:ns:xmpp-bind").orElse(null);
 
         assertNotNull(provider, "Should have default BindProvider");
         assertInstanceOf(BindProvider.class, provider);
@@ -45,7 +45,7 @@ class ProviderRegistryTest {
     @Test
     @DisplayName("应包含默认的 PingProvider")
     void testDefaultPingProvider() {
-        Provider<?> provider = registry.getProvider("ping", "urn:xmpp:ping").orElse(null);
+        ExtensionElementProvider<?> provider = registry.getExtensionProvider("ping", "urn:xmpp:ping").orElse(null);
 
         assertNotNull(provider, "Should have default PingProvider");
         assertInstanceOf(PingProvider.class, provider);
@@ -55,13 +55,13 @@ class ProviderRegistryTest {
     @DisplayName("应能注册自定义 Provider")
     void testRegisterCustomProvider() {
         // 创建自定义 Provider
-        Provider<TestElement> customProvider = new TestProvider();
+        ExtensionElementProvider<TestElement> customProvider = new TestProvider();
 
         // 注册
         registry.registerProvider(customProvider);
 
         // 查找
-        Provider<?> found = registry.getProvider("test", "urn:test").orElse(null);
+        ExtensionElementProvider<?> found = registry.getExtensionProvider("test", "urn:test").orElse(null);
 
         assertNotNull(found, "Should find registered provider");
         assertSame(customProvider, found);
@@ -74,15 +74,15 @@ class ProviderRegistryTest {
     @DisplayName("应能覆盖已存在的 Provider")
     void testOverrideProvider() {
         // 注册第一个
-        Provider<TestElement> provider1 = new TestProvider("test-override", "urn:test");
+        ExtensionElementProvider<TestElement> provider1 = new TestProvider("test-override", "urn:test");
         registry.registerProvider(provider1);
 
-        // 注册第二个（相同 key）
-        Provider<TestElement> provider2 = new TestProvider("test-override", "urn:test");
+        // 注册第二个（相同 key，覆盖）
+        ExtensionElementProvider<TestElement> provider2 = new TestProvider("test-override", "urn:test");
         registry.registerProvider(provider2);
 
         // 查找应该返回第二个
-        Provider<?> found = registry.getProvider("test-override", "urn:test").orElse(null);
+        ExtensionElementProvider<?> found = registry.getExtensionProvider("test-override", "urn:test").orElse(null);
         assertSame(provider2, found);
 
         // 清理
@@ -93,23 +93,23 @@ class ProviderRegistryTest {
     @DisplayName("应能移除 Provider")
     void testRemoveProvider() {
         // 注册
-        Provider<TestElement> provider = new TestProvider();
+        ExtensionElementProvider<TestElement> provider = new TestProvider();
         registry.registerProvider(provider);
 
         // 确认存在
-        assertTrue(registry.getProvider("test", "urn:test").isPresent());
+        assertTrue(registry.getExtensionProvider("test", "urn:test").isPresent());
 
         // 移除
-        Provider<?> removed = registry.removeProvider("test", "urn:test").orElse(null);
+        var removed = registry.removeProvider("test", "urn:test").orElse(null);
 
         assertSame(provider, removed);
-        assertFalse(registry.getProvider("test", "urn:test").isPresent());
+        assertFalse(registry.getExtensionProvider("test", "urn:test").isPresent());
     }
 
     @Test
-    @DisplayName("不存在的 Provider 应返回 null")
+    @DisplayName("不存在的 Provider 应返回 empty")
     void testNonExistentProvider() {
-        Provider<?> provider = registry.getProvider("nonexistent", "urn:nonexistent").orElse(null);
+        ExtensionElementProvider<?> provider = registry.getExtensionProvider("nonexistent", "urn:nonexistent").orElse(null);
         assertNull(provider);
     }
 
@@ -117,11 +117,11 @@ class ProviderRegistryTest {
     @DisplayName("null 命名空间应正常工作")
     void testNullNamespace() {
         // 注册无命名空间的 Provider
-        Provider<TestElement> provider = new TestProvider("test-no-ns", null);
+        ExtensionElementProvider<TestElement> provider = new TestProvider("test-no-ns", null);
         registry.registerProvider(provider);
 
         // 查找
-        Provider<?> found = registry.getProvider("test-no-ns", null).orElse(null);
+        ExtensionElementProvider<?> found = registry.getExtensionProvider("test-no-ns", null).orElse(null);
         assertNotNull(found);
 
         // 清理
@@ -132,11 +132,11 @@ class ProviderRegistryTest {
     @DisplayName("空命名空间应正常工作")
     void testEmptyNamespace() {
         // 注册空命名空间的 Provider
-        Provider<TestElement> provider = new TestProvider("test-empty-ns", "");
+        ExtensionElementProvider<TestElement> provider = new TestProvider("test-empty-ns", "");
         registry.registerProvider(provider);
 
         // 用空字符串查找
-        Provider<?> found = registry.getProvider("test-empty-ns", "").orElse(null);
+        ExtensionElementProvider<?> found = registry.getExtensionProvider("test-empty-ns", "").orElse(null);
         assertNotNull(found);
 
         // 清理
@@ -157,7 +157,7 @@ class ProviderRegistryTest {
         int initialSize = registry.size();
 
         // 注册
-        Provider<TestElement> provider = new TestProvider();
+        ExtensionElementProvider<TestElement> provider = new TestProvider();
         registry.registerProvider(provider);
 
         assertEquals(initialSize + 1, registry.size());
@@ -225,7 +225,7 @@ class ProviderRegistryTest {
     /**
      * 测试用 Provider。
      */
-    private static class TestProvider implements Provider<TestElement> {
+    private static class TestProvider implements ExtensionElementProvider<TestElement> {
         private final String elementName;
         private final String namespace;
 

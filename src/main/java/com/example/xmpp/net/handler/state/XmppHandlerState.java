@@ -9,7 +9,6 @@ import com.example.xmpp.protocol.model.Presence;
 import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.extension.Bind;
-import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.protocol.model.sasl.SaslChallenge;
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
 import com.example.xmpp.protocol.model.sasl.SaslSuccess;
@@ -200,7 +199,7 @@ public enum XmppHandlerState implements HandlerState {
                     .resource(resource)
                     .build();
 
-            Iq bindIq = new Iq.Builder(Iq.Type.set)
+            Iq bindIq = new Iq.Builder(Iq.Type.SET)
                     .id(context.generateId("bind"))
                     .childElement(bind)
                     .build();
@@ -324,7 +323,7 @@ public enum XmppHandlerState implements HandlerState {
         }
 
         private void handleBindResponse(StateContext context, ChannelHandlerContext ctx, Iq iq) {
-            if (iq.getType() == Iq.Type.result) {
+            if (iq.getType() == Iq.Type.RESULT) {
                 log.info("Resource binding successful");
                 context.transitionTo(SESSION_ACTIVE, ctx);
 
@@ -334,7 +333,7 @@ public enum XmppHandlerState implements HandlerState {
                 }
 
                 context.getConnection().fireAuthenticated(false);
-            } else if (iq.getType() == Iq.Type.error) {
+            } else if (iq.getType() == Iq.Type.ERROR) {
                 XmppError error = iq.getError();
                 String errorDetail = error != null
                         ? String.format("condition=%s, type=%s, text=%s",
@@ -361,12 +360,12 @@ public enum XmppHandlerState implements HandlerState {
 
         @Override
         public void handleMessage(StateContext context, ChannelHandlerContext ctx, Object msg) {
-            // 特殊处理：自动响应 Ping 请求 (XEP-0199)
             if (msg instanceof Iq iq) {
                 log.debug("Received IQ stanza - type: {}, id: {}, from: {}", iq.getType(), iq.getId(), iq.getFrom());
 
-                if (iq.isGet() && iq.getChildElement() instanceof Ping) {
-                    handlePingRequest(context, ctx, iq);
+                // 使用 IqRequestHandler 处理 IQ 请求
+                if (context.getConnection().handleIqRequest(iq)) {
+                    log.debug("IQ request handled by IqRequestHandler, id: {}", iq.getId());
                     return;
                 }
             }
@@ -378,22 +377,6 @@ public enum XmppHandlerState implements HandlerState {
             } else {
                 log.debug("Received unhandled message in SESSION_ACTIVE: {}", msg.getClass().getSimpleName());
             }
-        }
-
-        /**
-         * 处理服务器发来的 Ping 请求 (XEP-0199)。
-         */
-        private void handlePingRequest(StateContext context, ChannelHandlerContext ctx, Iq pingRequest) {
-            log.debug("Received Ping request from server, id: {}", pingRequest.getId());
-
-            // 构建响应：空的 result IQ
-            Iq pongResponse = new Iq.Builder(Iq.Type.result)
-                    .id(pingRequest.getId())
-                    .to(pingRequest.getFrom())
-                    .build();
-
-            context.sendStanza(ctx, pongResponse);
-            log.debug("Sent Ping response, id: {}", pingRequest.getId());
         }
 
         @Override

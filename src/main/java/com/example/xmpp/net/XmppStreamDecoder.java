@@ -1,27 +1,26 @@
 package com.example.xmpp.net;
 
 import com.example.xmpp.exception.XmppParseException;
-import com.example.xmpp.protocol.Provider;
+import com.example.xmpp.protocol.ExtensionElementProvider;
 import com.example.xmpp.protocol.ProviderRegistry;
 import com.example.xmpp.protocol.model.ExtensionElement;
+import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.Message;
 import com.example.xmpp.protocol.model.Presence;
-import com.example.xmpp.protocol.model.extension.Bind;
-import com.example.xmpp.protocol.model.extension.Ping;
+import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.sasl.Auth;
 import com.example.xmpp.protocol.model.sasl.SaslChallenge;
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
 import com.example.xmpp.protocol.model.sasl.SaslResponse;
 import com.example.xmpp.protocol.model.sasl.SaslSuccess;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
-import com.example.xmpp.protocol.model.stream.StreamHeader;
 import com.example.xmpp.protocol.model.stream.TlsElements;
+import com.example.xmpp.protocol.provider.GenericExtensionProvider;
 import com.example.xmpp.util.XmppEventReader;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 
@@ -34,14 +33,11 @@ import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * XMPP 流解码器（基于 Netty ByteToMessageDecoder）。
@@ -56,13 +52,27 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     private static final XMLInputFactory INPUT_FACTORY = XMLInputFactory.newFactory();
 
     /**
-     * 解码 XMPP 流数据。
-     *
-     * @param ctx Netty 通道上下文
-     * @param in  输入 ByteBuf
-     * @param out 输出对象列表
-     * @throws Exception 解析异常
+     * Stanza 公共属性（id、from、to）及类型。
      */
+    private record StanzaAttrs(String type, String id, String from, String to) {
+        static StanzaAttrs from(StartElement element) {
+            Map<String, String> attrs = XmppEventReader.getAttributes(element);
+            return new StanzaAttrs(attrs.get("type"), attrs.get("id"), attrs.get("from"), attrs.get("to"));
+        }
+
+        Iq.Builder iqBuilder() {
+            return new Iq.Builder(type).id(id).from(from).to(to);
+        }
+
+        Message.Builder messageBuilder() {
+            return new Message.Builder().type(type).id(id).from(from).to(to);
+        }
+
+        Presence.Builder presenceBuilder() {
+            return new Presence.Builder().type(type).id(id).from(from).to(to);
+        }
+    }
+
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         if (!in.isReadable()) {
@@ -75,32 +85,12 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 从 ByteBuf 解析 XML。
-     *
-     * @param buf 输入 ByteBuf
-     * @return 解析后的对象，如果解析失败返回 Optional.empty()
      */
-    private Optional<Object> parseFromByteBuf(ByteBuf buf) {
+    protected Optional<Object> parseFromByteBuf(ByteBuf buf) {
         XMLEventReader reader = null;
         try {
             reader = INPUT_FACTORY.createXMLEventReader(new ByteBufInputStream(buf));
-            while (reader.hasNext()) {
-                XMLEvent event = reader.nextEvent();
-
-                if (!event.isStartElement()) {
-                    continue;
-                }
-
-                StartElement start = event.asStartElement();
-                String localName = start.getName().getLocalPart();
-                String namespace = start.getName().getNamespaceURI();
-
-                if ("stream".equals(localName)) {
-                    continue;
-                }
-
-                return parseElement(reader, start, localName, namespace);
-            }
-            return Optional.empty();
+            return parseRootElement(reader);
         } catch (XMLStreamException e) {
             log.warn("XML parsing error: {}", e.getMessage());
             return Optional.empty();
@@ -110,67 +100,60 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     }
 
     /**
-     * 解析 XML 元素（优先使用 Provider，回退到内置解析）。
-     *
-     * @param reader     XML 事件读取器
-     * @param start      起始元素
-     * @param localName  元素本地名称
-     * @param namespace  元素命名空间
-     * @return 解析后的对象，如果无法解析返回 Optional.empty()
-     * @throws XMLStreamException XML 解析异常
+     * 解析根元素。
+     */
+    private Optional<Object> parseRootElement(XMLEventReader reader) throws XMLStreamException {
+        while (reader.hasNext()) {
+            XMLEvent event = reader.nextEvent();
+            if (!event.isStartElement()) {
+                continue;
+            }
+
+            StartElement start = event.asStartElement();
+            String localName = start.getName().getLocalPart();
+
+            // 跳过 stream 元素
+            if ("stream".equals(localName)) {
+                continue;
+            }
+
+            return parseElement(reader, start, localName, start.getName().getNamespaceURI());
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * 解析 XML 元素（顶层元素路由）。
      */
     private Optional<Object> parseElement(XMLEventReader reader, StartElement start,
                                           String localName, String namespace) throws XMLStreamException {
-        // 尝试使用 Provider 解析
-        Optional<Object> result = tryParseWithProvider(reader, localName, namespace);
-        if (result.isPresent()) {
-            return result;
-        }
-
-        // 使用内置解析器
-        return parseBuiltinElement(reader, start, localName);
+        // 优先处理 Stanza 元素
+        return switch (localName) {
+            case "iq" -> Optional.of(parseIq(reader, start));
+            case "message" -> Optional.of(parseMessage(reader, start));
+            case "presence" -> Optional.of(parsePresence(reader, start));
+            default -> parseOtherElement(reader, start, localName, namespace);
+        };
     }
 
     /**
-     * 尝试使用 Provider 解析扩展元素。
-     *
-     * @param reader     XML 事件读取器
-     * @param localName  元素本地名称
-     * @param namespace  元素命名空间
-     * @return 解析后的对象，如果无对应 Provider 返回 Optional.empty()
-     * @throws XMLStreamException XML 解析异常
+     * 解析非 Stanza 元素（流级别元素或 Provider 扩展）。
      */
-    private Optional<Object> tryParseWithProvider(XMLEventReader reader,
-                                                   String localName, String namespace) throws XMLStreamException {
-        Optional<Provider<?>> providerOpt = ProviderRegistry.getInstance().getProvider(localName, namespace);
-        if (providerOpt.isEmpty()) {
-            return Optional.empty();
+    private Optional<Object> parseOtherElement(XMLEventReader reader, StartElement start,
+                                                String localName, String namespace) throws XMLStreamException {
+        Object streamElement = parseStreamElement(reader, start, localName);
+        if (streamElement != null) {
+            return Optional.of(streamElement);
         }
-
-        try {
-            Object result = providerOpt.get().parse(reader);
-            return Optional.ofNullable(result);
-        } catch (XmppParseException e) {
-            log.warn("Provider failed to parse {}: {}", localName, e.getMessage());
-            return Optional.empty();
-        }
+        return tryParseWithProvider(reader, localName, namespace);
     }
 
     /**
-     * 解析内置 XMPP 元素。
-     *
-     * @param reader    XML 事件读取器
-     * @param start     起始元素
-     * @param localName 元素本地名称
-     * @return 解析后的对象，如果无法识别返回 Optional.empty()
-     * @throws XMLStreamException XML 解析异常
+     * 解析流级别元素（SASL、TLS、Features 等）。
      */
-    private Optional<Object> parseBuiltinElement(XMLEventReader reader, StartElement start,
-                                                  String localName) throws XMLStreamException {
-        Object result = switch (localName) {
-            case "iq" -> parseIq(reader, start);
-            case "message" -> parseMessage(reader, start);
-            case "presence" -> parsePresence(reader, start);
+    private Object parseStreamElement(XMLEventReader reader, StartElement start,
+                                       String localName) throws XMLStreamException {
+        return switch (localName) {
             case "features" -> parseFeatures(reader);
             case "starttls" -> TlsElements.StartTls.INSTANCE;
             case "proceed" -> TlsElements.TlsProceed.INSTANCE;
@@ -185,17 +168,31 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             case "failure" -> parseSaslFailure(reader);
             default -> null;
         };
-        return Optional.ofNullable(result);
+    }
+
+    /**
+     * 尝试使用 Provider 解析元素。
+     */
+    private Optional<Object> tryParseWithProvider(XMLEventReader reader,
+                                                   String localName, String namespace) throws XMLStreamException {
+        Optional<ExtensionElementProvider<?>> extProvider =
+                ProviderRegistry.getInstance().getExtensionProvider(localName, namespace);
+        if (extProvider.isEmpty()) {
+            return Optional.empty();
+        }
+
+        try {
+            return Optional.ofNullable(extProvider.get().parse(reader));
+        } catch (XmppParseException e) {
+            log.warn("Extension provider failed to parse {}: {}", localName, e.getMessage());
+            return Optional.empty();
+        }
     }
 
     // ==================== 元素解析方法 ====================
 
     /**
      * 解析 StreamFeatures 元素。
-     *
-     * @param reader XML 事件读取器
-     * @return 解析后的 StreamFeatures 对象
-     * @throws XMLStreamException XML 解析异常
      */
     private StreamFeatures parseFeatures(XMLEventReader reader) throws XMLStreamException {
         List<String> mechanisms = new ArrayList<>();
@@ -204,18 +201,19 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
         while (reader.hasNext()) {
             XMLEvent event = reader.nextEvent();
-            if (event.isEndElement() && "features".equals(event.asEndElement().getName().getLocalPart())) {
+            if (isEndElement(event, "features")) {
                 break;
             }
-            if (event.isStartElement()) {
-                String name = event.asStartElement().getName().getLocalPart();
-                if ("mechanism".equals(name)) {
-                    mechanisms.add(XmppEventReader.getElementText(reader));
-                } else if ("starttls".equals(name)) {
-                    startTls = true;
-                } else if ("bind".equals(name)) {
-                    bind = true;
-                }
+            if (!event.isStartElement()) {
+                continue;
+            }
+
+            String name = event.asStartElement().getName().getLocalPart();
+            switch (name) {
+                case "mechanism" -> mechanisms.add(XmppEventReader.getElementText(reader));
+                case "starttls" -> startTls = true;
+                case "bind" -> bind = true;
+                default -> { /* 忽略未知元素 */ }
             }
         }
         return StreamFeatures.builder()
@@ -227,45 +225,34 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析 SASL Auth 元素。
-     *
-     * @param reader  XML 事件读取器
-     * @param element 起始元素
-     * @return 解析后的 Auth 对象
-     * @throws XMLStreamException XML 解析异常
      */
     private Auth parseSaslAuth(XMLEventReader reader, StartElement element) throws XMLStreamException {
-        String mechanism = null;
-        var attr = element.getAttributeByName(new QName("mechanism"));
-        if (attr != null) {
-            mechanism = attr.getValue();
-        }
-
+        String mechanism = getAttributeValue(element, "mechanism");
         String content = XmppEventReader.getElementText(reader);
         return new Auth(mechanism, content.isEmpty() ? null : content);
     }
 
     /**
      * 解析 SASL Failure 元素。
-     *
-     * @param reader XML 事件读取器
-     * @return 解析后的 SaslFailure 对象
-     * @throws XMLStreamException XML 解析异常
      */
     private SaslFailure parseSaslFailure(XMLEventReader reader) throws XMLStreamException {
         String condition = "undefined-condition";
         String text = null;
+
         while (reader.hasNext()) {
             XMLEvent event = reader.nextEvent();
-            if (event.isEndElement() && "failure".equals(event.asEndElement().getName().getLocalPart())) {
+            if (isEndElement(event, "failure")) {
                 break;
             }
-            if (event.isStartElement()) {
-                String name = event.asStartElement().getName().getLocalPart();
-                if ("text".equals(name)) {
-                    text = XmppEventReader.getElementText(reader);
-                } else {
-                    condition = name;
-                }
+            if (!event.isStartElement()) {
+                continue;
+            }
+
+            String name = event.asStartElement().getName().getLocalPart();
+            if ("text".equals(name)) {
+                text = XmppEventReader.getElementText(reader);
+            } else {
+                condition = name;
             }
         }
         return SaslFailure.builder()
@@ -276,112 +263,121 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析 IQ 节。
-     *
-     * @param reader  XML 事件读取器
-     * @param element 起始元素
-     * @return 解析后的 Iq 对象
-     * @throws XMLStreamException XML 解析异常
      */
     private Iq parseIq(XMLEventReader reader, StartElement element) throws XMLStreamException {
-        Map<String, String> attrs = XmppEventReader.getAttributes(element);
-        Iq.Builder builder = new Iq.Builder(attrs.get("type"));
-
-        builder.id(attrs.get("id"));
-        builder.from(attrs.get("from"));
-        builder.to(attrs.get("to"));
+        StanzaAttrs attrs = StanzaAttrs.from(element);
+        Iq.Builder builder = attrs.iqBuilder();
 
         while (reader.hasNext()) {
             XMLEvent event = reader.nextEvent();
-            if (event.isEndElement() && "iq".equals(event.asEndElement().getName().getLocalPart())) {
+            if (isEndElement(event, "iq")) {
                 break;
             }
-            if (event.isStartElement()) {
-                StartElement start = event.asStartElement();
-                String name = start.getName().getLocalPart();
-                String namespace = start.getName().getNamespaceURI();
-
-                // 优先使用 Provider 解析
-                Optional<Provider<?>> provider = ProviderRegistry.getInstance().getProvider(name, namespace);
-                if (provider.isPresent()) {
-                    try {
-                        Object parsed = provider.get().parse(reader);
-                        if (parsed instanceof ExtensionElement ext) {
-                            builder.childElement(ext);
-                        }
-                    } catch (XmppParseException e) {
-                        log.warn("Provider failed to parse {}: {}", name, e.getMessage());
-                    }
-                    continue;
-                }
-
-                // 回退到内置解析
-                if ("bind".equals(name)) {
-                    builder.childElement(parseBind(reader));
-                } else if ("ping".equals(name) && "urn:xmpp:ping".equals(namespace)) {
-                    XmppEventReader.getElementText(reader);
-                    builder.childElement(Ping.INSTANCE);
-                }
+            if (!event.isStartElement()) {
+                continue;
             }
+
+            parseIqChildElement(reader, event.asStartElement(), builder);
         }
         return builder.build();
     }
 
     /**
-     * 解析 Bind 元素。
-     *
-     * @param reader XML 事件读取器
-     * @return 解析后的 Bind 对象
-     * @throws XMLStreamException XML 解析异常
+     * 解析 IQ 子元素。
      */
-    private Bind parseBind(XMLEventReader reader) throws XMLStreamException {
-        Bind.BindBuilder builder = Bind.builder();
+    private void parseIqChildElement(XMLEventReader reader, StartElement start, Iq.Builder builder)
+            throws XMLStreamException {
+        String name = start.getName().getLocalPart();
+        String namespace = start.getName().getNamespaceURI();
+
+        // 特殊处理 error 元素
+        if ("error".equals(name)) {
+            XmppError error = parseError(reader, start);
+            builder.error(error);
+            return;
+        }
+
+        // 使用公共方法解析扩展元素
+        parseExtensionElement(reader, start, name, namespace, builder::childElement);
+    }
+
+    /**
+     * 解析 XMPP Error 元素。
+     */
+    private XmppError parseError(XMLEventReader reader, StartElement element) throws XMLStreamException {
+        String typeStr = getAttributeValue(element, "type");
+        XmppError.Type type = typeStr != null ? parseErrorType(typeStr) : null;
+        XmppError.Condition condition = null;
+        String text = null;
+
         while (reader.hasNext()) {
             XMLEvent event = reader.nextEvent();
-            if (event.isEndElement() && "bind".equals(event.asEndElement().getName().getLocalPart())) {
+            if (isEndElement(event, "error")) {
                 break;
             }
-            if (event.isStartElement()) {
-                String name = event.asStartElement().getName().getLocalPart();
-                if ("resource".equals(name)) {
-                    builder.resource(XmppEventReader.getElementText(reader));
-                } else if ("jid".equals(name)) {
-                    builder.jid(XmppEventReader.getElementText(reader));
-                }
+            if (!event.isStartElement()) {
+                continue;
+            }
+
+            String name = event.asStartElement().getName().getLocalPart();
+            if ("text".equals(name)) {
+                text = XmppEventReader.getElementText(reader);
+            } else {
+                // 错误条件元素
+                condition = XmppError.Condition.fromString(name);
             }
         }
-        return builder.build();
+
+        if (condition == null) {
+            condition = XmppError.Condition.undefined_condition;
+        }
+
+        XmppError.Builder errorBuilder = new XmppError.Builder(condition);
+        if (type != null) {
+            errorBuilder.type(type);
+        }
+        if (text != null) {
+            errorBuilder.text(text);
+        }
+        return errorBuilder.build();
+    }
+
+    /**
+     * 解析错误类型。
+     */
+    private XmppError.Type parseErrorType(String typeStr) {
+        try {
+            return XmppError.Type.valueOf(typeStr.toUpperCase().replace("-", "_"));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /**
      * 解析 Message 节。
-     *
-     * @param reader  XML 事件读取器
-     * @param element 起始元素
-     * @return 解析后的 Message 对象
-     * @throws XMLStreamException XML 解析异常
      */
     private Message parseMessage(XMLEventReader reader, StartElement element) throws XMLStreamException {
-        Map<String, String> attrs = XmppEventReader.getAttributes(element);
-        Message.Builder builder = new Message.Builder();
-
-        builder.type(attrs.get("type"));
-        builder.id(attrs.get("id"));
-        builder.from(attrs.get("from"));
-        builder.to(attrs.get("to"));
+        StanzaAttrs attrs = StanzaAttrs.from(element);
+        Message.Builder builder = attrs.messageBuilder();
 
         while (reader.hasNext()) {
             XMLEvent event = reader.nextEvent();
-            if (event.isEndElement() && "message".equals(event.asEndElement().getName().getLocalPart())) {
+            if (isEndElement(event, "message")) {
                 break;
             }
-            if (event.isStartElement()) {
-                String name = event.asStartElement().getName().getLocalPart();
-                switch (name) {
-                    case "body" -> builder.body(XmppEventReader.getElementText(reader));
-                    case "subject" -> builder.subject(XmppEventReader.getElementText(reader));
-                    case "thread" -> builder.thread(XmppEventReader.getElementText(reader));
-                    default -> { /* 忽略未知元素 */ }
-                }
+            if (!event.isStartElement()) {
+                continue;
+            }
+
+            StartElement start = event.asStartElement();
+            String name = start.getName().getLocalPart();
+            String namespace = start.getName().getNamespaceURI();
+
+            switch (name) {
+                case "body" -> builder.body(XmppEventReader.getElementText(reader));
+                case "subject" -> builder.subject(XmppEventReader.getElementText(reader));
+                case "thread" -> builder.thread(XmppEventReader.getElementText(reader));
+                default -> parseExtensionElement(reader, start, name, namespace, builder::addExtension);
             }
         }
         return builder.build();
@@ -389,151 +385,94 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析 Presence 节。
-     *
-     * @param reader  XML 事件读取器
-     * @param element 起始元素
-     * @return 解析后的 Presence 对象
-     * @throws XMLStreamException XML 解析异常
      */
     private Presence parsePresence(XMLEventReader reader, StartElement element) throws XMLStreamException {
-        Map<String, String> attrs = XmppEventReader.getAttributes(element);
-        Presence.Builder builder = new Presence.Builder();
-
-        builder.type(attrs.get("type"));
-        builder.id(attrs.get("id"));
-        builder.from(attrs.get("from"));
-        builder.to(attrs.get("to"));
+        StanzaAttrs attrs = StanzaAttrs.from(element);
+        Presence.Builder builder = attrs.presenceBuilder();
 
         while (reader.hasNext()) {
             XMLEvent event = reader.nextEvent();
-            if (event.isEndElement() && "presence".equals(event.asEndElement().getName().getLocalPart())) {
+            if (isEndElement(event, "presence")) {
                 break;
             }
-            if (event.isStartElement()) {
-                String name = event.asStartElement().getName().getLocalPart();
-                switch (name) {
-                    case "show" -> builder.show(XmppEventReader.getElementText(reader));
-                    case "status" -> builder.status(XmppEventReader.getElementText(reader));
-                    case "priority" -> {
-                        try {
-                            builder.priority(Integer.parseInt(XmppEventReader.getElementText(reader)));
-                        } catch (NumberFormatException e) {
-                            log.warn("Invalid priority value in presence stanza");
-                        }
-                    }
-                    default -> { /* 忽略未知元素 */ }
-                }
+            if (!event.isStartElement()) {
+                continue;
+            }
+
+            StartElement start = event.asStartElement();
+            String name = start.getName().getLocalPart();
+            String namespace = start.getName().getNamespaceURI();
+
+            switch (name) {
+                case "show" -> builder.show(XmppEventReader.getElementText(reader));
+                case "status" -> builder.status(XmppEventReader.getElementText(reader));
+                case "priority" -> parsePriority(reader, builder);
+                default -> parseExtensionElement(reader, start, name, namespace, builder::addExtension);
             }
         }
         return builder.build();
     }
 
-    // ==================== 静态解析方法（供测试使用） ====================
-
     /**
-     * 解析 XML 字符串为协议对象。
-     *
-     * @param xml XML 字符串
-     * @return 解析后的对象，如果解析失败返回 Optional.empty()
+     * 解析 priority 值。
      */
-    public static Optional<Object> parse(String xml) {
-        if (xml == null || xml.isEmpty()) {
-            return Optional.empty();
+    private void parsePriority(XMLEventReader reader, Presence.Builder builder) {
+        try {
+            builder.priority(Integer.parseInt(XmppEventReader.getElementText(reader)));
+        } catch (NumberFormatException | XMLStreamException e) {
+            log.warn("Invalid priority value in presence stanza");
         }
-        if (xml.startsWith("<?xml") || xml.contains("stream:stream")) {
-            return Optional.of(parseStreamHeader(xml));
+    }
+
+    /**
+     * 解析扩展元素（使用注册的 Provider 或通用解析器）。
+     *
+     * @param reader        XML 事件读取器
+     * @param start         开始元素事件
+     * @param name          元素名称
+     * @param namespace     命名空间
+     * @param addExtension  添加扩展的回调函数
+     */
+    private void parseExtensionElement(XMLEventReader reader, StartElement start,
+                                        String name, String namespace,
+                                        Consumer<ExtensionElement> addExtension) {
+        Optional<ExtensionElementProvider<?>> provider =
+                ProviderRegistry.getInstance().getExtensionProvider(name, namespace);
+        if (provider.isPresent()) {
+            try {
+                Object parsed = provider.get().parse(reader);
+                if (parsed instanceof ExtensionElement ext) {
+                    addExtension.accept(ext);
+                }
+            } catch (XmppParseException e) {
+                log.warn("Provider failed to parse <{} xmlns=\"{}\">: {}", name, namespace, e.getMessage());
+            }
+        } else {
+            log.debug("No provider for <{} xmlns=\"{}\">, using generic parser", name, namespace);
+            try {
+                GenericExtensionElement ext = GenericExtensionProvider.INSTANCE.parse(reader, start);
+                addExtension.accept(ext);
+            } catch (XmppParseException e) {
+                log.warn("Generic parser failed for <{} xmlns=\"{}\">: {}", name, namespace, e.getMessage());
+            }
         }
-        ByteBuf buf = Unpooled.copiedBuffer(xml, StandardCharsets.UTF_8);
-        return new XmppStreamDecoder().parseFromByteBuf(buf);
+    }
+
+    // ==================== 辅助方法 ====================
+
+    /**
+     * 判断是否为指定名称的结束元素。
+     */
+    private boolean isEndElement(XMLEvent event, String elementName) {
+        return event.isEndElement()
+                && elementName.equals(event.asEndElement().getName().getLocalPart());
     }
 
     /**
-     * 解析 XML 字符串为 IQ 节。
-     *
-     * @param xml XML 字符串
-     * @return 解析后的 Iq 对象
-     * @throws IllegalArgumentException 如果 XML 不是有效的 IQ 节
+     * 获取元素属性值。
      */
-    public static Iq parseIq(String xml) {
-        return parse(xml)
-                .filter(Iq.class::isInstance)
-                .map(Iq.class::cast)
-                .orElseThrow(() -> new IllegalArgumentException("Not an IQ stanza"));
-    }
-
-    /**
-     * 解析 XML 字符串为 Message 节。
-     *
-     * @param xml XML 字符串
-     * @return 解析后的 Message 对象
-     * @throws IllegalArgumentException 如果 XML 不是有效的 Message 节
-     */
-    public static Message parseMessage(String xml) {
-        return parse(xml)
-                .filter(Message.class::isInstance)
-                .map(Message.class::cast)
-                .orElseThrow(() -> new IllegalArgumentException("Not a Message stanza"));
-    }
-
-    /**
-     * 解析 XML 字符串为 Presence 节。
-     *
-     * @param xml XML 字符串
-     * @return 解析后的 Presence 对象
-     * @throws IllegalArgumentException 如果 XML 不是有效的 Presence 节
-     */
-    public static Presence parsePresence(String xml) {
-        return parse(xml)
-                .filter(Presence.class::isInstance)
-                .map(Presence.class::cast)
-                .orElseThrow(() -> new IllegalArgumentException("Not a Presence stanza"));
-    }
-
-    /**
-     * 解析 XML 字符串为 Stanza 对象。
-     *
-     * @param xml XML 字符串
-     * @return 解析后的对象，如果解析失败返回 Optional.empty()
-     */
-    public static Optional<Object> parseStanza(String xml) {
-        return parse(xml);
-    }
-
-    /**
-     * 解析流头部。
-     *
-     * @param xml XML 字符串
-     * @return 解析后的 StreamHeader 对象
-     */
-    private static StreamHeader parseStreamHeader(String xml) {
-        return StreamHeader.builder()
-                .from(extractAttribute(xml, "from"))
-                .to(extractAttribute(xml, "to"))
-                .id(extractAttribute(xml, "id"))
-                .version(extractAttribute(xml, "version"))
-                .lang(extractAttribute(xml, "lang"))
-                .namespace("jabber:client")
-                .build();
-    }
-
-    /**
-     * 从 XML 字符串中提取属性值。
-     *
-     * @param xml  XML 字符串
-     * @param name 属性名称
-     * @return 属性值，如果不存在返回 null
-     */
-    private static String extractAttribute(String xml, String name) {
-        int idx = xml.indexOf(name + "='");
-        if (idx == -1) {
-            idx = xml.indexOf(name + "=\"");
-        }
-        if (idx == -1) {
-            return null;
-        }
-        char quote = xml.charAt(idx + name.length() + 1);
-        int start = idx + name.length() + 2;
-        int end = xml.indexOf(quote, start);
-        return end == -1 ? null : xml.substring(start, end);
+    private String getAttributeValue(StartElement element, String attrName) {
+        var attr = element.getAttributeByName(new QName(attrName));
+        return attr != null ? attr.getValue() : null;
     }
 }

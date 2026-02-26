@@ -103,4 +103,26 @@ public interface XmppConnection {
      * @since 2026-02-09
      */
     void resetHandlerState();
+
+    /**
+     * 注册 IQ 请求处理器。
+     *
+     * <p>当收到匹配的 IQ 请求时，将调用处理器的 {@link IqRequestHandler#handleIqRequest(Iq)} 方法。</p>
+     *
+     * @param handler IQ 请求处理器
+     *
+     * @throws IllegalArgumentException 如果已存在相同 (element, namespace, iqType) 的处理器
+     * @since 2026-02-26
+     */
+    void registerIqRequestHandler(IqRequestHandler handler);
+
+    /**
+     * 注销 IQ 请求处理器。
+     *
+     * @param handler 要注销的处理器
+     *
+     * @return 如果处理器存在并被移除返回 true，否则返回 false
+     * @since 2026-02-26
+     */
+    boolean unregisterIqRequestHandler(IqRequestHandler handler);
 }

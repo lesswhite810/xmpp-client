@@ -30,7 +30,7 @@ public final class Presence extends Stanza {
 
     private Presence(Builder builder) {
         super(builder.getId(), builder.getFrom(), builder.getTo(), builder.getExtensions());
-        this.type = builder.type != null ? builder.type : Type.available;
+        this.type = builder.type != null ? builder.type : Type.AVAILABLE;
         this.show = builder.show;
         this.status = builder.status;
         this.priority = builder.priority;
@@ -51,7 +51,7 @@ public final class Presence extends Stanza {
     public Presence(Type type, String id, String from, String to, String show, String status, Integer priority,
             List<ExtensionElement> extensions) {
         super(id, from, to, extensions);
-        this.type = type != null ? type : Type.available;
+        this.type = type != null ? type : Type.AVAILABLE;
         this.show = show;
         this.status = status;
         this.priority = priority;
@@ -61,7 +61,7 @@ public final class Presence extends Stanza {
      * 空构造器，用于解析时创建实例。
      */
     public Presence() {
-        this(Type.available, null, null, null, null, null, null, null);
+        this(Type.AVAILABLE, null, null, null, null, null, null, null);
     }
 
     /**
@@ -79,7 +79,7 @@ public final class Presence extends Stanza {
      * @return 是可用状态返回 true
      */
     public boolean isAvailable() {
-        return type == Type.available;
+        return type == Type.AVAILABLE;
     }
 
     /**
@@ -88,7 +88,7 @@ public final class Presence extends Stanza {
      * @return 是不可用状态返回 true
      */
     public boolean isUnavailable() {
-        return type == Type.unavailable;
+        return type == Type.UNAVAILABLE;
     }
 
     /**
@@ -97,7 +97,7 @@ public final class Presence extends Stanza {
      * @return 是错误状态返回 true
      */
     public boolean isError() {
-        return type == Type.error;
+        return type == Type.ERROR;
     }
 
     /**
@@ -106,7 +106,7 @@ public final class Presence extends Stanza {
      * @return 是订阅请求返回 true
      */
     public boolean isSubscribe() {
-        return type == Type.subscribe;
+        return type == Type.SUBSCRIBE;
     }
 
     /**
@@ -115,7 +115,7 @@ public final class Presence extends Stanza {
      * @return 是订阅确认返回 true
      */
     public boolean isSubscribed() {
-        return type == Type.subscribed;
+        return type == Type.SUBSCRIBED;
     }
 
     /**
@@ -124,7 +124,7 @@ public final class Presence extends Stanza {
      * @return 是取消订阅请求返回 true
      */
     public boolean isUnsubscribe() {
-        return type == Type.unsubscribe;
+        return type == Type.UNSUBSCRIBE;
     }
 
     /**
@@ -133,7 +133,7 @@ public final class Presence extends Stanza {
      * @return 是取消订阅确认返回 true
      */
     public boolean isUnsubscribed() {
-        return type == Type.unsubscribed;
+        return type == Type.UNSUBSCRIBED;
     }
 
     /**
@@ -153,7 +153,7 @@ public final class Presence extends Stanza {
      */
     @Override
     protected void appendAttributes(XmlStringBuilder xml) {
-        if (type != null && type != Type.available) {
+        if (type != null && type != Type.AVAILABLE) {
             xml.attribute("type", type);
         }
         super.appendAttributes(xml);
@@ -194,7 +194,7 @@ public final class Presence extends Stanza {
          * 构造器，默认类型为 available。
          */
         public Builder() {
-            this.type = Type.available;
+            this.type = Type.AVAILABLE;
         }
 
         /**
@@ -293,19 +293,24 @@ public final class Presence extends Stanza {
      */
     public enum Type {
         /** 可用状态 */
-        available,
+        AVAILABLE,
         /** 不可用状态 */
-        unavailable,
+        UNAVAILABLE,
         /** 错误状态 */
-        error,
+        ERROR,
         /** 订阅请求 */
-        subscribe,
+        SUBSCRIBE,
         /** 订阅确认 */
-        subscribed,
+        SUBSCRIBED,
         /** 取消订阅请求 */
-        unsubscribe,
+        UNSUBSCRIBE,
         /** 取消订阅确认 */
-        unsubscribed;
+        UNSUBSCRIBED;
+
+        @Override
+        public String toString() {
+            return name().toLowerCase();
+        }
 
         /**
          * 从字符串解析 Presence 类型。
@@ -318,7 +323,7 @@ public final class Presence extends Stanza {
                 return Optional.empty();
             }
             try {
-                return Optional.of(valueOf(type.toLowerCase()));
+                return Optional.of(valueOf(type.toUpperCase()));
             } catch (IllegalArgumentException e) {
                 return Optional.empty();
             }
@@ -332,13 +337,18 @@ public final class Presence extends Stanza {
      */
     public enum Show {
         /** 离开 */
-        away,
+        AWAY,
         /** 聊天 */
-        chat,
+        CHAT,
         /** 请勿打扰 */
-        dnd,
+        DND,
         /** 长时间离开 */
-        xa;
+        XA;
+
+        @Override
+        public String toString() {
+            return name().toLowerCase();
+        }
 
         /**
          * 从字符串解析 Show 值。
@@ -351,7 +361,7 @@ public final class Presence extends Stanza {
                 return Optional.empty();
             }
             try {
-                return Optional.of(valueOf(show.toLowerCase()));
+                return Optional.of(valueOf(show.toUpperCase()));
             } catch (IllegalArgumentException e) {
                 return Optional.empty();
             }

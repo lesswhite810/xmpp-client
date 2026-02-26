@@ -5,12 +5,14 @@ import com.example.xmpp.exception.XmppDnsException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.logic.PingManager;
+import com.example.xmpp.logic.ReconnectionManager;
 import com.example.xmpp.net.DnsResolver;
 import com.example.xmpp.net.SrvRecord;
 import com.example.xmpp.net.XmppNettyHandler;
 import com.example.xmpp.net.XmppStreamDecoder;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.util.ConnectionUtils;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.net.SslUtils;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
@@ -233,7 +235,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             protected void initChannel(SocketChannel ch) throws Exception {
                 // Direct TLS 模式：添加 SSL 处理器
                 if (config.isUsingDirectTLS()) {
-                    SslHandler sslHandler = createSslHandler(ch);
+                    String host = config.getHost() != null ? config.getHost() : config.getXmppServiceDomain();
+                    int port = config.getPort() > 0 ? config.getPort() : XmppConstants.DIRECT_TLS_PORT;
+                    SslHandler sslHandler = SslUtils.createSslHandler(host, port, config);
                     ch.pipeline().addLast(sslHandler);
                 }
                 // 添加 XMPP 协议处理器
@@ -263,20 +267,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             }
         }
         return Optional.empty();
-    }
-
-    /**
-     * 创建 SSL 处理器。
-     *
-     * @param ch SocketChannel 实例
-     * @return SslHandler 实例
-     * @throws XmppNetworkException 如果创建 SSL 上下文失败
-     */
-    private SslHandler createSslHandler(SocketChannel ch) throws XmppNetworkException {
-        String host = config.getHost() != null ? config.getHost() : config.getXmppServiceDomain();
-        int port = determinePort();
-
-        return SslUtils.createSslHandler(host, port, config);
     }
 
     /**

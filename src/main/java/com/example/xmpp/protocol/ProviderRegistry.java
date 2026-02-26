@@ -15,189 +15,142 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Provider 注册中心。
  *
- * <p>单例模式，集中管理所有 XML 扩展元素的 Provider。
- * 负责注册、查找和移除 Provider，使用元素名称和命名空间作为复合键。
- * 所有公共方法都是线程安全的。</p>
+ * <p>单例模式，集中管理所有 XML 元素的 Provider。</p>
  *
- * <p>Provider 发现机制：内置 Provider 在初始化时自动注册，通过 Java SPI 发现的 ProtocolProvider
- * 实现自动注册，可通过 registerProvider(Provider) 手动注册。</p>
+ * <p>Provider 类型：</p>
+ * <ul>
+ *   <li>{@link ExtensionElementProvider}：解析 IQ/Message/Presence 的子元素</li>
+ *   <li>{@link IqProvider}：解析完整的 IQ 节</li>
+ * </ul>
  *
  * <p>键格式：有命名空间时为 elementName:namespace，无命名空间时为 elementName。</p>
  *
  * @since 2026-02-09
  * @see Provider
- * @see ProtocolProvider
+ * @see ExtensionElementProvider
+ * @see IqProvider
  */
 public final class ProviderRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(ProviderRegistry.class);
 
-    /** 单例实例 */
     private static final ProviderRegistry INSTANCE = new ProviderRegistry();
 
-    /** Provider 映射表 */
-    private final Map<String, ProviderEntry> providerMap;
+    private final Map<String, Provider<?>> providers = new ConcurrentHashMap<>();
 
-    /** SPI 服务加载器 */
-    private final ServiceLoader<ProtocolProvider> providerLoader;
-
-    /**
-     * 私有构造器。
-     */
     private ProviderRegistry() {
-        this.providerMap = new ConcurrentHashMap<>();
-        this.providerLoader = ServiceLoader.load(ProtocolProvider.class);
         registerBuiltInProviders();
         discoverSpiProviders();
-        log.debug("ProviderRegistry initialized with {} providers", providerMap.size());
+        log.debug("ProviderRegistry initialized with {} providers", providers.size());
     }
 
-    /**
-     * 获取 ProviderRegistry 单例实例。
-     *
-     * @return ProviderRegistry 实例
-     */
     public static ProviderRegistry getInstance() {
         return INSTANCE;
     }
 
+    // ==================== 注册方法 ====================
+
     /**
-     * 注册一个 Provider。
+     * 注册 Provider。
      *
-     * <p>如果已存在相同 elementName 和 namespace 的 Provider，则根据优先级决定是否覆盖。</p>
-     *
-     * @param provider 要注册的 Provider，不能为 null
-     *
-     * @throws NullPointerException 如果 provider 为 null
+     * @param provider Provider 实例
      */
     public void registerProvider(Provider<?> provider) {
-        registerProvider(provider, 100);
-    }
-
-    /**
-     * 注册一个 Provider（带优先级）。
-     *
-     * <p>如果已存在相同 elementName 和 namespace 的 Provider：
-     * 新优先级大于等于已有优先级时覆盖，新优先级小于已有优先级时忽略。</p>
-     *
-     * @param provider 要注册的 Provider，不能为 null
-     * @param priority 优先级（数值越大优先级越高）
-     *
-     * @throws NullPointerException 如果 provider 为 null
-     */
-    public void registerProvider(Provider<?> provider, int priority) {
         Objects.requireNonNull(provider, "Provider cannot be null");
-
         String key = createKey(provider.getElementName(), provider.getNamespace());
-        ProviderEntry newEntry = new ProviderEntry(provider, priority);
+        Provider<?> previous = providers.put(key, provider);
+        if (previous != null) {
+            log.debug("Replaced provider: <{} xmlns=\"{}\"> ({} -> {})",
+                    provider.getElementName(), provider.getNamespace(),
+                    previous.getClass().getSimpleName(), provider.getClass().getSimpleName());
+        } else {
+            log.debug("Registered provider: <{} xmlns=\"{}\"> ({})",
+                    provider.getElementName(), provider.getNamespace(),
+                    provider.getClass().getSimpleName());
+        }
+    }
 
-        providerMap.compute(key, (k, existing) -> {
-            if (existing == null) {
-                log.debug("Registered provider: <{} xmlns=\"{}\"> (priority={})",
-                        provider.getElementName(), provider.getNamespace(), priority);
-                return newEntry;
-            } else if (priority >= existing.priority) {
-                log.debug("Replaced provider: <{} xmlns=\"{}\"> ({} -> {}, previous: {})",
-                        provider.getElementName(), provider.getNamespace(),
-                        existing.priority, priority, existing.provider.getClass().getSimpleName());
-                return newEntry;
-            } else {
-                log.trace("Skipped provider (lower priority): <{} xmlns=\"{}\"> ({} < {})",
-                        provider.getElementName(), provider.getNamespace(),
-                        priority, existing.priority);
-                return existing;
-            }
-        });
+    // ==================== 查询方法 ====================
+
+    /**
+     * 获取扩展元素 Provider。
+     */
+    public Optional<ExtensionElementProvider<?>> getExtensionProvider(String elementName, String namespace) {
+        return getProvider(elementName, namespace)
+                .filter(p -> p instanceof ExtensionElementProvider)
+                .map(p -> (ExtensionElementProvider<?>) p);
     }
 
     /**
-     * 获取指定元素和命名空间的 Provider。
-     *
-     * @param elementName XML 元素本地名称
-     * @param namespace   XML 命名空间 URI，可为 null
-     *
-     * @return 匹配的 Provider 的 Optional，如果不存在则返回 Optional.empty()
+     * 获取 IQ Provider。
+     */
+    public Optional<IqProvider> getIqProvider(String elementName, String namespace) {
+        return getProvider(elementName, namespace)
+                .filter(p -> p instanceof IqProvider)
+                .map(p -> (IqProvider) p);
+    }
+
+    /**
+     * 获取任意 Provider。
      */
     public Optional<Provider<?>> getProvider(String elementName, String namespace) {
         String key = createKey(elementName, namespace);
-        ProviderEntry entry = providerMap.get(key);
-
-        if (entry != null) {
-            if (log.isTraceEnabled()) {
-                log.trace("Found provider for <{} xmlns=\"{}\">: {}",
-                        elementName, namespace, entry.provider.getClass().getSimpleName());
-            }
-            return Optional.of(entry.provider);
+        Provider<?> provider = providers.get(key);
+        if (provider != null) {
+            log.trace("Found provider for <{} xmlns=\"{}\">: {}",
+                    elementName, namespace, provider.getClass().getSimpleName());
+            return Optional.of(provider);
         }
-
-        if (log.isTraceEnabled()) {
-            log.trace("No provider found for <{} xmlns=\"{}\">", elementName, namespace);
-        }
+        log.trace("No provider found for <{} xmlns=\"{}\">", elementName, namespace);
         return Optional.empty();
     }
 
+    // ==================== 工具方法 ====================
+
     /**
-     * 移除指定元素和命名空间的 Provider。
-     *
-     * @param elementName XML 元素本地名称
-     * @param namespace   XML 命名空间 URI，可为 null
-     *
-     * @return 被移除的 Provider 的 Optional，如果不存在则返回 Optional.empty()
+     * 移除 Provider。
      */
     public Optional<Provider<?>> removeProvider(String elementName, String namespace) {
         String key = createKey(elementName, namespace);
-        ProviderEntry removed = providerMap.remove(key);
-
+        Provider<?> removed = providers.remove(key);
         if (removed != null) {
             log.debug("Removed provider: <{} xmlns=\"{}\">", elementName, namespace);
-            return Optional.of(removed.provider);
+            return Optional.of(removed);
         }
-
         return Optional.empty();
     }
 
     /**
-     * 清空所有已注册的 Provider。
-     *
-     * <p>注意：此操作也会移除默认 Provider。</p>
+     * 清空所有 Provider。
      */
     public void clear() {
-        int size = providerMap.size();
-        providerMap.clear();
+        int size = providers.size();
+        providers.clear();
         log.debug("Cleared {} providers", size);
     }
 
     /**
-     * 获取所有已注册 Provider 的键集合。
-     *
-     * <p>主要用于调试和监控。</p>
-     *
-     * @return 所有 Provider 键的不可修改集合
+     * 获取所有已注册的键。
      */
     public Set<String> getRegisteredKeys() {
-        return Set.copyOf(providerMap.keySet());
+        return Set.copyOf(providers.keySet());
     }
 
     /**
-     * 检查是否存在指定元素和命名空间的 Provider。
-     *
-     * @param elementName XML 元素本地名称
-     * @param namespace   XML 命名空间 URI，可为 null
-     * @return 如果存在返回 true
+     * 检查是否存在 Provider。
      */
     public boolean hasProvider(String elementName, String namespace) {
-        String key = createKey(elementName, namespace);
-        return providerMap.containsKey(key);
+        return providers.containsKey(createKey(elementName, namespace));
     }
 
     /**
-     * 获取已注册 Provider 的数量。
-     *
-     * @return Provider 数量
+     * 获取 Provider 数量。
      */
     public int size() {
-        return providerMap.size();
+        return providers.size();
     }
+
+    // ==================== 内部方法 ====================
 
     private String createKey(String elementName, String namespace) {
         if (namespace == null || namespace.isEmpty()) {
@@ -207,36 +160,25 @@ public final class ProviderRegistry {
     }
 
     private void registerBuiltInProviders() {
-        registerProvider(new BindProvider(), 50);
-        registerProvider(new PingProvider(), 50);
+        registerProvider(new BindProvider());
+        registerProvider(new PingProvider());
     }
 
     private void discoverSpiProviders() {
+        ServiceLoader<ProtocolProvider> loader = ServiceLoader.load(ProtocolProvider.class);
         int spiCount = 0;
-        for (ProtocolProvider<?> protocolProvider : providerLoader) {
+        for (ProtocolProvider protocolProvider : loader) {
             try {
                 Provider<?> provider = protocolProvider.createProvider();
-                registerProvider(provider, protocolProvider.getPriority());
+                registerProvider(provider);
                 spiCount++;
-                log.debug("Discovered SPI provider: {} (priority={})",
-                        protocolProvider.getClass().getName(), protocolProvider.getPriority());
+                log.debug("Discovered SPI provider: {}", protocolProvider.getClass().getName());
             } catch (Exception e) {
-                log.warn("Failed to load SPI provider: {}",
-                        protocolProvider.getClass().getName(), e);
+                log.warn("Failed to load SPI provider: {}", protocolProvider.getClass().getName(), e);
             }
         }
         if (spiCount > 0) {
             log.info("Discovered {} SPI providers", spiCount);
-        }
-    }
-
-    private static final class ProviderEntry {
-        final Provider<?> provider;
-        final int priority;
-
-        ProviderEntry(Provider<?> provider, int priority) {
-            this.provider = provider;
-            this.priority = priority;
         }
     }
 }

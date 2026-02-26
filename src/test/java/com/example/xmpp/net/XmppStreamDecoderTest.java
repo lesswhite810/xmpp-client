@@ -241,7 +241,7 @@ class XmppStreamDecoderTest {
         assertInstanceOf(Iq.class, msg);
 
         Iq iq = (Iq) msg;
-        assertEquals(Iq.Type.get, iq.getType());
+        assertEquals(Iq.Type.GET, iq.getType());
         assertEquals("ping1", iq.getId());
         assertEquals("user@example.com", iq.getFrom());
         assertEquals("example.com", iq.getTo());
@@ -266,7 +266,7 @@ class XmppStreamDecoderTest {
         assertInstanceOf(Iq.class, msg);
 
         Iq iq = (Iq) msg;
-        assertEquals(Iq.Type.result, iq.getType());
+        assertEquals(Iq.Type.RESULT, iq.getType());
         assertEquals("bind1", iq.getId());
 
         Bind bind = iq.getExtension(Bind.class).orElse(null);
@@ -289,7 +289,7 @@ class XmppStreamDecoderTest {
         assertInstanceOf(Iq.class, msg);
 
         Iq iq = (Iq) msg;
-        assertEquals(Iq.Type.set, iq.getType());
+        assertEquals(Iq.Type.SET, iq.getType());
 
         Bind bind = iq.getExtension(Bind.class).orElse(null);
         assertNotNull(bind);
@@ -311,7 +311,7 @@ class XmppStreamDecoderTest {
         assertInstanceOf(Iq.class, msg);
 
         Iq iq = (Iq) msg;
-        assertEquals(Iq.Type.error, iq.getType());
+        assertEquals(Iq.Type.ERROR, iq.getType());
     }
 
     // ==================== Message Stanza 测试 ====================
@@ -330,7 +330,7 @@ class XmppStreamDecoderTest {
         assertInstanceOf(Message.class, msg);
 
         Message message = (Message) msg;
-        assertEquals(Message.Type.chat, message.getType());
+        assertEquals(Message.Type.CHAT, message.getType());
         assertEquals("msg1", message.getId());
         assertEquals("alice@example.com", message.getFrom());
         assertEquals("bob@example.com", message.getTo());
@@ -352,7 +352,7 @@ class XmppStreamDecoderTest {
         assertInstanceOf(Message.class, msg);
 
         Message message = (Message) msg;
-        assertEquals(Message.Type.groupchat, message.getType());
+        assertEquals(Message.Type.GROUPCHAT, message.getType());
         assertEquals("Let's discuss the project timeline.", message.getBody());
     }
 
@@ -389,7 +389,7 @@ class XmppStreamDecoderTest {
         assertInstanceOf(Presence.class, msg);
 
         Presence presence = (Presence) msg;
-        assertEquals(Presence.Type.available, presence.getType());
+        assertEquals(Presence.Type.AVAILABLE, presence.getType());
         assertEquals("pres1", presence.getId());
         assertEquals("user@example.com/mobile", presence.getFrom());
         assertEquals("chat", presence.getShow());
@@ -411,7 +411,7 @@ class XmppStreamDecoderTest {
         assertInstanceOf(Presence.class, msg);
 
         Presence presence = (Presence) msg;
-        assertEquals(Presence.Type.unavailable, presence.getType());
+        assertEquals(Presence.Type.UNAVAILABLE, presence.getType());
         assertEquals("Going offline", presence.getStatus());
     }
 
@@ -428,7 +428,7 @@ class XmppStreamDecoderTest {
         assertInstanceOf(Presence.class, msg);
 
         Presence presence = (Presence) msg;
-        assertEquals(Presence.Type.subscribe, presence.getType());
+        assertEquals(Presence.Type.SUBSCRIBE, presence.getType());
     }
 
     // ==================== 分段数据测试 ====================

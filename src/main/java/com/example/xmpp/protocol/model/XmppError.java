@@ -1,6 +1,6 @@
 package com.example.xmpp.protocol.model;
 
-import com.example.xmpp.XmppConstants;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
@@ -157,49 +157,49 @@ public class XmppError implements XmppExtension {
      */
     public enum Condition {
         /** 错误请求 */
-        bad_request("bad-request", Type.modify),
+        bad_request("bad-request", Type.MODIFY),
         /** 冲突 */
-        conflict("conflict", Type.cancel),
+        conflict("conflict", Type.CANCEL),
         /** 功能未实现 */
-        feature_not_implemented("feature-not-implemented", Type.cancel),
+        feature_not_implemented("feature-not-implemented", Type.CANCEL),
         /** 禁止 */
-        forbidden("forbidden", Type.auth),
+        forbidden("forbidden", Type.AUTH),
         /** 已离开 */
-        gone("gone", Type.modify),
+        gone("gone", Type.MODIFY),
         /** 内部服务器错误 */
-        internal_server_error("internal-server-error", Type.wait),
+        internal_server_error("internal-server-error", Type.WAIT),
         /** 项目未找到 */
-        item_not_found("item-not-found", Type.cancel),
+        item_not_found("item-not-found", Type.CANCEL),
         /** JID 格式错误 */
-        jid_malformed("jid-malformed", Type.modify),
+        jid_malformed("jid-malformed", Type.MODIFY),
         /** 不可接受 */
-        not_acceptable("not-acceptable", Type.modify),
+        not_acceptable("not-acceptable", Type.MODIFY),
         /** 不允许 */
-        not_allowed("not-allowed", Type.cancel),
+        not_allowed("not-allowed", Type.CANCEL),
         /** 未授权 */
-        not_authorized("not-authorized", Type.auth),
+        not_authorized("not-authorized", Type.AUTH),
         /** 策略违规 */
-        policy_violation("policy-violation", Type.modify),
+        policy_violation("policy-violation", Type.MODIFY),
         /** 接收者不可用 */
-        recipient_unavailable("recipient-unavailable", Type.wait),
+        recipient_unavailable("recipient-unavailable", Type.WAIT),
         /** 重定向 */
-        redirect("redirect", Type.modify),
+        redirect("redirect", Type.MODIFY),
         /** 需要注册 */
-        registration_required("registration-required", Type.auth),
+        registration_required("registration-required", Type.AUTH),
         /** 远程服务器未找到 */
-        remote_server_not_found("remote-server-not-found", Type.cancel),
+        remote_server_not_found("remote-server-not-found", Type.CANCEL),
         /** 远程服务器超时 */
-        remote_server_timeout("remote-server-timeout", Type.wait),
+        remote_server_timeout("remote-server-timeout", Type.WAIT),
         /** 资源限制 */
-        resource_constraint("resource-constraint", Type.wait),
+        resource_constraint("resource-constraint", Type.WAIT),
         /** 服务不可用 */
-        service_unavailable("service-unavailable", Type.cancel),
+        service_unavailable("service-unavailable", Type.CANCEL),
         /** 需要订阅 */
-        subscription_required("subscription-required", Type.auth),
+        subscription_required("subscription-required", Type.AUTH),
         /** 未定义条件 */
-        undefined_condition("undefined-condition", Type.wait),
+        undefined_condition("undefined-condition", Type.WAIT),
         /** 意外请求 */
-        unexpected_request("unexpected-request", Type.wait);
+        unexpected_request("unexpected-request", Type.WAIT);
 
         /** 元素名称 */
         private final String elementName;
@@ -255,14 +255,19 @@ public class XmppError implements XmppExtension {
      */
     public enum Type {
         /** 认证错误 */
-        auth,
+        AUTH,
         /** 取消错误 */
-        cancel,
+        CANCEL,
         /** 继续错误 */
-        continue_,
+        CONTINUE_,
         /** 修改错误 */
-        modify,
+        MODIFY,
         /** 等待错误 */
-        wait
+        WAIT;
+
+        @Override
+        public String toString() {
+            return name().toLowerCase().replace("_", "-");
+        }
     }
 }

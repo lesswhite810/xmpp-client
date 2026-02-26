@@ -1,6 +1,6 @@
 package com.example.xmpp.net.handler.state;
 
-import com.example.xmpp.XmppConstants;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.XmppTcpConnection;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.net.XmppStreamDecoder;

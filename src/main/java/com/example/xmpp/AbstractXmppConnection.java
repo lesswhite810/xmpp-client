@@ -1,6 +1,6 @@
 package com.example.xmpp;
 
-import com.example.xmpp.XmppConstants;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.protocol.AsyncStanzaCollector;
 import com.example.xmpp.protocol.StanzaFilter;
 import com.example.xmpp.protocol.StanzaListener;
@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -41,6 +42,171 @@ public abstract class AbstractXmppConnection implements XmppConnection {
 
     /** 连接监听器集合 */
     protected final Set<ConnectionListener> connectionListeners = new CopyOnWriteArraySet<>();
+
+    /** IQ 请求处理器映射表，键为 (element, namespace, iqType) 组合 */
+    private final Map<IqHandlerKey, IqRequestHandler> iqRequestHandlers = new ConcurrentHashMap<>();
+
+    /**
+     * 注册 IQ 请求处理器。
+     *
+     * @param handler IQ 请求处理器
+     *
+     * @throws IllegalArgumentException 如果已存在相同键的处理器
+     */
+    @Override
+    public void registerIqRequestHandler(IqRequestHandler handler) {
+        Validate.notNull(handler, "Handler must not be null");
+        IqHandlerKey key = new IqHandlerKey(
+                handler.getElement(),
+                handler.getNamespace(),
+                handler.getIqType()
+        );
+        IqRequestHandler existing = iqRequestHandlers.putIfAbsent(key, handler);
+        if (existing != null) {
+            throw new IllegalArgumentException(
+                    "IQ request handler already registered for: " + key);
+        }
+        log.debug("Registered IQ request handler: {} -> {}", key, handler.getClass().getSimpleName());
+    }
+
+    /**
+     * 注销 IQ 请求处理器。
+     *
+     * @param handler 要注销的处理器
+     *
+     * @return 如果处理器存在并被移除返回 true
+     */
+    @Override
+    public boolean unregisterIqRequestHandler(IqRequestHandler handler) {
+        Validate.notNull(handler, "Handler must not be null");
+        IqHandlerKey key = new IqHandlerKey(
+                handler.getElement(),
+                handler.getNamespace(),
+                handler.getIqType()
+        );
+        boolean removed = iqRequestHandlers.remove(key, handler);
+        if (removed) {
+            log.debug("Unregistered IQ request handler: {}", key);
+        }
+        return removed;
+    }
+
+    /**
+     * 查找并处理 IQ 请求。
+     *
+     * <p>根据 IQ 的子元素和类型查找匹配的处理器并调用。</p>
+     *
+     * @param iq IQ 请求节
+     *
+     * @return 如果找到处理器并处理返回 true，否则返回 false
+     */
+    public boolean handleIqRequest(Iq iq) {
+        if (iq.getType() != Iq.Type.GET && iq.getType() != Iq.Type.SET) {
+            return false;
+        }
+
+        Object childElement = iq.getChildElement();
+        if (childElement == null) {
+            return false;
+        }
+
+        String elementName = getChildElementName(childElement);
+        String namespace = getChildElementNamespace(childElement);
+
+        if (elementName == null || namespace == null) {
+            return false;
+        }
+
+        IqHandlerKey key = new IqHandlerKey(elementName, namespace, iq.getType());
+        IqRequestHandler handler = iqRequestHandlers.get(key);
+
+        if (handler == null) {
+            return false;
+        }
+
+        log.debug("Handling IQ request with handler: {} for IQ id={}",
+                handler.getClass().getSimpleName(), iq.getId());
+
+        try {
+            Iq response = handler.handleIqRequest(iq);
+            if (response != null) {
+                sendStanza(response);
+            }
+            return true;
+        } catch (Exception e) {
+            log.error("Error in IQ request handler {}: {}",
+                    handler.getClass().getSimpleName(), e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 获取子元素的元素名称。
+     *
+     * @param childElement 子元素对象
+     *
+     * @return 元素名称，如果无法获取返回 null
+     */
+    private String getChildElementName(Object childElement) {
+        // 子元素可能是扩展对象或字符串
+        if (childElement instanceof com.example.xmpp.protocol.model.ExtensionElement ext) {
+            return ext.getElementName();
+        }
+        return childElement.getClass().getSimpleName().toLowerCase();
+    }
+
+    /**
+     * 获取子元素的命名空间。
+     *
+     * @param childElement 子元素对象
+     *
+     * @return 命名空间，如果无法获取返回 null
+     */
+    private String getChildElementNamespace(Object childElement) {
+        if (childElement instanceof com.example.xmpp.protocol.model.ExtensionElement ext) {
+            return ext.getNamespace();
+        }
+        return null;
+    }
+
+    /**
+     * IQ 处理器键，用于唯一标识一个 IQ 请求处理器。
+     */
+    private static final class IqHandlerKey {
+        private final String element;
+        private final String namespace;
+        private final Iq.Type iqType;
+
+        IqHandlerKey(String element, String namespace, Iq.Type iqType) {
+            this.element = element;
+            this.namespace = namespace;
+            this.iqType = iqType;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            IqHandlerKey that = (IqHandlerKey) o;
+            return Objects.equals(element, that.element)
+                    && Objects.equals(namespace, that.namespace)
+                    && iqType == that.iqType;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(element, namespace, iqType);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("(%s, %s, %s)", element, namespace, iqType);
+        }
+    }
 
     /**
      * 添加异步节监听器。
@@ -181,8 +347,8 @@ public abstract class AbstractXmppConnection implements XmppConnection {
                 return false;
             }
             boolean idMatch = iqId.equals(stanza.getId());
-            boolean typeMatch = responseIq.getType() == Iq.Type.result
-                    || responseIq.getType() == Iq.Type.error;
+            boolean typeMatch = responseIq.getType() == Iq.Type.RESULT
+                    || responseIq.getType() == Iq.Type.ERROR;
 
             log.debug("Filter check: stanzaId={}, expectedId={}, type={}, idMatch={}, typeMatch={}",
                     stanza.getId(), iqId, responseIq.getType(), idMatch, typeMatch);

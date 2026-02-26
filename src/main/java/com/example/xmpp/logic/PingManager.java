@@ -2,8 +2,8 @@ package com.example.xmpp.logic;
 
 import com.example.xmpp.ConnectionEvent;
 import com.example.xmpp.XmppConnection;
-import com.example.xmpp.XmppConstants;
-import com.example.xmpp.XmppScheduler;
+import com.example.xmpp.util.XmppConstants;
+import com.example.xmpp.util.XmppScheduler;
 import com.example.xmpp.protocol.StanzaFilter;
 import com.example.xmpp.protocol.StanzaListener;
 import com.example.xmpp.protocol.model.Iq;
@@ -53,7 +53,7 @@ public class PingManager implements StanzaListener {
             if (!(stanza instanceof Iq iq)) {
                 return false;
             }
-            if (iq.getType() != Iq.Type.get) {
+            if (iq.getType() != Iq.Type.GET) {
                 return false;
             }
             return iq.getExtension(Ping.class).isPresent();

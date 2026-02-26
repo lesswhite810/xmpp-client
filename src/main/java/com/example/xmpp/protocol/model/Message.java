@@ -29,12 +29,12 @@ public final class Message extends Stanza {
 
     private Message(Builder builder) {
         super(builder.getId(), builder.getFrom(), builder.getTo(), builder.getExtensions());
-        this.type = builder.type != null ? builder.type : Type.normal;
+        this.type = builder.type != null ? builder.type : Type.NORMAL;
         this.body = builder.body;
         this.subject = builder.subject;
         this.thread = builder.thread;
     }
-
+    
     /**
      * 完整构造器。
      *
@@ -50,7 +50,7 @@ public final class Message extends Stanza {
     public Message(Type type, String id, String from, String to, String body, String subject, String thread,
             List<ExtensionElement> extensions) {
         super(id, from, to, extensions);
-        this.type = type != null ? type : Type.normal;
+        this.type = type != null ? type : Type.NORMAL;
         this.body = body;
         this.subject = subject;
         this.thread = thread;
@@ -60,7 +60,7 @@ public final class Message extends Stanza {
      * 空构造器，用于解析时创建实例。
      */
     public Message() {
-        this(Type.normal, null, null, null, null, null, null, null);
+        this(Type.NORMAL, null, null, null, null, null, null, null);
     }
 
     /**
@@ -69,7 +69,7 @@ public final class Message extends Stanza {
      * @return 是聊天类型返回 true
      */
     public boolean isChat() {
-        return type == Type.chat;
+        return type == Type.CHAT;
     }
 
     /**
@@ -78,7 +78,7 @@ public final class Message extends Stanza {
      * @return 是群聊类型返回 true
      */
     public boolean isGroupchat() {
-        return type == Type.groupchat;
+        return type == Type.GROUPCHAT;
     }
 
     /**
@@ -87,7 +87,7 @@ public final class Message extends Stanza {
      * @return 是头条类型返回 true
      */
     public boolean isHeadline() {
-        return type == Type.headline;
+        return type == Type.HEADLINE;
     }
 
     /**
@@ -96,7 +96,7 @@ public final class Message extends Stanza {
      * @return 是普通类型返回 true
      */
     public boolean isNormal() {
-        return type == Type.normal;
+        return type == Type.NORMAL;
     }
 
     /**
@@ -105,7 +105,7 @@ public final class Message extends Stanza {
      * @return 是错误类型返回 true
      */
     public boolean isError() {
-        return type == Type.error;
+        return type == Type.ERROR;
     }
 
     /**
@@ -161,7 +161,7 @@ public final class Message extends Stanza {
          * 构造器，默认类型为 normal。
          */
         public Builder() {
-            this.type = Type.normal;
+            this.type = Type.NORMAL;
         }
 
         /**
@@ -179,7 +179,7 @@ public final class Message extends Stanza {
          * @param type Message 类型字符串
          */
         public Builder(String type) {
-            this.type = Type.fromString(type).orElse(Type.normal);
+            this.type = Type.fromString(type).orElse(Type.NORMAL);
         }
 
         @Override
@@ -205,7 +205,7 @@ public final class Message extends Stanza {
          * @return this
          */
         public Builder type(String type) {
-            this.type = Type.fromString(type).orElse(Type.normal);
+            this.type = Type.fromString(type).orElse(Type.NORMAL);
             return self();
         }
 
@@ -260,15 +260,20 @@ public final class Message extends Stanza {
      */
     public enum Type {
         /** 单对单聊天 */
-        chat,
+        CHAT,
         /** 多用户聊天室 */
-        groupchat,
+        GROUPCHAT,
         /** 头条/通知 */
-        headline,
+        HEADLINE,
         /** 普通消息 */
-        normal,
+        NORMAL,
         /** 错误消息 */
-        error;
+        ERROR;
+
+        @Override
+        public String toString() {
+            return name().toLowerCase();
+        }
 
         /**
          * 从字符串解析 Message 类型。
@@ -281,7 +286,7 @@ public final class Message extends Stanza {
                 return Optional.empty();
             }
             try {
-                return Optional.of(valueOf(type.toLowerCase()));
+                return Optional.of(valueOf(type.toUpperCase()));
             } catch (IllegalArgumentException e) {
                 return Optional.empty();
             }
