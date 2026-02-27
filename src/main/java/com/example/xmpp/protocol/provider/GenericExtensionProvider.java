@@ -3,7 +3,7 @@ package com.example.xmpp.protocol.provider;
 import com.example.xmpp.exception.XmppParseException;
 import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.util.XmlStringBuilder;
-import com.example.xmpp.util.XmppEventReader;
+import com.example.xmpp.util.XmlParserUtils;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
@@ -57,7 +57,7 @@ public class GenericExtensionProvider {
         GenericExtensionElement.Builder builder = GenericExtensionElement.builder(elementName, namespace);
 
         // 添加所有属性
-        builder.addAttributes(XmppEventReader.getAttributes(start));
+        builder.addAttributes(XmlParserUtils.getAttributes(start));
 
         StringBuilder textBuilder = new StringBuilder();
 

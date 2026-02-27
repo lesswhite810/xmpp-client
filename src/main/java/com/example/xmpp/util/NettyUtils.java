@@ -4,9 +4,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Validate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 
@@ -25,10 +24,9 @@ import java.nio.charset.StandardCharsets;
  *
  * @since 2026-02-09
  */
+@Slf4j
 @UtilityClass
 public class NettyUtils {
-
-    private static final Logger log = LoggerFactory.getLogger(NettyUtils.class);
 
     /** UTF-8 字符最大字节数 */
     private static final float UTF8_MAX_BYTES_PER_CHAR = 3.0f;

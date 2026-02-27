@@ -21,8 +21,7 @@ import com.example.xmpp.sasl.SaslMechanismFactory;
 import com.example.xmpp.sasl.SaslNegotiator;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +32,7 @@ import java.util.Set;
  *
  * @since 2026-02-23
  */
+@Slf4j
 public enum XmppHandlerState implements HandlerState {
 
     // --- 初始状态 ---
@@ -332,7 +332,7 @@ public enum XmppHandlerState implements HandlerState {
                     context.sendStanza(ctx, new Presence());
                 }
 
-                context.getConnection().fireAuthenticated(false);
+                context.getConnection().notifyAuthenticated(false);
             } else if (iq.getType() == Iq.Type.ERROR) {
                 XmppError error = iq.getError();
                 String errorDetail = error != null
@@ -373,7 +373,7 @@ public enum XmppHandlerState implements HandlerState {
             // 其他 stanza 类型统一处理
             if (msg instanceof XmppStanza stanza) {
                 log.debug("Received Stanza - type: {}", stanza.getClass().getSimpleName());
-                context.getConnection().processPacket(stanza);
+                context.getConnection().notifyStanzaReceived(stanza);
             } else {
                 log.debug("Received unhandled message in SESSION_ACTIVE: {}", msg.getClass().getSimpleName());
             }
@@ -384,8 +384,6 @@ public enum XmppHandlerState implements HandlerState {
             return target == CONNECTING;
         }
     };
-
-    private static final Logger log = LoggerFactory.getLogger(XmppHandlerState.class);
 
     @Override
     public String getName() {

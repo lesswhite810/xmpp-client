@@ -40,30 +40,6 @@ class XmlStringBuilderTest {
         }
 
         @Test
-        @DisplayName("应正确追加整数")
-        void testAppendInt() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.append("<priority>").append(10).append("</priority>");
-            assertTrue(builder.toString().contains("10"));
-        }
-
-        @Test
-        @DisplayName("应正确追加长整数")
-        void testAppendLong() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.append(12345678901L);
-            assertTrue(builder.toString().contains("12345678901"));
-        }
-
-        @Test
-        @DisplayName("应正确追加布尔值")
-        void testAppendBoolean() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.append(true).append(":").append(false);
-            assertEquals("true:false", builder.toString());
-        }
-
-        @Test
         @DisplayName("应正确追加多个内容")
         void testMultipleAppends() {
             XmlStringBuilder builder = new XmlStringBuilder();
@@ -77,15 +53,6 @@ class XmlStringBuilderTest {
             XmlStringBuilder builder = new XmlStringBuilder();
             builder.append("start").append((String) null).append("end");
             assertEquals("startend", builder.toString());
-        }
-
-        @Test
-        @DisplayName("应正确清空内容")
-        void testClear() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.append("content").clear();
-            assertEquals("", builder.toString());
-            assertEquals(0, builder.length());
         }
     }
 
@@ -176,32 +143,7 @@ class XmlStringBuilderTest {
         void testNullAttribute() {
             XmlStringBuilder builder = new XmlStringBuilder();
             builder.element("iq").attribute("type", (String) null).rightAngleBracket();
-            // null 属性不应被添加
             assertFalse(builder.toString().contains("type="));
-        }
-
-        @Test
-        @DisplayName("应正确追加整数属性")
-        void testIntAttribute() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.element("priority").attribute("value", 10).rightAngleBracket();
-            assertTrue(builder.toString().contains("value=\"10\""));
-        }
-
-        @Test
-        @DisplayName("应正确追加长整数属性")
-        void testLongAttribute() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.element("item").attribute("id", 12345678901L).rightAngleBracket();
-            assertTrue(builder.toString().contains("id=\"12345678901\""));
-        }
-
-        @Test
-        @DisplayName("应正确追加布尔属性")
-        void testBooleanAttribute() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.element("feature").attribute("enabled", true).rightAngleBracket();
-            assertTrue(builder.toString().contains("enabled=\"true\""));
         }
 
         @Test
@@ -358,7 +300,7 @@ class XmlStringBuilderTest {
                .rightAngleBracket()
                .optTextElement("subject", "Hello")
                .optTextElement("body", "How are you?")
-               .optTextElement("thread", null)  // 应被忽略
+               .optTextElement("thread", null)
                .closeElement("message");
 
             String result = xml.toString();

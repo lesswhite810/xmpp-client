@@ -38,8 +38,10 @@ mvn clean package
 
 ```java
 import com.example.xmpp.config.XmppClientConfig;
+import com.example.xmpp.event.ConnectionEvent;
+import com.example.xmpp.event.ConnectionListener;
 import com.example.xmpp.XmppTcpConnection;
-import com.example.xmpp.protocol.model.XmppPackets;
+import com.example.xmpp.protocol.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,19 +61,19 @@ public class Example {
         XmppTcpConnection connection = new XmppTcpConnection(config);
 
         // 3. 添加监听器（可选）
-        connection.addConnectionListener(new ConnectionListener() {
-            @Override
-            public void onAuthenticated(boolean resumed) {
-                log.info("Authentication successful!");
-
-                // 发送消息
-                XmppPackets.Message msg = new XmppPackets.Message("friend@example.com", "Hello from Netty!");
-                connection.sendStanza(msg);
-            }
-
-            @Override
-            public void onConnectionClosed() {
-                log.info("Connection closed.");
+        connection.addConnectionListener(event -> {
+            switch (event) {
+                case ConnectionEvent.AuthenticatedEvent e -> {
+                    log.info("Authentication successful!");
+                    // 发送消息
+                    Message msg = new Message("friend@example.com", "Hello from Netty!");
+                    connection.sendStanza(msg);
+                }
+                case ConnectionEvent.ConnectionClosedEvent e ->
+                    log.info("Connection closed.");
+                case ConnectionEvent.ConnectionClosedOnErrorEvent e ->
+                    log.error("Connection error: ", e.error());
+                default -> {}
             }
         });
 

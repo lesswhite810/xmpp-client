@@ -2,8 +2,7 @@ package com.example.xmpp.protocol;
 
 import com.example.xmpp.protocol.provider.BindProvider;
 import com.example.xmpp.protocol.provider.PingProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
 import java.util.Objects;
@@ -30,9 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * @see ExtensionElementProvider
  * @see IqProvider
  */
+@Slf4j
 public final class ProviderRegistry {
-
-    private static final Logger log = LoggerFactory.getLogger(ProviderRegistry.class);
 
     private static final ProviderRegistry INSTANCE = new ProviderRegistry();
 
@@ -47,8 +45,6 @@ public final class ProviderRegistry {
     public static ProviderRegistry getInstance() {
         return INSTANCE;
     }
-
-    // ==================== 注册方法 ====================
 
     /**
      * 注册 Provider。
@@ -69,8 +65,6 @@ public final class ProviderRegistry {
                     provider.getClass().getSimpleName());
         }
     }
-
-    // ==================== 查询方法 ====================
 
     /**
      * 获取扩展元素 Provider。
@@ -104,8 +98,6 @@ public final class ProviderRegistry {
         log.trace("No provider found for <{} xmlns=\"{}\">", elementName, namespace);
         return Optional.empty();
     }
-
-    // ==================== 工具方法 ====================
 
     /**
      * 移除 Provider。
@@ -149,8 +141,6 @@ public final class ProviderRegistry {
     public int size() {
         return providers.size();
     }
-
-    // ==================== 内部方法 ====================
 
     private String createKey(String elementName, String namespace) {
         if (namespace == null || namespace.isEmpty()) {

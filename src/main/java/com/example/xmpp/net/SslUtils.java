@@ -4,8 +4,8 @@ import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppNetworkException;
 import io.netty.handler.ssl.SslHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
@@ -22,16 +22,12 @@ import java.util.Set;
  *
  * @since 2026-02-09
  */
-public final class SslUtils {
-
-    private static final Logger log = LoggerFactory.getLogger(SslUtils.class);
+@Slf4j
+@UtilityClass
+public class SslUtils {
 
     /** 默认 SSL 握手超时时间（毫秒） */
     private static final int DEFAULT_HANDSHAKE_TIMEOUT_MS = XmppConstants.SSL_HANDSHAKE_TIMEOUT_MS;
-
-    private SslUtils() {
-        // 工具类不允许实例化
-    }
 
     /**
      * 创建 SslHandler。

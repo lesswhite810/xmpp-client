@@ -33,6 +33,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 基于 TCP 的 XMPP 连接实现。
@@ -103,8 +104,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     /**
      * 建立 TCP 连接。
      *
-     * @throws XmppNetworkException 如果网络连接失败
-     * @throws XmppException        如果连接过程中发生其他错误
+     * @throws XmppException 如果连接过程中发生错误（如网络失败、认证失败等）
      */
     @Override
     public void connect() throws XmppException {
@@ -136,37 +136,49 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     private record ConnectionTarget(String host, InetAddress address, int port) {
 
         /**
-         * 创建主机名目标。
+         * 从主机信息创建连接目标。
          *
-         * @param host 主机名
-         * @param port 端口号
-         * @return 连接目标
-         */
-        static ConnectionTarget ofHost(String host, int port) {
-            return new ConnectionTarget(host, null, port);
-        }
-
-        /**
-         * 创建 IP 地址目标。
-         *
-         * @param address IP 地址
+         * @param address IP 地址（优先使用）
+         * @param host    主机名
          * @param port    端口号
-         * @return 连接目标
+         * @return 如果配置了 address 或 host，返回目标；否则返回 empty
          */
-        static ConnectionTarget ofAddress(InetAddress address, int port) {
-            return new ConnectionTarget(null, address, port);
+        static Optional<ConnectionTarget> of(InetAddress address, String host, int port) {
+            if (address == null && (host == null || host.isEmpty())) {
+                return Optional.empty();
+            }
+            return Optional.of(new ConnectionTarget(host, address, port));
         }
 
         /**
-         * 获取连接地址描述。
+         * 从 SRV 记录创建连接目标列表。
          *
-         * @return 地址描述字符串（用于日志）
+         * @param records SRV 记录列表
+         * @return 连接目标列表
          */
-        String getDescription() {
-            if (address != null) {
-                return address.getHostAddress() + ":" + port;
-            }
-            return host + ":" + port;
+        static List<ConnectionTarget> fromSrvRecords(List<SrvRecord> records) {
+            return records.stream()
+                    .map(record -> new ConnectionTarget(normalizeHost(record.target()), null, record.port()))
+                    .toList();
+        }
+
+        /**
+         * 规范化主机名（移除尾随点）。
+         *
+         * @param host 原始主机名
+         * @return 规范化后的主机名
+         */
+        private static String normalizeHost(String host) {
+            return host != null && host.endsWith(".")
+                    ? host.substring(0, host.length() - 1)
+                    : host;
+        }
+
+        @Override
+        public String toString() {
+            return address != null
+                    ? address.getHostAddress() + ":" + port
+                    : host + ":" + port;
         }
 
         /**
@@ -175,11 +187,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
          * @return InetSocketAddress 实例
          */
         InetSocketAddress toSocketAddress() {
-            if (address != null) {
-                return new InetSocketAddress(address, port);
-            }
-            // 对于主机名，让 Netty 处理 DNS 解析
-            return InetSocketAddress.createUnresolved(host, port);
+            return address != null
+                    ? new InetSocketAddress(address, port)
+                    : InetSocketAddress.createUnresolved(host, port);
         }
     }
 
@@ -189,34 +199,29 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * @return 连接目标列表
      */
     private List<ConnectionTarget> resolveConnectionTargets() {
-        List<ConnectionTarget> targets = new ArrayList<>();
-        int defaultPort = determinePort();
+        // 确定端口
+        int basePort = config.isUsingDirectTLS()
+                ? XmppConstants.DIRECT_TLS_PORT
+                : XmppConstants.DEFAULT_XMPP_PORT;
+        int port = config.getPort() > 0 ? config.getPort() : basePort;
 
-        // 优先级1：配置的 IP 地址
-        if (config.getHostAddress() != null) {
-            targets.add(ConnectionTarget.ofAddress(config.getHostAddress(), defaultPort));
-            return targets; // 如果明确配置了 IP，直接使用，不再尝试其他方式
-        }
-
-        // 优先级2：配置的主机名
-        if (config.getHost() != null && !config.getHost().isEmpty()) {
-            targets.add(ConnectionTarget.ofHost(config.getHost(), defaultPort));
-            return targets; // 如果明确配置了主机名，直接使用
+        // 优先级1和2：从配置创建（IP地址或主机名）
+        Optional<ConnectionTarget> configTarget = ConnectionTarget.of(
+                config.getHostAddress(), config.getHost(), port);
+        if (configTarget.isPresent()) {
+            return List.of(configTarget.get());
         }
 
         // 优先级3：DNS SRV 记录
-        List<SrvRecord> srvRecords = resolveSrvRecords();
-        for (SrvRecord record : srvRecords) {
-            String host = normalizeHostName(record.target());
-            targets.add(ConnectionTarget.ofHost(host, record.port()));
+        List<SrvRecord> srvRecords = resolveSrvRecords(config.getXmppServiceDomain());
+        if (!srvRecords.isEmpty()) {
+            return ConnectionTarget.fromSrvRecords(srvRecords);
         }
 
         // 优先级4：回退到服务域名
-        if (targets.isEmpty()) {
-            targets.add(ConnectionTarget.ofHost(config.getXmppServiceDomain(), defaultPort));
-        }
-
-        return targets;
+        return ConnectionTarget.of(null, config.getXmppServiceDomain(), port)
+                .map(List::of)
+                .orElse(List.of());
     }
 
     /**
@@ -262,54 +267,30 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     private Optional<Channel> connectToTargets(Bootstrap bootstrap, List<ConnectionTarget> targets) {
         for (ConnectionTarget target : targets) {
             try {
-                log.info("Connecting to {}...", target.getDescription());
+                log.info("Connecting to {}...", target);
                 Channel channel = ConnectionUtils.connectSync(bootstrap, target.toSocketAddress());
-                log.info("Connected to {}", target.getDescription());
+                log.info("Connected to {}", target);
                 return Optional.of(channel);
             } catch (InterruptedException e) {
-                log.warn("Connection interrupted to {}", target.getDescription());
+                log.warn("Connection interrupted to {}", target);
             }
         }
         return Optional.empty();
     }
 
     /**
-     * 确定连接端口。
-     *
-     * @return 端口号
-     */
-    private int determinePort() {
-        int defaultPort = config.isUsingDirectTLS()
-                ? XmppConstants.DIRECT_TLS_PORT
-                : XmppConstants.DEFAULT_XMPP_PORT;
-        return config.getPort() > 0 ? config.getPort() : defaultPort;
-    }
-
-    /**
      * 解析 DNS SRV 记录。
      *
+     * @param domain 服务域名
      * @return SRV 记录列表
      */
-    private List<SrvRecord> resolveSrvRecords() {
+    private List<SrvRecord> resolveSrvRecords(String domain) {
         try (DnsResolver resolver = new DnsResolver()) {
-            return resolver.resolveXmppService(config.getXmppServiceDomain());
+            return resolver.resolveXmppService(domain);
         } catch (XmppDnsException e) {
-            log.warn("DNS SRV lookup failed: {}", e.getMessage());
-            return List.of();
+            log.error("DNS SRV lookup failed: {}", e.getMessage());
         }
-    }
-
-    /**
-     * 规范化主机名（移除尾随点）。
-     *
-     * @param host 原始主机名
-     * @return 规范化后的主机名
-     */
-    private String normalizeHostName(String host) {
-        if (host != null && host.endsWith(".")) {
-            return host.substring(0, host.length() - 1);
-        }
-        return host;
+        return List.of();
     }
 
     /**
@@ -334,7 +315,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             workerGroup.shutdownGracefully(
                     XmppConstants.SHUTDOWN_QUIET_PERIOD_MS,
                     XmppConstants.SHUTDOWN_TIMEOUT_MS,
-                    java.util.concurrent.TimeUnit.MILLISECONDS);
+                    TimeUnit.MILLISECONDS);
             workerGroup = null;
         }
     }
@@ -363,52 +344,19 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * 发送节。
      *
      * @param stanza 要发送的节
-     *
-     * @throws IllegalArgumentException 如果 stanza 为 null
      */
     @Override
     public void sendStanza(XmppStanza stanza) {
-        Validate.notNull(stanza, "Stanza must not be null");
+        if (stanza == null) {
+            log.warn("Stanza is null, ignoring send request");
+            return;
+        }
 
         if (channel != null && channel.isActive()) {
             nettyHandler.sendStanza(channel.pipeline().lastContext(), stanza);
         } else {
             log.error("Channel is not active, cannot send stanza");
         }
-    }
-
-    /**
-     * 处理接收到的节（内部 API，由 Handler 调用）。
-     *
-     * @param stanza 接收到的节
-     */
-    public void processPacket(XmppStanza stanza) {
-        invokeStanzaCollectorsAndListeners(stanza);
-    }
-
-    /**
-     * 触发连接关闭事件（内部 API，由 Handler 调用）。
-     */
-    public void fireConnectionClosed() {
-        notifyConnectionClosed();
-    }
-
-    /**
-     * 触发连接错误关闭事件（内部 API，由 Handler 调用）。
-     *
-     * @param e 导致关闭的异常
-     */
-    public void fireConnectionClosedOnError(Exception e) {
-        notifyConnectionClosedOnError(e);
-    }
-
-    /**
-     * 触发认证完成事件（内部 API，由 Handler 调用）。
-     *
-     * @param resumed 是否为恢复的会话
-     */
-    public void fireAuthenticated(boolean resumed) {
-        notifyAuthenticated(resumed);
     }
 
     /**

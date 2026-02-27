@@ -1,6 +1,6 @@
 package com.example.xmpp.logic;
 
-import com.example.xmpp.ConnectionEvent;
+import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.XmppConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,16 +22,13 @@ class ReconnectionManagerTest {
     @Mock
     private XmppConnection connection;
 
-    @Mock
-    private PingManager pingManager;
-
     private ReconnectionManager reconnectionManager;
 
     @BeforeEach
     void setUp() {
         lenient().doNothing().when(connection).addConnectionListener(any());
         lenient().when(connection.isConnected()).thenReturn(false);
-        reconnectionManager = new ReconnectionManager(connection, pingManager);
+        reconnectionManager = new ReconnectionManager(connection);
     }
 
     @Test

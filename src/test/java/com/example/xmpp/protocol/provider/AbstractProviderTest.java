@@ -3,7 +3,7 @@ package com.example.xmpp.protocol.provider;
 import com.example.xmpp.exception.XmppParseException;
 import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmlStringBuilder;
-import com.example.xmpp.util.XmppEventReader;
+import com.example.xmpp.util.XmlParserUtils;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -30,7 +30,7 @@ class AbstractProviderTest {
         TestProvider provider = new TestProvider();
         String xml = "<test xmlns='urn:test'>content</test>";
 
-        XMLEventReader reader = XmppEventReader.createReader(xml.getBytes());
+        XMLEventReader reader = XmlParserUtils.createReader(xml.getBytes());
         reader.next(); // 跳到 START_ELEMENT
 
         TestElement element = provider.parse(reader);
@@ -55,7 +55,7 @@ class AbstractProviderTest {
         ThrowingProvider provider = new ThrowingProvider();
         String xml = "<test xmlns='urn:test'>content</test>";
 
-        XMLEventReader reader = XmppEventReader.createReader(xml.getBytes());
+        XMLEventReader reader = XmlParserUtils.createReader(xml.getBytes());
         reader.next();
 
         assertThrows(XmppParseException.class, () -> {
@@ -107,7 +107,7 @@ class AbstractProviderTest {
         TestProvider provider = new TestProvider();
         String xml = "<test xmlns='urn:test'>Hello World</test>";
 
-        XMLEventReader reader = XmppEventReader.createReader(xml.getBytes());
+        XMLEventReader reader = XmlParserUtils.createReader(xml.getBytes());
         reader.next(); // 跳到 START_ELEMENT
 
         String text = provider.getElementText(reader);

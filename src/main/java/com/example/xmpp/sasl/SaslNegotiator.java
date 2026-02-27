@@ -10,8 +10,7 @@ import com.example.xmpp.util.XmlStringBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -24,10 +23,9 @@ import java.util.Base64;
  *
  * @since 2026-02-09
  */
+@Slf4j
 @RequiredArgsConstructor
 public class SaslNegotiator {
-
-    private static final Logger log = LoggerFactory.getLogger(SaslNegotiator.class);
 
     /** UTF-8 编码的最大字节/字符比率（安全余量） */
     private static final int UTF8_MAX_BYTES_PER_CHAR = XmppConstants.UTF8_MAX_BYTES_PER_CHAR;

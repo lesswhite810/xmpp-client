@@ -1,15 +1,16 @@
 package com.example.xmpp;
 
+import com.example.xmpp.event.ConnectionEvent;
+import com.example.xmpp.event.ConnectionListener;
+import com.example.xmpp.handler.IqRequestHandler;
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.protocol.AsyncStanzaCollector;
 import com.example.xmpp.protocol.StanzaFilter;
-import com.example.xmpp.protocol.StanzaListener;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppStanza;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Validate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Objects;
@@ -24,18 +25,14 @@ import java.util.concurrent.TimeUnit;
 /**
  * XMPP 连接抽象基类。
  *
- * <p>提供节监听器管理、连接监听器管理、IQ 请求发送等公共功能。</p>
+ * <p>提供连接监听器管理、IQ 请求发送等公共功能。</p>
  *
  * @since 2026-02-09
  */
+@Slf4j
 public abstract class AbstractXmppConnection implements XmppConnection {
 
-    private static final Logger log = LoggerFactory.getLogger(AbstractXmppConnection.class);
-
     private static final long DEFAULT_IQ_TIMEOUT_MS = XmppConstants.DEFAULT_IQ_TIMEOUT_MS;
-
-    /** 异步节监听器映射表 */
-    protected final Map<StanzaListener, StanzaFilter> asyncListeners = new ConcurrentHashMap<>();
 
     /** 节收集器队列 */
     protected final Queue<AsyncStanzaCollector> collectors = new ConcurrentLinkedQueue<>();
@@ -209,28 +206,6 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     }
 
     /**
-     * 添加异步节监听器。
-     *
-     * @param listener 节监听器
-     * @param filter   节过滤器
-     */
-    @Override
-    public void addAsyncStanzaListener(StanzaListener listener, StanzaFilter filter) {
-        Validate.notNull(listener, "StanzaListener must not be null");
-        asyncListeners.put(listener, filter != null ? filter : stanza -> true);
-    }
-
-    /**
-     * 移除节监听器。
-     *
-     * @param listener 要移除的监听器
-     */
-    @Override
-    public void removeAsyncStanzaListener(StanzaListener listener) {
-        asyncListeners.remove(listener);
-    }
-
-    /**
      * 添加连接状态监听器。
      *
      * @param listener 连接监听器
@@ -253,7 +228,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     /**
      * 通知所有监听器连接已关闭。
      */
-    protected void notifyConnectionClosed() {
+    public void notifyConnectionClosed() {
         fireEvent(new ConnectionEvent.ConnectionClosedEvent(this));
     }
 
@@ -262,14 +237,14 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      *
      * @param e 导致关闭的异常
      */
-    protected void notifyConnectionClosedOnError(Exception e) {
+    public void notifyConnectionClosedOnError(Exception e) {
         fireEvent(new ConnectionEvent.ConnectionClosedOnErrorEvent(this, e));
     }
 
     /**
      * 通知所有监听器连接已建立。
      */
-    protected void notifyConnected() {
+    public void notifyConnected() {
         fireEvent(new ConnectionEvent.ConnectedEvent(this));
     }
 
@@ -278,7 +253,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      *
      * @param resumed 是否为恢复的会话
      */
-    protected void notifyAuthenticated(boolean resumed) {
+    public void notifyAuthenticated(boolean resumed) {
         fireEvent(new ConnectionEvent.AuthenticatedEvent(this, resumed));
     }
 
@@ -346,14 +321,8 @@ public abstract class AbstractXmppConnection implements XmppConnection {
             if (!(stanza instanceof Iq responseIq)) {
                 return false;
             }
-            boolean idMatch = iqId.equals(stanza.getId());
-            boolean typeMatch = responseIq.getType() == Iq.Type.RESULT
-                    || responseIq.getType() == Iq.Type.ERROR;
-
-            log.debug("Filter check: stanzaId={}, expectedId={}, type={}, idMatch={}, typeMatch={}",
-                    stanza.getId(), iqId, responseIq.getType(), idMatch, typeMatch);
-
-            return idMatch && typeMatch;
+            return iqId.equals(stanza.getId())
+                    && (responseIq.getType() == Iq.Type.RESULT || responseIq.getType() == Iq.Type.ERROR);
         };
 
         AsyncStanzaCollector collector = createStanzaCollector(filter);
@@ -361,12 +330,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
 
         return collector.getFuture()
                 .orTimeout(timeout, unit)
-                .whenComplete((result, ex) -> {
-                    collectors.remove(collector);
-                    if (ex != null) {
-                        log.warn("IQ request failed or timed out: id={}, error={}", iqId, ex.getMessage());
-                    }
-                });
+                .whenComplete((result, ex) -> collectors.remove(collector));
     }
 
     /**
@@ -379,13 +343,12 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     }
 
     /**
-     * 处理接收到的节，分发给收集器和监听器。
+     * 通知接收到节，分发给收集器。
      *
      * @param stanza 接收到的节
      */
-    protected void invokeStanzaCollectorsAndListeners(XmppStanza stanza) {
+    public void notifyStanzaReceived(XmppStanza stanza) {
         dispatchToCollectors(stanza);
-        dispatchToAsyncListeners(stanza);
     }
 
     /**
@@ -397,19 +360,6 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         collectors.forEach(collector -> {
             if (collector.processStanza(stanza)) {
                 log.debug("Stanza collected by collector");
-            }
-        });
-    }
-
-    /**
-     * 将节分发给异步监听器。
-     *
-     * @param stanza 接收到的节
-     */
-    private void dispatchToAsyncListeners(XmppStanza stanza) {
-        asyncListeners.forEach((listener, filter) -> {
-            if (filter.accept(stanza)) {
-                listener.processStanza(stanza);
             }
         });
     }

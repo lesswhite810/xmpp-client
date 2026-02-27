@@ -1,6 +1,6 @@
 package com.example.xmpp.logic;
 
-import com.example.xmpp.ConnectionEvent;
+import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.XmppConnection;
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmppScheduler;
@@ -108,13 +108,10 @@ public class PingManager {
 
         log.debug("Sending Keepalive Ping...");
         connection.sendIqPacketAsync(pingIq)
-                .orTimeout(XmppConstants.PING_RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .whenComplete((res, ex) -> {
-                    if (ex != null) {
-                        log.warn("Keepalive Ping Failed: {}", ex.getMessage());
-                    } else {
-                        log.debug("Keepalive Pong received.");
-                    }
+                .thenAccept(res -> log.debug("Keepalive Pong received."))
+                .exceptionally(ex -> {
+                    log.warn("Keepalive Ping failed: {}", ex.getMessage());
+                    return null;
                 });
     }
 }

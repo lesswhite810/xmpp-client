@@ -113,10 +113,9 @@ public class XmppTcpConnection {
 ```
 
 **注释规范要点：**
-- 类/接口注释：描述功能，包含 `@since`、`@author`（如适用）
+- 类/接口注释：描述功能，包含 `@since`（如适用）
 - 方法注释：描述与参数/返回值/异常之间空一行
 - 行内注释：使用 `//`，与代码间空一格
-- 代码分区：使用 `// --- Title ---` 格式
 
 ### Lombok Usage
 
@@ -150,8 +149,8 @@ if (packet instanceof Iq iq) {
 **Switch Expressions**：
 ```java
 return switch (type.toLowerCase()) {
-    case "get" -> Type.get;
-    case "set" -> Type.set;
+    case "get" -> Type.GET;
+    case "set" -> Type.SET;
     default -> null;
 };
 ```
@@ -201,7 +200,9 @@ public String toXml() {
 ```
 com.example.xmpp
 ├── config/           # 配置 (Builder pattern)
+├── event/            # 连接事件 (ConnectionEvent, ConnectionListener)
 ├── exception/        # 自定义异常
+├── handler/          # IQ 请求处理器 (IqRequestHandler, AbstractIqRequestHandler)
 ├── logic/            # 管理器 (PingManager, ReconnectionManager)
 ├── net/              # Netty handlers, DNS resolver, SSL utils
 │   └── handler/state/  # 状态模式 (XmppHandlerState, StateContext)
@@ -217,8 +218,6 @@ com.example.xmpp
 ├── XmppTcpConnection.java     # 主连接类
 ├── XmppConnection.java        # 连接接口
 ├── AbstractXmppConnection.java
-├── ConnectionListener.java    # 连接监听器接口
-├── ConnectionEvent.java       # 连接事件
 └── Main.java                  # 示例程序入口
 ```
 

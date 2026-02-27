@@ -20,15 +20,17 @@ import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * DNS 解析器。
@@ -37,9 +39,8 @@ import java.util.concurrent.TimeUnit;
  *
  * @since 2026-02-09
  */
+@Slf4j
 public class DnsResolver implements AutoCloseable {
-
-    private static final Logger log = LoggerFactory.getLogger(DnsResolver.class);
 
     /**
      * DNS 查询超时秒数。
@@ -115,9 +116,9 @@ public class DnsResolver implements AutoCloseable {
             }
         } catch (InterruptedException e) {
             throw new XmppDnsException("DNS resolution interrupted for domain: " + domain, e);
-        } catch (java.util.concurrent.TimeoutException e) {
+        } catch (TimeoutException e) {
             throw new XmppDnsException("DNS resolution timeout for domain: " + domain, e);
-        } catch (java.util.concurrent.ExecutionException e) {
+        } catch (ExecutionException e) {
             throw handleDnsException(e, domain);
         }
 
@@ -163,8 +164,7 @@ public class DnsResolver implements AutoCloseable {
      * @throws ExecutionException   如果查询失败
      */
     private AddressedEnvelope<DnsResponse, InetSocketAddress> executeDnsQuery(String serviceName)
-            throws InterruptedException, java.util.concurrent.TimeoutException,
-            java.util.concurrent.ExecutionException {
+            throws InterruptedException, TimeoutException, ExecutionException {
         DnsQuestion question = new DefaultDnsQuestion(serviceName, DnsRecordType.SRV);
         return resolver.query(question).get(QUERY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
@@ -180,7 +180,7 @@ public class DnsResolver implements AutoCloseable {
      * @throws ExecutionException 如果 DNS 响应码表示错误
      */
     private List<SrvRecord> parseSrvRecords(DnsResponse response, String domain)
-            throws java.util.concurrent.ExecutionException {
+            throws ExecutionException {
         DnsResponseCode code = response.code();
         if (code == DnsResponseCode.NXDOMAIN) {
             log.debug("DNS NXDOMAIN for domain: {}", domain);
@@ -189,7 +189,7 @@ public class DnsResolver implements AutoCloseable {
         if (code != DnsResponseCode.NOERROR) {
             String errorMsg = "DNS query failed with response code: " + code;
             log.error(errorMsg);
-            throw new java.util.concurrent.ExecutionException(errorMsg, new IllegalStateException(errorMsg));
+            throw new ExecutionException(errorMsg, new IllegalStateException(errorMsg));
         }
 
         List<SrvRecord> records = new ArrayList<>();
@@ -210,9 +210,9 @@ public class DnsResolver implements AutoCloseable {
      *
      * @return 解析后的 SRV 记录（可选）
      */
-    private java.util.Optional<SrvRecord> parseSrvRecord(DnsRecord record) {
+    private Optional<SrvRecord> parseSrvRecord(DnsRecord record) {
         if (record.type() != DnsRecordType.SRV || !(record instanceof DnsRawRecord raw)) {
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
 
         ByteBuf content = raw.content();
@@ -223,7 +223,7 @@ public class DnsResolver implements AutoCloseable {
             int weight = content.readUnsignedShort();
             int port = content.readUnsignedShort();
             String target = decodeDomainName(content);
-            return java.util.Optional.of(new SrvRecord(target, port, priority, weight));
+            return Optional.of(new SrvRecord(target, port, priority, weight));
         } finally {
             content.resetReaderIndex();
         }
@@ -237,7 +237,7 @@ public class DnsResolver implements AutoCloseable {
      *
      * @return XmppDnsException 异常
      */
-    private XmppDnsException handleDnsException(java.util.concurrent.ExecutionException e, String domain) {
+    private XmppDnsException handleDnsException(ExecutionException e, String domain) {
         Throwable cause = e.getCause();
 
         if (cause instanceof IllegalStateException &&

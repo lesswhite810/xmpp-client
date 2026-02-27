@@ -3,10 +3,9 @@ package com.example.xmpp.protocol.provider;
 import com.example.xmpp.exception.XmppParseException;
 import com.example.xmpp.protocol.ExtensionElementProvider;
 import com.example.xmpp.protocol.model.ExtensionElement;
-import com.example.xmpp.util.XmppEventReader;
+import com.example.xmpp.util.XmlParserUtils;
 import com.example.xmpp.util.XmlStringBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
@@ -21,10 +20,9 @@ import javax.xml.stream.events.XMLEvent;
  * @param <T> 此 Provider 处理的扩展元素类型
  * @since 2026-02-14
  */
+@Slf4j
 public abstract class AbstractProvider<T extends ExtensionElement>
         implements ExtensionElementProvider<T> {
-
-    private static final Logger log = LoggerFactory.getLogger(AbstractProvider.class);
 
     /**
      * 解析 XML 元素。
@@ -132,7 +130,7 @@ public abstract class AbstractProvider<T extends ExtensionElement>
      * @throws XMLStreamException 如果读取失败
      */
     protected final String getElementText(XMLEventReader reader) throws XMLStreamException {
-        return XmppEventReader.getElementText(reader);
+        return XmlParserUtils.getElementText(reader);
     }
 
     /**

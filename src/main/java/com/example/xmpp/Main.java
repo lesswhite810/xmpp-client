@@ -2,7 +2,6 @@ package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
-import com.example.xmpp.protocol.model.Message;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,7 +53,6 @@ public class Main {
      * @param domain   XMPP 服务域名
      * @param username 用户名
      * @param password 密码
-     *
      * @throws InterruptedException 如果线程被中断
      * @throws XmppException        如果 XMPP 连接失败
      */
@@ -70,16 +68,6 @@ public class Main {
 
         // 创建连接（PingManager 和 ReconnectionManager 自动初始化）
         XmppTcpConnection connection = new XmppTcpConnection(config);
-
-        // 注册消息监听器（示例：记录收到的消息）
-        connection.addAsyncStanzaListener(
-                stanza -> {
-                    if (stanza instanceof Message msg) {
-                        log.info("Received message from {}: {}", msg.getFrom(), msg.getBody());
-                    }
-                },
-                stanza -> stanza instanceof Message
-        );
 
         // 建立连接
         connection.connect();

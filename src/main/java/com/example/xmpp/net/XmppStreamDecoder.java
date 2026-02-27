@@ -17,15 +17,13 @@ import com.example.xmpp.protocol.model.sasl.SaslSuccess;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.protocol.model.stream.TlsElements;
 import com.example.xmpp.protocol.provider.GenericExtensionProvider;
-import com.example.xmpp.util.XmppEventReader;
+import com.example.xmpp.util.XmlParserUtils;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
@@ -46,9 +44,9 @@ import java.util.function.Consumer;
  *
  * @since 2026-02-09
  */
+@Slf4j
 public class XmppStreamDecoder extends ByteToMessageDecoder {
 
-    private static final Logger log = LoggerFactory.getLogger(XmppStreamDecoder.class);
     private static final XMLInputFactory INPUT_FACTORY = XMLInputFactory.newFactory();
 
     /**
@@ -56,7 +54,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
      */
     private record StanzaAttrs(String type, String id, String from, String to) {
         static StanzaAttrs from(StartElement element) {
-            Map<String, String> attrs = XmppEventReader.getAttributes(element);
+            Map<String, String> attrs = XmlParserUtils.getAttributes(element);
             return new StanzaAttrs(attrs.get("type"), attrs.get("id"), attrs.get("from"), attrs.get("to"));
         }
 
@@ -81,8 +79,6 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         parseFromByteBuf(in).ifPresent(out::add);
     }
 
-    // ==================== 核心解析方法 ====================
-
     /**
      * 从 ByteBuf 解析 XML。
      */
@@ -95,7 +91,13 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             log.warn("XML parsing error: {}", e.getMessage());
             return Optional.empty();
         } finally {
-            XmppEventReader.closeQuietly(reader);
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (XMLStreamException e) {
+                    // ignore
+                }
+            }
         }
     }
 
@@ -159,11 +161,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             case "proceed" -> TlsElements.TlsProceed.INSTANCE;
             case "auth" -> parseSaslAuth(reader, start);
             case "challenge" -> SaslChallenge.builder()
-                    .content(XmppEventReader.getElementText(reader))
+                    .content(XmlParserUtils.getElementText(reader))
                     .build();
-            case "response" -> new SaslResponse(XmppEventReader.getElementText(reader));
+            case "response" -> new SaslResponse(XmlParserUtils.getElementText(reader));
             case "success" -> SaslSuccess.builder()
-                    .content(XmppEventReader.getElementText(reader))
+                    .content(XmlParserUtils.getElementText(reader))
                     .build();
             case "failure" -> parseSaslFailure(reader);
             default -> null;
@@ -189,8 +191,6 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         }
     }
 
-    // ==================== 元素解析方法 ====================
-
     /**
      * 解析 StreamFeatures 元素。
      */
@@ -210,7 +210,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
             String name = event.asStartElement().getName().getLocalPart();
             switch (name) {
-                case "mechanism" -> mechanisms.add(XmppEventReader.getElementText(reader));
+                case "mechanism" -> mechanisms.add(XmlParserUtils.getElementText(reader));
                 case "starttls" -> startTls = true;
                 case "bind" -> bind = true;
                 default -> { /* 忽略未知元素 */ }
@@ -228,7 +228,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
      */
     private Auth parseSaslAuth(XMLEventReader reader, StartElement element) throws XMLStreamException {
         String mechanism = getAttributeValue(element, "mechanism");
-        String content = XmppEventReader.getElementText(reader);
+        String content = XmlParserUtils.getElementText(reader);
         return new Auth(mechanism, content.isEmpty() ? null : content);
     }
 
@@ -250,7 +250,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
             String name = event.asStartElement().getName().getLocalPart();
             if ("text".equals(name)) {
-                text = XmppEventReader.getElementText(reader);
+                text = XmlParserUtils.getElementText(reader);
             } else {
                 condition = name;
             }
@@ -321,7 +321,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
             String name = event.asStartElement().getName().getLocalPart();
             if ("text".equals(name)) {
-                text = XmppEventReader.getElementText(reader);
+                text = XmlParserUtils.getElementText(reader);
             } else {
                 // 错误条件元素
                 condition = XmppError.Condition.fromString(name);
@@ -374,9 +374,9 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             String namespace = start.getName().getNamespaceURI();
 
             switch (name) {
-                case "body" -> builder.body(XmppEventReader.getElementText(reader));
-                case "subject" -> builder.subject(XmppEventReader.getElementText(reader));
-                case "thread" -> builder.thread(XmppEventReader.getElementText(reader));
+                case "body" -> builder.body(XmlParserUtils.getElementText(reader));
+                case "subject" -> builder.subject(XmlParserUtils.getElementText(reader));
+                case "thread" -> builder.thread(XmlParserUtils.getElementText(reader));
                 default -> parseExtensionElement(reader, start, name, namespace, builder::addExtension);
             }
         }
@@ -404,8 +404,8 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             String namespace = start.getName().getNamespaceURI();
 
             switch (name) {
-                case "show" -> builder.show(XmppEventReader.getElementText(reader));
-                case "status" -> builder.status(XmppEventReader.getElementText(reader));
+                case "show" -> builder.show(XmlParserUtils.getElementText(reader));
+                case "status" -> builder.status(XmlParserUtils.getElementText(reader));
                 case "priority" -> parsePriority(reader, builder);
                 default -> parseExtensionElement(reader, start, name, namespace, builder::addExtension);
             }
@@ -418,7 +418,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
      */
     private void parsePriority(XMLEventReader reader, Presence.Builder builder) {
         try {
-            builder.priority(Integer.parseInt(XmppEventReader.getElementText(reader)));
+            builder.priority(Integer.parseInt(XmlParserUtils.getElementText(reader)));
         } catch (NumberFormatException | XMLStreamException e) {
             log.warn("Invalid priority value in presence stanza");
         }
@@ -457,8 +457,6 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             }
         }
     }
-
-    // ==================== 辅助方法 ====================
 
     /**
      * 判断是否为指定名称的结束元素。

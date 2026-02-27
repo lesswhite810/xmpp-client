@@ -264,7 +264,7 @@ public class XmlStanzaPerformanceTest {
 
         for (int i = 0; i < ITERATIONS; i++) {
             XmlStringBuilder xml = new XmlStringBuilder();
-            xml.append("<iq type=\"get\" id=\"test-").append(i).append("\" ")
+            xml.append("<iq type=\"get\" id=\"test-").append(String.valueOf(i)).append("\" ")
                .append("from=\"user@example.com/resource\" ")
                .append("to=\"server.example.com\">")
                .append("<ping xmlns=\"urn:xmpp:ping\"/>")

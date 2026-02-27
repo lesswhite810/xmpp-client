@@ -1,16 +1,16 @@
 package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
+import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.Message;
 import com.example.xmpp.protocol.model.PingIq;
 import com.example.xmpp.protocol.model.Presence;
 import com.example.xmpp.protocol.model.extension.Bind;
 import com.example.xmpp.util.XmlParser;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -23,9 +23,8 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * 测试与主流 XMPP 服务器的兼容性，包括连接、认证、IQ、Message、Presence 等功能。
  */
+@Slf4j
 public class XmppServerIntegrationTest {
-
-    private static final Logger log = LoggerFactory.getLogger(XmppServerIntegrationTest.class);
 
     private static final String XMPP_DOMAIN = "example.com";
     private static final String USERNAME = "testuser";

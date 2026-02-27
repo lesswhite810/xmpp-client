@@ -2,6 +2,8 @@ package com.example.xmpp.exception;
 
 import lombok.experimental.StandardException;
 
+import java.io.Serial;
+
 /**
  * XMPP 网络异常。
  *
@@ -19,6 +21,6 @@ import lombok.experimental.StandardException;
 @StandardException
 public class XmppNetworkException extends XmppException {
 
-    @java.io.Serial
+    @Serial
     private static final long serialVersionUID = 1L;
 }

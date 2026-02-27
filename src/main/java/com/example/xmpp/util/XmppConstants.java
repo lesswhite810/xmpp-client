@@ -17,8 +17,6 @@ public final class XmppConstants {
     private XmppConstants() {
     }
 
-    // ==================== Stanza ID 生成器 ====================
-
     /** Stanza ID 计数器 */
     private static final AtomicLong stanzaIdCounter = new AtomicLong(0);
 
@@ -33,23 +31,17 @@ public final class XmppConstants {
         return "xmpp-" + stanzaIdCounter.getAndIncrement();
     }
 
-    // ==================== 端口常量 ====================
-
     /** 标准 XMPP 端口（STARTTLS） */
     public static final int DEFAULT_XMPP_PORT = 5222;
 
     /** Direct TLS（旧称 SSL）端口 */
     public static final int DIRECT_TLS_PORT = 5223;
 
-    // ==================== 超时时间常量（毫秒） ====================
-
     /** 默认连接超时时间：30 秒 */
     public static final int DEFAULT_CONNECT_TIMEOUT_MS = 30000;
 
     /** 默认读取超时时间：60 秒 */
     public static final int DEFAULT_READ_TIMEOUT_MS = 60000;
-
-    // ==================== 超时时间常量（秒） ====================
 
     /** DNS 查询超时时间：5 秒 */
     public static final int DNS_QUERY_TIMEOUT_SECONDS = 5;
@@ -63,8 +55,6 @@ public final class XmppConstants {
     /** EventLoopGroup 优雅关闭等待时间：5 秒 */
     public static final int SHUTDOWN_TIMEOUT_SECONDS = 5;
 
-    // ==================== 重连策略常量 ====================
-
     /** 重连基础延迟：2 秒 */
     public static final int RECONNECT_BASE_DELAY_SECONDS = 2;
 
@@ -73,8 +63,6 @@ public final class XmppConstants {
 
     /** 最大重连尝试次数 */
     public static final int MAX_RECONNECT_ATTEMPTS = 10;
-
-    // ==================== SASL 机制优先级常量 ====================
 
     /** SCRAM-SHA-512 优先级（最高） */
     public static final int PRIORITY_SCRAM_SHA512 = 400;
@@ -88,8 +76,6 @@ public final class XmppConstants {
     /** PLAIN 机制优先级（最低） */
     public static final int PRIORITY_PLAIN = 100;
 
-    // ==================== 哈希算法大小常量（字节） ====================
-
     /** SHA-1 哈希输出大小：20 字节（160 位） */
     public static final int SHA1_HASH_SIZE_BYTES = 20;
 
@@ -99,17 +85,11 @@ public final class XmppConstants {
     /** SHA-512 哈希输出大小：64 字节（512 位） */
     public static final int SHA512_HASH_SIZE_BYTES = 64;
 
-    // ==================== 网络缓冲区常量 ====================
-
     /** 最大 XML 帧大小：10 MB */
     public static final int MAX_XML_FRAME_SIZE_BYTES = 10 * 1024 * 1024;
 
-    // ==================== Ping 管理器常量 ====================
-
     /** 默认 Ping 间隔：60 秒 */
     public static final int DEFAULT_PING_INTERVAL_SECONDS = 60;
-
-    // ==================== XML 协议常量 ====================
 
     /** XMPP 客户端命名空间 */
     public static final String NS_JABBER_CLIENT = "jabber:client";
@@ -135,12 +115,8 @@ public final class XmppConstants {
     /** XMPP 节错误命名空间 */
     public static final String NS_XMPP_STANZAS = "urn:ietf:params:xml:ns:xmpp-stanzas";
 
-    // ==================== 协议版本常量 ====================
-
     /** XMPP 协议版本 */
     public static final String XMPP_VERSION = "1.0";
-
-    // ==================== SASL 机制名称常量 ====================
 
     /** SASL 机制：SCRAM-SHA-1 */
     public static final String SASL_MECH_SCRAM_SHA1 = "SCRAM-SHA-1";
@@ -154,12 +130,8 @@ public final class XmppConstants {
     /** SASL 机制：PLAIN */
     public static final String SASL_MECH_PLAIN = "PLAIN";
 
-    // ==================== IQ 超时常量 ====================
-
     /** 默认 IQ 请求超时时间：30 秒（毫秒） */
     public static final long DEFAULT_IQ_TIMEOUT_MS = 30000;
-
-    // ==================== 缓冲区大小常量 ====================
 
     /** 默认 XML StringBuilder 初始容量 */
     public static final int DEFAULT_XML_BUILDER_CAPACITY = 256;
@@ -170,8 +142,6 @@ public final class XmppConstants {
     /** UTF-8 编码的最大字节/字符比率（安全余量） */
     public static final int UTF8_MAX_BYTES_PER_CHAR = 3;
 
-    // ==================== SSL/TLS 会话常量 ====================
-
     /** SSL 会话缓存大小 */
     public static final int SSL_SESSION_CACHE_SIZE = 2048;
 
@@ -180,8 +150,6 @@ public final class XmppConstants {
 
     /** SSL 握手超时时间（毫秒） */
     public static final int SSL_HANDSHAKE_TIMEOUT_MS = 10000;
-
-    // ==================== Netty 关闭常量 ====================
 
     /** Netty EventLoopGroup 优雅关闭静默期（毫秒） */
     public static final int SHUTDOWN_QUIET_PERIOD_MS = 100;

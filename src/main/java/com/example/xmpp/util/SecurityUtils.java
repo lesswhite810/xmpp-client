@@ -1,5 +1,7 @@
 package com.example.xmpp.util;
 
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.regex.Pattern;
@@ -106,8 +108,7 @@ public class SecurityUtils {
     /**
      * 将字符数组转换为字节数组（UTF-8）。
      *
-     * <p>此方法避免创建中间 String 对象，直接通过字符编码转换，
-     * 减少敏感数据在内存中的副本，提高安全性。</p>
+     * <p>避免创建中间 String 对象，提高安全性。</p>
      *
      * @param chars 字符数组
      * @return 字节数组
@@ -116,26 +117,10 @@ public class SecurityUtils {
         if (chars == null) {
             return null;
         }
-        // 直接转换，避免创建中间 String 对象
-        byte[] bytes = new byte[chars.length * 4]; // UTF-8 最多 4 字节/字符
-        int byteCount = 0;
-        for (char c : chars) {
-            if (c < 0x80) {
-                // ASCII: 0xxxxxxx
-                bytes[byteCount++] = (byte) c;
-            } else if (c < 0x800) {
-                // 2 字节: 110xxxxx 10xxxxxx
-                bytes[byteCount++] = (byte) (0xC0 | (c >> 6));
-                bytes[byteCount++] = (byte) (0x80 | (c & 0x3F));
-            } else {
-                // 3 字节: 1110xxxx 10xxxxxx 10xxxxxx
-                // Java char 使用 UTF-16，无需处理代理对（XMPP 密码通常不含代理字符）
-                bytes[byteCount++] = (byte) (0xE0 | (c >> 12));
-                bytes[byteCount++] = (byte) (0x80 | ((c >> 6) & 0x3F));
-                bytes[byteCount++] = (byte) (0x80 | (c & 0x3F));
-            }
-        }
-        return Arrays.copyOf(bytes, byteCount);
+        ByteBuffer buf = StandardCharsets.UTF_8.encode(CharBuffer.wrap(chars));
+        byte[] result = new byte[buf.remaining()];
+        buf.get(result);
+        return result;
     }
 
     /**

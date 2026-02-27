@@ -2,11 +2,11 @@ package com.example.xmpp.net;
 
 import com.example.xmpp.XmppTcpConnection;
 import com.example.xmpp.config.XmppClientConfig;
+import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.net.handler.state.StateContext;
 import com.example.xmpp.net.handler.state.XmppHandlerState;
 import com.example.xmpp.protocol.model.XmlSerializable;
 import com.example.xmpp.protocol.model.stream.StreamHeader;
-import com.example.xmpp.util.ExceptionUtils;
 import com.example.xmpp.util.NettyUtils;
 import com.example.xmpp.util.SecurityUtils;
 
@@ -18,8 +18,7 @@ import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * XMPP 协议处理器（状态模式重构版）。
@@ -46,10 +45,9 @@ import org.slf4j.LoggerFactory;
  *
  * @since 2026-02-09
  */
+@Slf4j
 @RequiredArgsConstructor
 public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
-
-    private static final Logger log = LoggerFactory.getLogger(XmppNettyHandler.class);
 
     /**
      * 状态上下文（状态模式）
@@ -109,7 +107,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         log.info("Channel inactive - Connection closed");
-        connection.fireConnectionClosed();
+        connection.notifyConnectionClosed();
         super.channelInactive(ctx);
     }
 
@@ -121,7 +119,8 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
                 cause.getMessage(),
                 cause);
 
-        connection.fireConnectionClosedOnError(ExceptionUtils.toException(cause));
+        connection.notifyConnectionClosedOnError(
+                new XmppException("Connection error: " + cause.getClass().getSimpleName()));
         ctx.close();
     }
 
@@ -162,7 +161,8 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
             stateContext.transitionTo(XmppHandlerState.AWAITING_FEATURES, ctx);
         } else {
             log.error("SSL handshake failed: ", event.cause());
-            connection.fireConnectionClosedOnError(ExceptionUtils.toException(event.cause()));
+            connection.notifyConnectionClosedOnError(
+                    new XmppException("SSL handshake failed"));
             ctx.close();
         }
     }

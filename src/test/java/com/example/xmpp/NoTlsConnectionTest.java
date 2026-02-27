@@ -1,9 +1,9 @@
 package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
+import com.example.xmpp.event.ConnectionEvent;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -13,9 +13,8 @@ import java.util.concurrent.TimeUnit;
  *
  * @since 2026-02-25
  */
+@Slf4j
 public class NoTlsConnectionTest {
-
-    private static final Logger log = LoggerFactory.getLogger(NoTlsConnectionTest.class);
 
     // 从系统属性或环境变量读取配置，方便测试
     private static final String XMPP_DOMAIN = System.getProperty("xmpp.domain", System.getenv().getOrDefault("XMPP_DOMAIN", "localhost"));

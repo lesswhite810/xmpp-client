@@ -3,6 +3,7 @@ package com.example.xmpp.sasl;
 import com.example.xmpp.util.SecurityUtils;
 
 import javax.security.sasl.SaslException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -67,28 +68,19 @@ public class PlainSaslMechanism implements SaslMechanism {
             throw new SaslException("Authentication already completed.");
         }
 
-        // 标记认证完成
         complete = true;
 
-        // PLAIN 机制格式：[authzid] \0 [authcid] \0 [passwd]
-        // 其中 authzid（授权 ID）为空，authcid 为用户名
-        // 直接构建字节数组，避免创建中间 String 对象
         byte[] usernameBytes = username.getBytes(StandardCharsets.UTF_8);
         byte[] passwordBytes = password != null ? SecurityUtils.toBytes(password) : new byte[0];
 
-        // 格式: \0 + username + \0 + password
-        byte[] result = new byte[1 + usernameBytes.length + 1 + passwordBytes.length];
-        result[0] = 0; // authzid 为空
-        System.arraycopy(usernameBytes, 0, result, 1, usernameBytes.length);
-        result[1 + usernameBytes.length] = 0;
-        System.arraycopy(passwordBytes, 0, result, 2 + usernameBytes.length, passwordBytes.length);
+        ByteBuffer buffer = ByteBuffer.allocate(1 + usernameBytes.length + 1 + passwordBytes.length);
+        buffer.put((byte) 0).put(usernameBytes).put((byte) 0).put(passwordBytes);
 
-        // 立即清理所有敏感数据
         SecurityUtils.clear(passwordBytes);
         SecurityUtils.clear(password);
         password = null;
 
-        return result;
+        return buffer.array();
     }
 
     /**

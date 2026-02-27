@@ -7,18 +7,16 @@ import io.netty.channel.ChannelFuture;
 import java.net.InetSocketAddress;
 
 import lombok.experimental.UtilityClass;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 连接辅助工具类。
  *
  * @since 2026-02-09
  */
+@Slf4j
 @UtilityClass
 public class ConnectionUtils {
-
-    private static final Logger log = LoggerFactory.getLogger(ConnectionUtils.class);
 
     /**
      * 同步连接到指定地址。

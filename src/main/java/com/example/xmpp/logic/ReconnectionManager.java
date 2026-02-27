@@ -1,7 +1,7 @@
 package com.example.xmpp.logic;
 
-import com.example.xmpp.ConnectionEvent;
-import com.example.xmpp.ConnectionListener;
+import com.example.xmpp.event.ConnectionEvent;
+import com.example.xmpp.event.ConnectionListener;
 import com.example.xmpp.XmppConnection;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.util.XmppConstants;

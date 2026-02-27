@@ -3,14 +3,15 @@ package com.example.xmpp.protocol.model.stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Stream 模型类单元测试。
  */
 class StreamModelTest {
-
-    // ==================== StreamHeader 测试 ====================
 
     @Test
     @DisplayName("StreamHeader Builder 应正确构建")
@@ -65,12 +66,10 @@ class StreamModelTest {
         assertNotSame(TlsElements.StartTls.INSTANCE, TlsElements.TlsProceed.INSTANCE);
     }
 
-    // ==================== StreamFeatures 测试 ====================
-
     @Test
     @DisplayName("StreamFeatures Builder 应正确构建")
     void testStreamFeaturesBuilder() {
-        java.util.List<String> mechanisms = java.util.List.of("PLAIN", "SCRAM-SHA-256");
+        List<String> mechanisms = List.of("PLAIN", "SCRAM-SHA-256");
         
         StreamFeatures features = StreamFeatures.builder()
                 .starttlsAvailable(true)
@@ -99,14 +98,12 @@ class StreamModelTest {
     @DisplayName("StreamFeatures 应支持空 mechanisms")
     void testStreamFeaturesEmptyMechanisms() {
         StreamFeatures features = StreamFeatures.builder()
-                .mechanisms(java.util.Collections.emptyList())
+                .mechanisms(Collections.emptyList())
                 .build();
         
         assertNotNull(features.getMechanisms());
         assertTrue(features.getMechanisms().isEmpty());
     }
-
-    // ==================== StreamError 测试 ====================
 
     @Test
     @DisplayName("StreamError 应能创建")

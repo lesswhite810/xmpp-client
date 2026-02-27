@@ -1,12 +1,12 @@
 package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
+import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.PingIq;
 import com.example.xmpp.protocol.model.Presence;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
@@ -19,9 +19,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Openfire 服务器连接测试。
  */
+@Slf4j
 class OpenfireConnectionTest {
-
-    private static final Logger log = LoggerFactory.getLogger(OpenfireConnectionTest.class);
 
     /** XMPP 域名（Openfire 服务器配置的域名） */
     private static final String XMPP_DOMAIN = "lesswhite";

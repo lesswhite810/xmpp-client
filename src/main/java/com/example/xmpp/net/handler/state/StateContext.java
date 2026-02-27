@@ -3,17 +3,16 @@ package com.example.xmpp.net.handler.state;
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.XmppTcpConnection;
 import com.example.xmpp.config.XmppClientConfig;
+import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.net.XmppStreamDecoder;
 import com.example.xmpp.protocol.model.XmlSerializable;
 import com.example.xmpp.sasl.SaslNegotiator;
-import com.example.xmpp.util.ExceptionUtils;
 import com.example.xmpp.util.NettyUtils;
 import com.example.xmpp.util.XmlStringBuilder;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.Getter;
 import lombok.Setter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.UUID;
 
@@ -24,10 +23,9 @@ import java.util.UUID;
  *
  * @since 2026-02-20
  */
+@Slf4j
 @Getter
 public class StateContext {
-
-    private static final Logger log = LoggerFactory.getLogger(StateContext.class);
 
     /** 客户端配置 */
     private final XmppClientConfig config;
@@ -144,7 +142,7 @@ public class StateContext {
      */
     public void sendStanza(ChannelHandlerContext ctx, Object packet) {
         if (packet instanceof XmlSerializable serializable) {
-            String xmlStr = serializable.toXml().toString();
+            String xmlStr = serializable.toXml();
             if (!xmlStr.isEmpty()) {
                 NettyUtils.writeAndFlushString(ctx, xmlStr);
             }
@@ -161,7 +159,10 @@ public class StateContext {
      */
     public void closeConnectionOnError(ChannelHandlerContext ctx, Object cause) {
         if (connection != null) {
-            connection.fireConnectionClosedOnError(ExceptionUtils.toException(cause));
+            String message = (cause instanceof Throwable t)
+                    ? "Connection error: " + t.getClass().getSimpleName()
+                    : String.valueOf(cause);
+            connection.notifyConnectionClosedOnError(new XmppException(message));
         }
         ctx.close();
     }

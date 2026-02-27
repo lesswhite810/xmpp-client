@@ -1,10 +1,10 @@
 package com.example.xmpp.sasl;
 
 import com.example.xmpp.util.SecurityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.crypto.Mac;
+import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.security.sasl.SaslException;
@@ -13,9 +13,11 @@ import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * SASL SCRAM 机制的基础抽象实现。
@@ -42,9 +44,8 @@ import java.util.Map;
  *
  * @since 2026-02-09
  */
+@Slf4j
 public abstract class ScramMechanism implements SaslMechanism {
-
-    private static final Logger log = LoggerFactory.getLogger(ScramMechanism.class);
 
     /** SCRAM nonce 字节数（推荐至少与哈希输出长度相同） */
     private static final int NONCE_SIZE_BYTES = 32;
@@ -318,7 +319,7 @@ public abstract class ScramMechanism implements SaslMechanism {
      * @return 操作结果
      * @throws SaslException 如果操作失败
      */
-    private byte[] executeCryptoOperation(String operation, java.util.function.Supplier<byte[]> supplier)
+    private byte[] executeCryptoOperation(String operation, Supplier<byte[]> supplier)
             throws SaslException {
         try {
             return supplier.get();
@@ -343,7 +344,7 @@ public abstract class ScramMechanism implements SaslMechanism {
                 javax.crypto.SecretKeyFactory skf = javax.crypto.SecretKeyFactory
                         .getInstance(getPBKDF2Algorithm());
                 return skf.generateSecret(spec).getEncoded();
-            } catch (java.security.NoSuchAlgorithmException | java.security.spec.InvalidKeySpecException e) {
+            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
                 throw new RuntimeException(e);
             }
         });

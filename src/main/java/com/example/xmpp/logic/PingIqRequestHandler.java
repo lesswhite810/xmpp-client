@@ -1,6 +1,6 @@
 package com.example.xmpp.logic;
 
-import com.example.xmpp.AbstractIqRequestHandler;
+import com.example.xmpp.handler.AbstractIqRequestHandler;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.extension.Ping;
 import lombok.extern.slf4j.Slf4j;

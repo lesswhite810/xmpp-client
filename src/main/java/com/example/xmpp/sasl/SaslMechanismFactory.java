@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.ServiceLoader;
@@ -35,7 +36,7 @@ public class SaslMechanismFactory {
     private static final SaslMechanismFactory INSTANCE = new SaslMechanismFactory();
 
     /** 已注册的机制列表，使用 volatile 保证可见性，通过原子替换实现无锁读取 */
-    private volatile List<MechanismEntry> registeredMechanisms = java.util.Collections.emptyList();
+    private volatile List<MechanismEntry> registeredMechanisms = Collections.emptyList();
 
     /** 注册锁，保护机制注册操作的原子性 */
     private final Lock registrationLock = new ReentrantLock();
