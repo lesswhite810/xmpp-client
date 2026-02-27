@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * XMPP Ping 管理器（XEP-0199）。
@@ -31,7 +32,10 @@ public class PingManager {
     private final XmppConnection connection;
 
     /** 保活任务 */
-    private ScheduledFuture<?> keepAliveTask;
+    private volatile ScheduledFuture<?> keepAliveTask;
+
+    /** 任务操作锁 */
+    private final ReentrantLock taskLock = new ReentrantLock();
 
     /** Ping 间隔时间（秒） */
     private volatile int pingIntervalSeconds = XmppConstants.DEFAULT_PING_INTERVAL_SECONDS;
@@ -70,19 +74,37 @@ public class PingManager {
     /**
      * 启动保活任务。
      */
-    public synchronized void startKeepAlive() {
-        stopKeepAlive();
+    public void startKeepAlive() {
+        taskLock.lock();
+        try {
+            stopKeepAliveInternal();
 
-        keepAliveTask = XmppScheduler.getScheduler().scheduleWithFixedDelay(
-                this::sendPing, pingIntervalSeconds, pingIntervalSeconds, TimeUnit.SECONDS);
+            keepAliveTask = XmppScheduler.getScheduler().scheduleWithFixedDelay(
+                    this::sendPing, pingIntervalSeconds, pingIntervalSeconds, TimeUnit.SECONDS);
+        } finally {
+            taskLock.unlock();
+        }
     }
 
     /**
      * 停止保活任务。
      */
-    public synchronized void stopKeepAlive() {
-        if (keepAliveTask != null) {
-            keepAliveTask.cancel(true);
+    public void stopKeepAlive() {
+        taskLock.lock();
+        try {
+            stopKeepAliveInternal();
+        } finally {
+            taskLock.unlock();
+        }
+    }
+
+    /**
+     * 内部停止保活任务（调用者需持有锁）。
+     */
+    private void stopKeepAliveInternal() {
+        ScheduledFuture<?> task = keepAliveTask;
+        if (task != null) {
+            task.cancel(true);
             keepAliveTask = null;
         }
     }
@@ -90,9 +112,14 @@ public class PingManager {
     /**
      * 关闭 PingManager。
      */
-    public synchronized void shutdown() {
-        stopKeepAlive();
-        log.debug("PingManager shutdown");
+    public void shutdown() {
+        taskLock.lock();
+        try {
+            stopKeepAliveInternal();
+            log.debug("PingManager shutdown");
+        } finally {
+            taskLock.unlock();
+        }
     }
 
     /**

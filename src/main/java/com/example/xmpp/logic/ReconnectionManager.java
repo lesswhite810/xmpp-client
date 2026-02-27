@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 自动重连管理器。
@@ -54,8 +55,8 @@ public class ReconnectionManager implements ConnectionListener {
     /** 随机数生成器（用于添加抖动） */
     private final Random random = new Random();
 
-    /** 当前连续重连尝试次数 */
-    private volatile int attemptCount = 0;
+    /** 当前连续重连尝试次数（线程安全） */
+    private final AtomicInteger attemptCount = new AtomicInteger(0);
 
     /**
      * 构造 ReconnectionManager。
@@ -103,13 +104,13 @@ public class ReconnectionManager implements ConnectionListener {
     }
 
     private void onConnected() {
-        attemptCount = 0;
+        attemptCount.set(0);
         stopReconnectTask();
         log.debug("Connection established, reconnection task stopped");
     }
 
     private void onAuthenticated() {
-        attemptCount = 0;
+        attemptCount.set(0);
         stopReconnectTask();
     }
 
@@ -146,27 +147,27 @@ public class ReconnectionManager implements ConnectionListener {
      */
     private void scheduleReconnect(int attempt) {
         if (connection.isConnected()) {
-            attemptCount = 0;
+            attemptCount.set(0);
             return;
         }
 
-        if (attempt >= MAX_RECONNECT_ATTEMPTS) {
+        int currentAttempt = attemptCount.updateAndGet(curr -> curr >= MAX_RECONNECT_ATTEMPTS ? curr : curr + 1);
+        if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {
             log.error("Max reconnection attempts ({}) reached, stopping reconnection", MAX_RECONNECT_ATTEMPTS);
-            attemptCount = 0;
+            attemptCount.set(0);
             return;
         }
 
-        attemptCount = attempt + 1;
         int delay = Math.min(BASE_DELAY_SECONDS * (1 << attempt), MAX_DELAY_SECONDS);
         delay += random.nextInt(Math.max(1, delay / 4));
 
-        log.info("Reconnecting in {} seconds (Attempt {}/{})...", delay, attempt + 1, MAX_RECONNECT_ATTEMPTS);
+        log.info("Reconnecting in {} seconds (Attempt {}/{})...", delay, currentAttempt, MAX_RECONNECT_ATTEMPTS);
 
         synchronized (this) {
             currentTask = XmppScheduler.getScheduler().schedule(() -> {
                 try {
                     if (connection.isConnected()) {
-                        attemptCount = 0;
+                        attemptCount.set(0);
                         log.debug("Already connected, skipping reconnection");
                         return;
                     }

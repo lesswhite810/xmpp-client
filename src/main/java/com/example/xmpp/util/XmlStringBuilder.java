@@ -15,7 +15,7 @@ public class XmlStringBuilder {
      * 构造 XmlStringBuilder。
      */
     public XmlStringBuilder() {
-        this(512);
+        this(XmppConstants.DEFAULT_XML_BUILDER_CAPACITY);
     }
 
     /**
