@@ -4,6 +4,7 @@ import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppDnsException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
+import com.example.xmpp.logic.PingIqRequestHandler;
 import com.example.xmpp.logic.PingManager;
 import com.example.xmpp.logic.ReconnectionManager;
 import com.example.xmpp.net.DnsResolver;
@@ -89,6 +90,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         // 初始化管理器
         this.pingManager = new PingManager(this);
         this.reconnectionManager = new ReconnectionManager(this, pingManager);
+
+        // 注册 Ping IQ 请求处理器，响应服务端 Ping
+        registerIqRequestHandler(new PingIqRequestHandler());
 
         // 根据配置决定是否启用自动重连
         if (!config.isReconnectionEnabled()) {

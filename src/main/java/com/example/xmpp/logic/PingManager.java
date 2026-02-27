@@ -4,12 +4,8 @@ import com.example.xmpp.ConnectionEvent;
 import com.example.xmpp.XmppConnection;
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmppScheduler;
-import com.example.xmpp.protocol.StanzaFilter;
-import com.example.xmpp.protocol.StanzaListener;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.PingIq;
-import com.example.xmpp.protocol.model.XmppStanza;
-import com.example.xmpp.protocol.model.extension.Ping;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ScheduledFuture;
@@ -18,23 +14,21 @@ import java.util.concurrent.TimeUnit;
 /**
  * XMPP Ping 管理器（XEP-0199）。
  *
- * <p>实现 XMPP Ping 协议的双向 Ping 功能：</p>
+ * <p>实现 XMPP Ping 协议的客户端 Ping 功能：</p>
  * <ul>
- * <li>响应服务端 Ping 请求（作为 StanzaListener）</li>
  * <li>定期发送 Keepalive Ping 保持连接活跃</li>
  * <li>支持自定义 Ping 间隔时间</li>
  * </ul>
  *
+ * <p>服务端 Ping 请求由 {@link PingIqRequestHandler} 处理。</p>
+ *
  * @since 2026-02-09
  */
 @Slf4j
-public class PingManager implements StanzaListener {
+public class PingManager {
 
     /** 关联的 XMPP 连接 */
     private final XmppConnection connection;
-
-    /** Ping 消息过滤器 */
-    private final StanzaFilter pingFilter;
 
     /** 保活任务 */
     private ScheduledFuture<?> keepAliveTask;
@@ -49,18 +43,6 @@ public class PingManager implements StanzaListener {
      */
     public PingManager(XmppConnection connection) {
         this.connection = connection;
-        this.pingFilter = stanza -> {
-            if (!(stanza instanceof Iq iq)) {
-                return false;
-            }
-            if (iq.getType() != Iq.Type.GET) {
-                return false;
-            }
-            return iq.getExtension(Ping.class).isPresent();
-        };
-
-        // 注册为 StanzaListener 响应服务端 Ping
-        connection.addAsyncStanzaListener(this, pingFilter);
 
         // 监听连接事件
         connection.addConnectionListener(event -> {
@@ -134,17 +116,5 @@ public class PingManager implements StanzaListener {
                         log.debug("Keepalive Pong received.");
                     }
                 });
-    }
-
-    /**
-     * 处理接收到的 Ping 请求并响应。
-     *
-     * @param stanza 接收到的节
-     */
-    @Override
-    public void processStanza(XmppStanza stanza) {
-        Iq iq = (Iq) stanza;
-        log.debug("Received Ping from {}", iq.getFrom() != null ? iq.getFrom() : "Server");
-        connection.sendStanza(Iq.createResultResponse(iq, null));
     }
 }
