@@ -89,7 +89,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
         // 初始化管理器
         this.pingManager = new PingManager(this);
-        this.reconnectionManager = new ReconnectionManager(this, pingManager);
+        this.reconnectionManager = new ReconnectionManager(this);
 
         // 注册 Ping IQ 请求处理器，响应服务端 Ping
         registerIqRequestHandler(new PingIqRequestHandler());

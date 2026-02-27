@@ -45,9 +45,6 @@ public class ReconnectionManager implements ConnectionListener {
     /** 关联的 XMPP 连接 */
     private final XmppConnection connection;
 
-    /** 关联的 PingManager */
-    private final PingManager pingManager;
-
     /** 当前重连任务 */
     private volatile ScheduledFuture<?> currentTask;
 
@@ -63,12 +60,10 @@ public class ReconnectionManager implements ConnectionListener {
     /**
      * 构造 ReconnectionManager。
      *
-     * @param connection   XMPP 连接实例
-     * @param pingManager  PingManager 实例
+     * @param connection XMPP 连接实例
      */
-    public ReconnectionManager(XmppConnection connection, PingManager pingManager) {
+    public ReconnectionManager(XmppConnection connection) {
         this.connection = connection;
-        this.pingManager = pingManager;
 
         // 注册连接监听器
         connection.addConnectionListener(this);
