@@ -1,6 +1,6 @@
 package com.example.xmpp.net;
 
-import com.example.xmpp.XmppConstants;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.exception.XmppDnsException;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.AddressedEnvelope;

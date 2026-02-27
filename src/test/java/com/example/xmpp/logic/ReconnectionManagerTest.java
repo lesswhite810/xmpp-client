@@ -1,7 +1,6 @@
 package com.example.xmpp.logic;
 
 import com.example.xmpp.ConnectionEvent;
-import com.example.xmpp.ReconnectionManager;
 import com.example.xmpp.XmppConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

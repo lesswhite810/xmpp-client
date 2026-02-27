@@ -1,6 +1,7 @@
 package com.example.xmpp.protocol.provider;
 
 import com.example.xmpp.exception.XmppParseException;
+import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmlStringBuilder;
 import com.example.xmpp.util.XmppEventReader;
 import org.junit.jupiter.api.DisplayName;
@@ -140,7 +141,7 @@ class AbstractProviderTest {
 
     // ==================== 测试辅助类 ====================
 
-    private static class TestElement {
+    private static class TestElement implements ExtensionElement {
         private final String content;
 
         TestElement(String content) {
@@ -149,6 +150,21 @@ class AbstractProviderTest {
 
         public String getContent() {
             return content;
+        }
+
+        @Override
+        public String getElementName() {
+            return "test";
+        }
+
+        @Override
+        public String getNamespace() {
+            return "urn:test";
+        }
+
+        @Override
+        public String toXml() {
+            return "<test xmlns=\"urn:test\">" + content + "</test>";
         }
     }
 

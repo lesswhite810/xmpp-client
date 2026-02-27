@@ -1,6 +1,6 @@
 package com.example.xmpp.sasl;
 
-import com.example.xmpp.XmppConstants;
+import com.example.xmpp.util.XmppConstants;
 
 /**
  * SCRAM-SHA-256 SASL 认证机制实现。

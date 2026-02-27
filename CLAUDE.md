@@ -39,8 +39,9 @@ mvn clean compile -DskipTests
 com.example.xmpp
 ├── config/           # XmppClientConfig（构建者模式）
 ├── exception/        # 自定义异常（XmppException、XmppAuthException 等）
-├── logic/            # 管理器（PingManager、ConnectionRequestManager）
-├── net/              # Netty 处理器（XmppNettyHandler、XmppStreamDecoder、DnsResolver、SslUtils）
+├── logic/            # 管理器（PingManager、ReconnectionManager）
+├── net/              # Netty 处理器
+│   └── handler/state/   # 状态模式（XmppHandlerState、StateContext）
 ├── protocol/
 │   ├── model/        # 密封类节（Iq、Message、Presence）及扩展
 │   │   ├── extension/   # 节扩展（Bind、Ping、ConnectionRequest）
@@ -49,33 +50,43 @@ com.example.xmpp
 │   ├── provider/     # 扩展提供者（PingProvider、BindProvider）
 │   └── ProviderRegistry.java  # 命名空间到提供者的映射
 ├── sasl/             # SASL 机制（SCRAM-SHA-*、PLAIN）
-├── util/             # XmlStringBuilder、StanzaStreamParser、SecurityUtils
+├── util/             # 工具类（XmlStringBuilder、XmppConstants、XmppScheduler 等）
 ├── XmppTcpConnection.java     # 主连接类
 ├── XmppConnection.java        # 接口
-└── AbstractXmppConnection.java
+├── AbstractXmppConnection.java
+├── ConnectionListener.java    # 连接监听器接口
+└── ConnectionEvent.java       # 连接事件
 ```
 
-### 连接状态机（XmppNettyHandler）
+### 连接状态机（状态模式）
+
+使用状态模式（State Pattern）实现，核心类在 `net/handler/state/`：
+- `XmppHandlerState` - 状态枚举，每个状态实现 `HandlerState` 接口
+- `StateContext` - 状态上下文，管理状态转换
+
 ```
-CONNECTING → AWAITING_FEATURES → TLS_NEGOTIATING → AWAITING_FEATURES → SASL_AUTH
-    → AWAITING_FEATURES → BINDING → SESSION_ACTIVE
+INITIAL → CONNECTING → AWAITING_FEATURES → TLS_NEGOTIATING → AWAITING_FEATURES
+    → SASL_AUTH → AWAITING_FEATURES → BINDING → SESSION_ACTIVE
 ```
 
 关键状态：
-- `AWAITING_FEATURES`：在多个阶段使用（TLS 前、TLS 后、SASL 后）
+- `AWAITING_FEATURES`：在多个阶段复用（TLS 前、TLS 后、SASL 后）
 - `TLS_NEGOTIATING`：涵盖 STARTTLS 协商和 SSL 握手
 - Direct TLS 模式：跳过初始流打开，先等待 SSL 握手
+- `SESSION_ACTIVE`：自动响应服务器 Ping 请求（XEP-0199）
 
-**双层状态架构：**
-- `XmppStateMachine.State`（高层）：DISCONNECTED → CONNECTING → CONNECTED → AUTHENTICATING → AUTHENTICATED → SESSION_ACTIVE
-- `StateEnum`（底层处理器）：如上所示的详细 Netty 处理器状态
+**状态模式优势：**
+- 每个状态的逻辑独立封装，消除冗长 switch-case
+- 新增状态只需添加枚举值，符合开闭原则
+- 状态转换通过 `canTransitionTo()` 验证，防止非法转换
 
 ### 关键模式
 - **密封类层次结构**：`Stanza` 是密封类，仅允许 `Iq`、`Message`、`Presence` 继承
+- **状态模式**：`XmppHandlerState` 枚举实现状态模式，每个状态独立处理消息
 - **构建者模式**：用于 `XmppClientConfig` 和节的构建
 - **提供者注册表**：将 XML 命名空间映射到提供者以进行扩展解析
 - **监听器模式**：`ConnectionListener` 用于连接生命周期事件
-- **自动 Ping 响应**：服务器 ping 请求（XEP-0199）在 `XmppNettyHandler` 中自动处理
+- **自动 Ping 响应**：服务器 ping 请求（XEP-0199）在 `SESSION_ACTIVE` 状态自动处理
 
 ## 重要约定
 

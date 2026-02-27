@@ -1,6 +1,6 @@
 package com.example.xmpp.sasl;
 
-import com.example.xmpp.XmppConstants;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.protocol.model.sasl.Auth;

@@ -1,6 +1,6 @@
 package com.example.xmpp.config;
 
-import com.example.xmpp.XmppConstants;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.SecurityUtils;
 import lombok.AccessLevel;
 import lombok.Getter;

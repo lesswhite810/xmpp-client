@@ -1,7 +1,8 @@
 package com.example.xmpp.protocol.provider;
 
 import com.example.xmpp.exception.XmppParseException;
-import com.example.xmpp.protocol.Provider;
+import com.example.xmpp.protocol.ExtensionElementProvider;
+import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmppEventReader;
 import com.example.xmpp.util.XmlStringBuilder;
 import org.slf4j.Logger;
@@ -12,12 +13,16 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 
 /**
- * Provider 抽象基类，使用模板方法模式提供 XML 解析和序列化的公共逻辑。
+ * 扩展元素 Provider 抽象基类，使用模板方法模式提供 XML 解析和序列化的公共逻辑。
  *
- * @param <T> 此 Provider 处理的对象类型
+ * <p>所有扩展元素 Provider 应继承此类，只需实现 {@link #parseInstance(XMLEventReader)}
+ * 和 {@link #serializeInstance(ExtensionElement, XmlStringBuilder)} 方法。</p>
+ *
+ * @param <T> 此 Provider 处理的扩展元素类型
  * @since 2026-02-14
  */
-public abstract class AbstractProvider<T> implements Provider<T> {
+public abstract class AbstractProvider<T extends ExtensionElement>
+        implements ExtensionElementProvider<T> {
 
     private static final Logger log = LoggerFactory.getLogger(AbstractProvider.class);
 

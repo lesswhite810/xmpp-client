@@ -1,6 +1,6 @@
 package com.example.xmpp.net;
 
-import com.example.xmpp.XmppConstants;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppNetworkException;
 import io.netty.handler.ssl.SslHandler;

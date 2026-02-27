@@ -262,7 +262,7 @@ public class XmlStringBuilder {
      */
     public XmlStringBuilder attribute(String name, Enum<?> value) {
         if (value != null) {
-            attribute(name, value.name());
+            attribute(name, value.toString());
         }
         return this;
     }

@@ -202,15 +202,24 @@ public String toXml() {
 com.example.xmpp
 ├── config/           # 配置 (Builder pattern)
 ├── exception/        # 自定义异常
+├── logic/            # 管理器 (PingManager, ReconnectionManager)
 ├── net/              # Netty handlers, DNS resolver, SSL utils
+│   └── handler/state/  # 状态模式 (XmppHandlerState, StateContext)
 ├── protocol/
 │   ├── model/        # Sealed class stanzas (Iq, Message, Presence)
-│   │   └── extension/  # XMPP 扩展 (Bind, Ping)
+│   │   ├── extension/  # XMPP 扩展 (Bind, Ping)
+│   │   ├── sasl/       # SASL 协议元素
+│   │   └── stream/     # 流元素
 │   ├── provider/     # Extension providers
 │   └── ProviderRegistry.java
 ├── sasl/             # SASL 认证机制
-├── util/             # 工具类 (XmlStringBuilder, StanzaStreamParser)
-└── XmppTcpConnection.java  # 主连接类
+├── util/             # 工具类 (XmlStringBuilder, XmppConstants, XmppScheduler)
+├── XmppTcpConnection.java     # 主连接类
+├── XmppConnection.java        # 连接接口
+├── AbstractXmppConnection.java
+├── ConnectionListener.java    # 连接监听器接口
+├── ConnectionEvent.java       # 连接事件
+└── Main.java                  # 示例程序入口
 ```
 
 ### Key Patterns

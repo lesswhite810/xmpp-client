@@ -27,7 +27,7 @@ class PingResponseTest {
     @Test
     void testPingResponseBuild() {
         // 模拟服务器发来的 PING 请求
-        Iq pingRequest = new Iq.Builder(Iq.Type.get)
+        Iq pingRequest = new Iq.Builder(Iq.Type.GET)
                 .id("server-ping-123")
                 .from("example.com")
                 .to("user@example.com/resource")
@@ -35,7 +35,7 @@ class PingResponseTest {
                 .build();
 
         // 构建响应（模拟 handlePingRequest 的逻辑）
-        Iq pongResponse = new Iq.Builder(Iq.Type.result)
+        Iq pongResponse = new Iq.Builder(Iq.Type.RESULT)
                 .id(pingRequest.getId())
                 .to(pingRequest.getFrom())
                 .build();
@@ -59,7 +59,7 @@ class PingResponseTest {
     @Test
     void testPingIqRecognition() {
         // 创建 PING 请求
-        Iq pingRequest = new Iq.Builder(Iq.Type.get)
+        Iq pingRequest = new Iq.Builder(Iq.Type.GET)
                 .id("ping-1")
                 .from("server.com")
                 .childElement(Ping.INSTANCE)
@@ -71,7 +71,7 @@ class PingResponseTest {
                 "子元素应该是 Ping");
 
         // 非 PING 请求
-        Iq normalIq = new Iq.Builder(Iq.Type.get)
+        Iq normalIq = new Iq.Builder(Iq.Type.GET)
                 .id("iq-1")
                 .childElement(com.example.xmpp.protocol.model.extension.Bind.builder().resource("test").build())
                 .build();
@@ -111,7 +111,7 @@ class PingResponseTest {
         assertTrue(msg instanceof Iq, "应该是 Iq 类型");
 
         Iq iq = (Iq) msg;
-        assertEquals(Iq.Type.get, iq.getType());
+        assertEquals(Iq.Type.GET, iq.getType());
         assertEquals("ping-123", iq.getId());
         assertEquals("server.com", iq.getFrom());
         assertTrue(iq.getChildElement() instanceof Ping, "子元素应该是 Ping");

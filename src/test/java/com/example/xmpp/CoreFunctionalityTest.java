@@ -103,7 +103,7 @@ class CoreFunctionalityTest {
                 .build();
 
         assertEquals("test-123", iq.getId());
-        assertEquals(Iq.Type.get, iq.getType());
+        assertEquals(Iq.Type.GET, iq.getType());
         assertEquals("server@example.com", iq.getTo());
         assertEquals("client@example.com", iq.getFrom());
 
@@ -141,22 +141,22 @@ class CoreFunctionalityTest {
     @Test
     void testIqTypeEnum() {
         assertEquals(4, Iq.Type.values().length);
-        assertNotNull(Iq.Type.get);
-        assertNotNull(Iq.Type.set);
-        assertNotNull(Iq.Type.result);
-        assertNotNull(Iq.Type.error);
+        assertNotNull(Iq.Type.GET);
+        assertNotNull(Iq.Type.SET);
+        assertNotNull(Iq.Type.RESULT);
+        assertNotNull(Iq.Type.ERROR);
 
-        assertEquals(Iq.Type.get, Iq.Type.fromString("get"));
-        assertEquals(Iq.Type.set, Iq.Type.fromString("SET"));
+        assertEquals(Iq.Type.GET, Iq.Type.fromString("get"));
+        assertEquals(Iq.Type.SET, Iq.Type.fromString("SET"));
 
         // fromString 对无效输入抛出异常
         assertThrows(IllegalArgumentException.class, () -> Iq.Type.fromString("invalid"));
         assertThrows(IllegalArgumentException.class, () -> Iq.Type.fromString(null));
 
         // fromStringOrDefault 对无效输入返回默认值
-        assertEquals(Iq.Type.get, Iq.Type.fromStringOrDefault("get", Iq.Type.error));
-        assertEquals(Iq.Type.error, Iq.Type.fromStringOrDefault(null, Iq.Type.error));
-        assertEquals(Iq.Type.error, Iq.Type.fromStringOrDefault("invalid", Iq.Type.error));
+        assertEquals(Iq.Type.GET, Iq.Type.fromStringOrDefault("get", Iq.Type.ERROR));
+        assertEquals(Iq.Type.ERROR, Iq.Type.fromStringOrDefault(null, Iq.Type.ERROR));
+        assertEquals(Iq.Type.ERROR, Iq.Type.fromStringOrDefault("invalid", Iq.Type.ERROR));
     }
 
     @Test

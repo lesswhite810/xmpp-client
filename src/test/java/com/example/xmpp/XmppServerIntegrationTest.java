@@ -6,7 +6,7 @@ import com.example.xmpp.protocol.model.Message;
 import com.example.xmpp.protocol.model.PingIq;
 import com.example.xmpp.protocol.model.Presence;
 import com.example.xmpp.protocol.model.extension.Bind;
-import com.example.xmpp.net.XmppStreamDecoder;
+import com.example.xmpp.util.XmlParser;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -141,7 +141,7 @@ public class XmppServerIntegrationTest {
                                 response.getClass().getSimpleName());
                         assertTrue(response instanceof Iq, "Response should be an IQ");
                         Iq pingResponse = (Iq) response;
-                        assertEquals(Iq.Type.result, pingResponse.getType(), "Response type should be 'result'");
+                        assertEquals(Iq.Type.RESULT, pingResponse.getType(), "Response type should be 'result'");
                         assertEquals(pingId, pingResponse.getId(), "Response ID should match request ID");
                         pingLatch.countDown();
                     })
@@ -155,7 +155,7 @@ public class XmppServerIntegrationTest {
             assertTrue(pingReceived, "Ping response should be received within 5 seconds");
 
             Presence presence = new Presence.Builder()
-                    .type(Presence.Type.available)
+                    .type(Presence.Type.AVAILABLE)
                     .build();
             connection.sendStanza(presence);
             log.info("Sent presence stanza: {}", toXml(presence));
@@ -177,15 +177,15 @@ public class XmppServerIntegrationTest {
                 "</bind>" +
                 "</iq>";
 
-        Iq iq = XmppStreamDecoder.parseIq(iqXml);
+        Iq iq = XmlParser.parseIq(iqXml);
         assertNotNull(iq, "IQ should be parsed successfully");
-        assertEquals(Iq.Type.result, iq.getType(), "IQ type should be 'result'");
+        assertEquals(Iq.Type.RESULT, iq.getType(), "IQ type should be 'result'");
         assertEquals("bind-234", iq.getId(), "IQ ID should match");
         assertEquals("user@example.com/resource", iq.getTo(), "IQ to should match");
         assertNotNull(iq.getChildElement(), "IQ should have a child element");
         assertTrue(iq.getChildElement() instanceof Bind, "Child element should be Bind");
 
-        Iq originalIq = new Iq.Builder(Iq.Type.get)
+        Iq originalIq = new Iq.Builder(Iq.Type.GET)
                 .id("test-123")
                 .from("user@example.com")
                 .to("server.example.com")
@@ -211,9 +211,9 @@ public class XmppServerIntegrationTest {
                 "<body>Hello Bob! This is a test message.</body>" +
                 "</message>";
 
-        Message message = XmppStreamDecoder.parseMessage(messageXml);
+        Message message = XmlParser.parseMessage(messageXml);
         assertNotNull(message, "Message should be parsed successfully");
-        assertEquals(Message.Type.chat, message.getType(), "Message type should be 'chat'");
+        assertEquals(Message.Type.CHAT, message.getType(), "Message type should be 'chat'");
         assertEquals("msg-567", message.getId(), "Message ID should match");
         assertEquals("alice@example.com/desktop", message.getFrom(), "Message from should match");
         assertEquals("bob@example.com/mobile", message.getTo(), "Message to should match");
@@ -221,7 +221,7 @@ public class XmppServerIntegrationTest {
         assertEquals("Hello Bob! This is a test message.", message.getBody(), "Message body should match");
 
         Message originalMessage = new Message.Builder()
-                .type(Message.Type.groupchat)
+                .type(Message.Type.GROUPCHAT)
                 .id("msg-789")
                 .from("room@conference.example.com/alice")
                 .to("room@conference.example.com")
@@ -252,9 +252,9 @@ public class XmppServerIntegrationTest {
                 "<priority>5</priority>" +
                 "</presence>";
 
-        Presence presence = XmppStreamDecoder.parsePresence(presenceXml);
+        Presence presence = XmlParser.parsePresence(presenceXml);
         assertNotNull(presence, "Presence should be parsed successfully");
-        assertEquals(Presence.Type.available, presence.getType(), "Presence type should be 'available'");
+        assertEquals(Presence.Type.AVAILABLE, presence.getType(), "Presence type should be 'available'");
         assertEquals("pres-123", presence.getId(), "Presence ID should match");
         assertEquals("user@example.com/laptop", presence.getFrom(), "Presence from should match");
         assertEquals("friend@example.com", presence.getTo(), "Presence to should match");
@@ -263,7 +263,7 @@ public class XmppServerIntegrationTest {
         assertEquals(Integer.valueOf(5), presence.getPriority(), "Presence priority should match");
 
         Presence originalPresence = new Presence.Builder()
-                .type(Presence.Type.unavailable)
+                .type(Presence.Type.UNAVAILABLE)
                 .id("pres-456")
                 .from("user@example.com/desktop")
                 .to("contact@example.com")
@@ -288,7 +288,7 @@ public class XmppServerIntegrationTest {
                 "<ping xmlns=\"urn:xmpp:ping\"/>" +
                 "</iq>";
 
-        Optional<Object> stanza = XmppStreamDecoder.parseStanza(iqXml);
+        Optional<Object> stanza = XmlParser.parseStanza(iqXml);
         assertTrue(stanza.isPresent(), "Stanza should be parsed successfully");
         assertTrue(stanza.get() instanceof Iq, "Parsed stanza should be an IQ");
 
@@ -296,13 +296,13 @@ public class XmppServerIntegrationTest {
                 "<body>Test message</body>" +
                 "</message>";
 
-        stanza = XmppStreamDecoder.parseStanza(messageXml);
+        stanza = XmlParser.parseStanza(messageXml);
         assertTrue(stanza.isPresent(), "Stanza should be parsed successfully");
         assertTrue(stanza.get() instanceof Message, "Parsed stanza should be a Message");
 
         String presenceXml = "<presence type=\"available\"/>";
 
-        stanza = XmppStreamDecoder.parseStanza(presenceXml);
+        stanza = XmlParser.parseStanza(presenceXml);
         assertTrue(stanza.isPresent(), "Stanza should be parsed successfully");
         assertTrue(stanza.get() instanceof Presence, "Parsed stanza should be a Presence");
     }

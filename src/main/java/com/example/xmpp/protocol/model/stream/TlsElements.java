@@ -1,6 +1,6 @@
 package com.example.xmpp.protocol.model.stream;
 
-import com.example.xmpp.XmppConstants;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.protocol.model.ExtensionElement;
 
 /**

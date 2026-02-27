@@ -89,7 +89,7 @@ class XmppNettyHandlerTest {
         assertTrue(msg instanceof Iq);
 
         Iq iq = (Iq) msg;
-        assertEquals(Iq.Type.get, iq.getType());
+        assertEquals(Iq.Type.GET, iq.getType());
         assertEquals("ping-1", iq.getId());
         assertEquals("server.com", iq.getFrom());
         assertTrue(iq.getChildElement() instanceof Ping);

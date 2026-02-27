@@ -208,7 +208,7 @@ class XmlStringBuilderTest {
         @DisplayName("应正确追加枚举属性")
         void testEnumAttribute() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.element("iq").attribute("type", TestType.get).rightAngleBracket();
+            builder.element("iq").attribute("type", TestType.GET).rightAngleBracket();
             assertTrue(builder.toString().contains("type=\"get\""));
         }
 
@@ -220,7 +220,9 @@ class XmlStringBuilderTest {
             assertFalse(builder.toString().contains("type="));
         }
 
-        enum TestType { get, set, result, error }
+        enum TestType { GET, SET, RESULT, ERROR;
+            @Override public String toString() { return name().toLowerCase(); }
+        }
     }
 
     @Nested

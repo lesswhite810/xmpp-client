@@ -4,7 +4,7 @@ import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.Message;
 import com.example.xmpp.protocol.model.Presence;
 import com.example.xmpp.protocol.model.extension.Ping;
-import com.example.xmpp.net.XmppStreamDecoder;
+import com.example.xmpp.util.XmlParser;
 import com.example.xmpp.util.XmlStringBuilder;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -170,7 +170,7 @@ public class XmlStanzaPerformanceTest {
 
         List<Iq> parsedIqs = new ArrayList<>(ITERATIONS);
         for (int i = 0; i < ITERATIONS; i++) {
-            Iq iq = XmppStreamDecoder.parseIq(testXml);
+            Iq iq = XmlParser.parseIq(testXml);
             if (iq != null) {
                 parsedIqs.add(iq);
             }
@@ -201,7 +201,7 @@ public class XmlStanzaPerformanceTest {
         long startTime = System.nanoTime();
 
         for (int i = 0; i < ITERATIONS; i++) {
-            Iq iq = XmppStreamDecoder.parseIq(testXml);
+            Iq iq = XmlParser.parseIq(testXml);
             assertNotNull(iq);
             assertNotNull(iq.getChildElement());
         }
@@ -238,7 +238,7 @@ public class XmlStanzaPerformanceTest {
 
             String xmlString = iq.toXml();
 
-            Iq parsedIq = XmppStreamDecoder.parseIq(xmlString);
+            Iq parsedIq = XmlParser.parseIq(xmlString);
             assertNotNull(parsedIq);
         }
 

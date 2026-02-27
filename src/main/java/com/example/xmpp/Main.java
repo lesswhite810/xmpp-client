@@ -2,7 +2,6 @@ package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
-import com.example.xmpp.logic.Tr069StanzaListener;
 import com.example.xmpp.protocol.model.Message;
 
 import lombok.extern.slf4j.Slf4j;
@@ -72,9 +71,13 @@ public class Main {
         // 创建连接（PingManager 和 ReconnectionManager 自动初始化）
         XmppTcpConnection connection = new XmppTcpConnection(config);
 
-        // 注册消息监听器
+        // 注册消息监听器（示例：记录收到的消息）
         connection.addAsyncStanzaListener(
-                new Tr069StanzaListener(),
+                stanza -> {
+                    if (stanza instanceof Message msg) {
+                        log.info("Received message from {}: {}", msg.getFrom(), msg.getBody());
+                    }
+                },
                 stanza -> stanza instanceof Message
         );
 

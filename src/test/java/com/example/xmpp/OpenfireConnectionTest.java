@@ -148,9 +148,9 @@ class OpenfireConnectionTest {
                 .thenAccept(response -> {
                     if (response instanceof Iq iq) {
                         log.info("Received response: id={}, type={}", iq.getId(), iq.getType());
-                        if (iq.getType() == Iq.Type.result) {
+                        if (iq.getType() == Iq.Type.RESULT) {
                             log.info("Ping successful!");
-                        } else if (iq.getType() == Iq.Type.error) {
+                        } else if (iq.getType() == Iq.Type.ERROR) {
                             log.warn("Ping returned error");
                             // 打印错误详情
                             if (iq.getError() != null) {
@@ -179,7 +179,7 @@ class OpenfireConnectionTest {
 
         log.info("[Step4] Sending presence...");
         Presence presence = new Presence.Builder()
-                .type(Presence.Type.available)
+                .type(Presence.Type.AVAILABLE)
                 .show("chat")
                 .status("Online test")
                 .build();

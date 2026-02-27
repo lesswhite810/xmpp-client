@@ -56,7 +56,7 @@ class PingManagerTest {
     @Test
     @DisplayName("processStanza 应处理 Ping IQ 并发送响应")
     void testProcessStanza() {
-        Iq pingIq = new Iq(Iq.Type.get, "ping-1", "from@example.com", "to@example.com", null, null);
+        Iq pingIq = new Iq(Iq.Type.GET, "ping-1", "from@example.com", "to@example.com", null, null);
 
         // Mock sendStanza
         lenient().doNothing().when(connection).sendStanza(any());

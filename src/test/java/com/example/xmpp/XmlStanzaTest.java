@@ -7,7 +7,7 @@ import com.example.xmpp.protocol.model.Presence;
 import com.example.xmpp.protocol.model.extension.Bind;
 import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.protocol.ProviderRegistry;
-import com.example.xmpp.net.XmppStreamDecoder;
+import com.example.xmpp.util.XmlParser;
 import com.example.xmpp.util.XmlStringBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +39,7 @@ public class XmlStanzaTest {
                 .to("server.example.com")
                 .build();
 
-        assertEquals(Iq.Type.get, iq.getType());
+        assertEquals(Iq.Type.GET, iq.getType());
         assertEquals("test-123", iq.getId());
         assertEquals("user@example.com/resource", iq.getFrom());
         assertEquals("server.example.com", iq.getTo());
@@ -67,7 +67,7 @@ public class XmlStanzaTest {
                 .body("Hello Bob! This is a test message.")
                 .build();
 
-        assertEquals(Message.Type.chat, message.getType());
+        assertEquals(Message.Type.CHAT, message.getType());
         assertEquals("msg-456", message.getId());
         assertEquals("alice@example.com/desktop", message.getFrom());
         assertEquals("bob@example.com/mobile", message.getTo());
@@ -97,7 +97,7 @@ public class XmlStanzaTest {
                 .priority(5)
                 .build();
 
-        assertEquals(Presence.Type.available, presence.getType());
+        assertEquals(Presence.Type.AVAILABLE, presence.getType());
         assertEquals("pres-789", presence.getId());
         assertEquals("user@example.com/laptop", presence.getFrom());
         assertEquals("friend@example.com", presence.getTo());
@@ -116,7 +116,7 @@ public class XmlStanzaTest {
 
         // 测试 unavailable 类型应该有 type 属性
         Presence unavailable = new Presence.Builder()
-                .type(Presence.Type.unavailable)
+                .type(Presence.Type.UNAVAILABLE)
                 .id("pres-unavail")
                 .build();
         String xmlString2 = unavailable.toXml();
@@ -134,9 +134,9 @@ public class XmlStanzaTest {
                      "</bind>" +
                      "</iq>";
 
-        Iq iq = XmppStreamDecoder.parseIq(xml);
+        Iq iq = XmlParser.parseIq(xml);
         assertNotNull(iq);
-        assertEquals(Iq.Type.result, iq.getType());
+        assertEquals(Iq.Type.RESULT, iq.getType());
         assertEquals("bind-234", iq.getId());
         assertEquals("user@example.com/resource", iq.getTo());
         assertNotNull(iq.getChildElement());
@@ -152,9 +152,9 @@ public class XmlStanzaTest {
                      "<body>Let's discuss the project timeline.</body>" +
                      "</message>";
 
-        Message message = XmppStreamDecoder.parseMessage(xml);
+        Message message = XmlParser.parseMessage(xml);
         assertNotNull(message);
-        assertEquals(Message.Type.groupchat, message.getType());
+        assertEquals(Message.Type.GROUPCHAT, message.getType());
         assertEquals("msg-567", message.getId());
         assertEquals("room@conference.example.com/alice", message.getFrom());
         assertEquals("room@conference.example.com", message.getTo());
@@ -171,9 +171,9 @@ public class XmlStanzaTest {
                      "<status>Going offline</status>" +
                      "</presence>";
 
-        Presence presence = XmppStreamDecoder.parsePresence(xml);
+        Presence presence = XmlParser.parsePresence(xml);
         assertNotNull(presence);
-        assertEquals(Presence.Type.unavailable, presence.getType());
+        assertEquals(Presence.Type.UNAVAILABLE, presence.getType());
         assertEquals("user@example.com/desktop", presence.getFrom());
         assertEquals("contact@example.com", presence.getTo());
         assertEquals("Going offline", presence.getStatus());
@@ -190,7 +190,7 @@ public class XmlStanzaTest {
                      "</bind>" +
                      "</iq>";
 
-        Iq iq = XmppStreamDecoder.parseIq(xml);
+        Iq iq = XmlParser.parseIq(xml);
         assertNotNull(iq);
         assertNotNull(iq.getChildElement());
         assertTrue(iq.getChildElement() instanceof Bind);
@@ -207,7 +207,7 @@ public class XmlStanzaTest {
                      "<ping xmlns=\"urn:xmpp:ping\"/>" +
                      "</iq>";
 
-        Iq iq = XmppStreamDecoder.parseIq(xml);
+        Iq iq = XmlParser.parseIq(xml);
         assertNotNull(iq);
         assertNotNull(iq.getChildElement());
         assertTrue(iq.getChildElement() instanceof Ping);
@@ -224,7 +224,7 @@ public class XmlStanzaTest {
                            "</iq>";
 
         assertThrows(IllegalArgumentException.class, () -> {
-            XmppStreamDecoder.parseIq(invalidXml);
+            XmlParser.parseIq(invalidXml);
         });
     }
 
@@ -238,10 +238,10 @@ public class XmlStanzaTest {
                                "<bind xmlns=\"urn:ietf:params:xml:ns:xmpp-bind\"/>" +
                                "</iq>";
 
-        Iq iq = XmppStreamDecoder.parseIq(xmlWithoutType);
+        Iq iq = XmlParser.parseIq(xmlWithoutType);
         assertNotNull(iq);
         // type 缺失时使用默认值
-        assertEquals(Iq.Type.get, iq.getType());
+        assertEquals(Iq.Type.GET, iq.getType());
     }
 
     /**
@@ -253,7 +253,7 @@ public class XmlStanzaTest {
                       "<bind xmlns=\"urn:ietf:params:xml:ns:xmpp-bind\"/>" +
                       "</iq>";
 
-        Optional<Object> stanza = XmppStreamDecoder.parseStanza(iqXml);
+        Optional<Object> stanza = XmlParser.parseStanza(iqXml);
         assertTrue(stanza.isPresent());
         assertTrue(stanza.get() instanceof Iq);
 
@@ -261,13 +261,13 @@ public class XmlStanzaTest {
                            "<body>Test message</body>" +
                            "</message>";
 
-        stanza = XmppStreamDecoder.parseStanza(messageXml);
+        stanza = XmlParser.parseStanza(messageXml);
         assertTrue(stanza.isPresent());
         assertTrue(stanza.get() instanceof Message);
 
         String presenceXml = "<presence type=\"available\"/>";
 
-        stanza = XmppStreamDecoder.parseStanza(presenceXml);
+        stanza = XmlParser.parseStanza(presenceXml);
         assertTrue(stanza.isPresent());
         assertTrue(stanza.get() instanceof Presence);
     }
