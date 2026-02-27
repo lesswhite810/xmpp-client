@@ -1,5 +1,6 @@
 package com.example.xmpp;
 
+import com.example.xmpp.util.XmppConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -100,5 +101,34 @@ class XmppConstantsTest {
         assertNotNull(XmppConstants.NS_XMPP_STREAMS);
         assertNotNull(XmppConstants.NS_XMPP_SASL);
         assertNotNull(XmppConstants.NS_XMPP_BIND);
+    }
+
+    @Test
+    @DisplayName("generateStanzaId 应生成唯一 ID")
+    void testGenerateStanzaId() {
+        String id1 = XmppConstants.generateStanzaId();
+        String id2 = XmppConstants.generateStanzaId();
+
+        assertNotNull(id1);
+        assertNotNull(id2);
+        assertTrue(id1.startsWith("xmpp-"));
+        assertTrue(id2.startsWith("xmpp-"));
+        assertNotEquals(id1, id2, "生成的 ID 应该唯一");
+    }
+
+    @Test
+    @DisplayName("generateStanzaId 多次调用应生成递增 ID")
+    void testGenerateStanzaIdIncrementing() {
+        String id1 = XmppConstants.generateStanzaId();
+        String id2 = XmppConstants.generateStanzaId();
+        String id3 = XmppConstants.generateStanzaId();
+
+        // 提取数字部分并验证递增
+        long num1 = Long.parseLong(id1.substring(5));
+        long num2 = Long.parseLong(id2.substring(5));
+        long num3 = Long.parseLong(id3.substring(5));
+
+        assertTrue(num2 > num1);
+        assertTrue(num3 > num2);
     }
 }

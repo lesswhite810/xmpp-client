@@ -1,5 +1,7 @@
 package com.example.xmpp.util;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * XMPP 协议和网络相关的常量定义。
  *
@@ -13,6 +15,22 @@ public final class XmppConstants {
      * 工具类私有构造函数，禁止实例化。
      */
     private XmppConstants() {
+    }
+
+    // ==================== Stanza ID 生成器 ====================
+
+    /** Stanza ID 计数器 */
+    private static final AtomicLong stanzaIdCounter = new AtomicLong(0);
+
+    /**
+     * 生成唯一的 Stanza ID。
+     *
+     * <p>使用原子计数器确保线程安全和唯一性，格式为 "xmpp-{counter}"。</p>
+     *
+     * @return 唯一的 Stanza ID 字符串
+     */
+    public static String generateStanzaId() {
+        return "xmpp-" + stanzaIdCounter.getAndIncrement();
     }
 
     // ==================== 端口常量 ====================

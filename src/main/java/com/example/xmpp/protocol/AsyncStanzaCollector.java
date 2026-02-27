@@ -38,9 +38,12 @@ public class AsyncStanzaCollector {
      *
      * @param stanza 传入的 XMPP 节
      *
-     * @return 如果节被收集（匹配过滤器）则返回 true
+     * @return 如果节被收集（匹配过滤器且 Future 未完成）则返回 true
      */
     public boolean processStanza(XmppStanza stanza) {
+        if (future.isDone()) {
+            return false;
+        }
         if (filter.accept(stanza)) {
             future.complete(stanza);
             return true;

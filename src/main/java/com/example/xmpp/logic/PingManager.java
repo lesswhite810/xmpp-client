@@ -121,7 +121,7 @@ public class PingManager implements StanzaListener {
             return;
         }
 
-        String id = "ping_" + System.currentTimeMillis();
+        String id = XmppConstants.generateStanzaId();
         Iq pingIq = PingIq.createPingRequest(id, connection.getConfig().getXmppServiceDomain());
 
         log.debug("Sending Keepalive Ping...");

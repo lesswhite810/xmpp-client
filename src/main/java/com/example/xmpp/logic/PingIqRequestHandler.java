@@ -39,10 +39,7 @@ public class PingIqRequestHandler extends AbstractIqRequestHandler {
     public Iq handleIqRequest(Iq iqRequest) {
         log.debug("Handling Ping request from server, id: {}", iqRequest.getId());
 
-        // 构建响应：空的 result IQ
-        return new Iq.Builder(Iq.Type.RESULT)
-                .id(iqRequest.getId())
-                .to(iqRequest.getFrom())
-                .build();
+        // 使用 Iq.createResultResponse 构建空响应
+        return Iq.createResultResponse(iqRequest, null);
     }
 }
