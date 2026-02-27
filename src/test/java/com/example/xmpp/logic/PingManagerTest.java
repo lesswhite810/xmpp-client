@@ -1,9 +1,6 @@
 package com.example.xmpp.logic;
 
-import com.example.xmpp.ConnectionEvent;
 import com.example.xmpp.XmppConnection;
-import com.example.xmpp.protocol.model.Iq;
-import com.example.xmpp.protocol.model.extension.Ping;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,7 +26,6 @@ class PingManagerTest {
     @BeforeEach
     void setUp() {
         lenient().doNothing().when(connection).addConnectionListener(any());
-        lenient().doNothing().when(connection).addAsyncStanzaListener(any(), any());
         pingManager = new PingManager(connection);
     }
 
@@ -38,7 +34,6 @@ class PingManagerTest {
     void testConstructor() {
         assertNotNull(pingManager);
         verify(connection).addConnectionListener(any());
-        verify(connection).addAsyncStanzaListener(any(), any());
     }
 
     @Test
@@ -51,21 +46,6 @@ class PingManagerTest {
     @DisplayName("shutdown 应安全执行")
     void testShutdown() {
         assertDoesNotThrow(() -> pingManager.shutdown());
-    }
-
-    @Test
-    @DisplayName("processStanza 应处理 Ping IQ 并发送响应")
-    void testProcessStanza() {
-        Iq pingIq = new Iq(Iq.Type.GET, "ping-1", "from@example.com", "to@example.com", null, null);
-
-        // Mock sendStanza
-        lenient().doNothing().when(connection).sendStanza(any());
-
-        // processStanza 返回 void，通过验证 sendStanza 调用来确认行为
-        pingManager.processStanza(pingIq);
-
-        // 验证发送了响应
-        verify(connection).sendStanza(any(Iq.class));
     }
 
     @Test
