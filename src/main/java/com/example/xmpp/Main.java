@@ -43,7 +43,7 @@ public class Main {
             log.info("Application interrupted");
         } catch (XmppException e) {
             log.error("XMPP error: {}", e.getMessage(), e);
-            System.exit(1);
+            throw new RuntimeException("XMPP connection failed", e);
         }
     }
 

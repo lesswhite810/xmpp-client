@@ -64,8 +64,6 @@ public class SaslNegotiator {
         }
         try {
             sendStanza(new Auth(mechanism.getMechanismName(), content));
-        } catch (XmppAuthException e) {
-            throw e;
         } catch (IllegalArgumentException e) {
             throw new XmppAuthException("Invalid Auth stanza", e);
         }
@@ -90,8 +88,6 @@ public class SaslNegotiator {
         String responseB64 = BASE64_ENCODER.encodeToString(response);
         try {
             sendStanza(new SaslResponse(responseB64));
-        } catch (XmppAuthException e) {
-            throw e;
         } catch (IllegalArgumentException e) {
             throw new XmppAuthException("Invalid Response stanza", e);
         }

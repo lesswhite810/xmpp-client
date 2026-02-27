@@ -1,5 +1,6 @@
 package com.example.xmpp.protocol.model;
 
+import com.example.xmpp.util.EnumUtils;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
@@ -322,12 +323,9 @@ public final class Iq extends Stanza {
             if (type == null) {
                 throw new IllegalArgumentException("IQ type cannot be null");
             }
-            try {
-                return valueOf(type.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Invalid IQ type: '" + type
-                        + "'. Valid types are: get, set, result, error");
-            }
+            return EnumUtils.fromString(Type.class, type)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Invalid IQ type: '" + type + "'. Valid types are: get, set, result, error"));
         }
 
         /**
@@ -338,14 +336,7 @@ public final class Iq extends Stanza {
          * @return 对应的 Type 枚举值，无效则返回默认值
          */
         public static Type fromStringOrDefault(String type, Type defaultValue) {
-            if (type == null || type.isEmpty()) {
-                return defaultValue;
-            }
-            try {
-                return valueOf(type.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                return defaultValue;
-            }
+            return EnumUtils.fromStringOrDefault(Type.class, type, defaultValue);
         }
     }
 }

@@ -42,14 +42,6 @@ import java.util.concurrent.TimeoutException;
 @Slf4j
 public class DnsResolver implements AutoCloseable {
 
-    /**
-     * DNS 查询超时秒数。
-     *
-     * <p>系统属性：{@code xmpp.dns.timeoutSeconds}，默认 5 秒。</p>
-     */
-    private static final int QUERY_TIMEOUT_SECONDS = Integer.getInteger(
-            "xmpp.dns.timeoutSeconds", 5);
-
     /** Netty 事件循环组 */
     @NonNull
     private final EventLoopGroup group;
@@ -166,7 +158,7 @@ public class DnsResolver implements AutoCloseable {
     private AddressedEnvelope<DnsResponse, InetSocketAddress> executeDnsQuery(String serviceName)
             throws InterruptedException, TimeoutException, ExecutionException {
         DnsQuestion question = new DefaultDnsQuestion(serviceName, DnsRecordType.SRV);
-        return resolver.query(question).get(QUERY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        return resolver.query(question).get(XmppConstants.DNS_QUERY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
     /**

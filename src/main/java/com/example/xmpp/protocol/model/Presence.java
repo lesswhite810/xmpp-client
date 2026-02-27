@@ -1,5 +1,6 @@
 package com.example.xmpp.protocol.model;
 
+import com.example.xmpp.util.EnumUtils;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
@@ -187,7 +188,6 @@ public final class Presence extends Stanza {
         /** 状态描述 */
         private String status;
         /** 优先级 */
-        /** 优先级 */
         private Integer priority;
 
         /**
@@ -319,14 +319,7 @@ public final class Presence extends Stanza {
          * @return 对应的 Type 枚举值的 Optional，无效则返回 Optional.empty()
          */
         public static Optional<Type> fromString(String type) {
-            if (type == null || type.isEmpty()) {
-                return Optional.empty();
-            }
-            try {
-                return Optional.of(valueOf(type.toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                return Optional.empty();
-            }
+            return EnumUtils.fromString(Type.class, type);
         }
     }
 
@@ -357,14 +350,7 @@ public final class Presence extends Stanza {
          * @return 对应的 Show 枚举值的 Optional，无效则返回 Optional.empty()
          */
         public static Optional<Show> fromString(String show) {
-            if (show == null || show.isEmpty()) {
-                return Optional.empty();
-            }
-            try {
-                return Optional.of(valueOf(show.toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                return Optional.empty();
-            }
+            return EnumUtils.fromString(Show.class, show);
         }
     }
 }

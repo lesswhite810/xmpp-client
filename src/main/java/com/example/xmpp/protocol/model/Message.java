@@ -1,5 +1,6 @@
 package com.example.xmpp.protocol.model;
 
+import com.example.xmpp.util.EnumUtils;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
@@ -282,14 +283,7 @@ public final class Message extends Stanza {
          * @return 对应的 Type 枚举值的 Optional，无效则返回 Optional.empty()
          */
         public static Optional<Type> fromString(String type) {
-            if (type == null || type.isEmpty()) {
-                return Optional.empty();
-            }
-            try {
-                return Optional.of(valueOf(type.toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                return Optional.empty();
-            }
+            return EnumUtils.fromString(Type.class, type);
         }
     }
 }

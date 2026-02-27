@@ -247,19 +247,9 @@ public class XmlStringBuilder {
     // --- 私有方法 ---
 
     /**
-     * 转义 XML 特殊字符。
+     * 转义 XML 特殊字符（委托给 SecurityUtils）。
      */
     private void escapeXml(String content) {
-        for (int i = 0; i < content.length(); i++) {
-            char c = content.charAt(i);
-            switch (c) {
-                case '&' -> sb.append("&amp;");
-                case '<' -> sb.append("&lt;");
-                case '>' -> sb.append("&gt;");
-                case '"' -> sb.append("&quot;");
-                case '\'' -> sb.append("&apos;");
-                default -> sb.append(c);
-            }
-        }
+        sb.append(SecurityUtils.escapeXmlAttribute(content));
     }
 }
