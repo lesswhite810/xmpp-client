@@ -19,9 +19,7 @@ class XmppClientConfigTest {
         assertEquals(5222, config.getPort());
         assertEquals(XmppClientConfig.SecurityMode.REQUIRED, config.getSecurityMode());
         assertTrue(config.isSendPresence());
-        assertFalse(config.isCompressionEnabled());
         assertTrue(config.isReconnectionEnabled());
-        assertFalse(config.isDebugEnabled());
     }
 
     @Test
@@ -106,26 +104,6 @@ class XmppClientConfigTest {
                 .build();
         
         assertTrue(config.isUsingDirectTLS());
-    }
-
-    @Test
-    @DisplayName("应正确设置压缩")
-    void testCompression() {
-        XmppClientConfig config = XmppClientConfig.builder()
-                .compressionEnabled(true)
-                .build();
-        
-        assertTrue(config.isCompressionEnabled());
-    }
-
-    @Test
-    @DisplayName("应正确设置调试模式")
-    void testDebugEnabled() {
-        XmppClientConfig config = XmppClientConfig.builder()
-                .debugEnabled(true)
-                .build();
-        
-        assertTrue(config.isDebugEnabled());
     }
 
     @Test

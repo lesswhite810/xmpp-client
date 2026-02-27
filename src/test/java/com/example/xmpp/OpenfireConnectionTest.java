@@ -73,7 +73,6 @@ class OpenfireConnectionTest {
                 .password(PASSWORD.toCharArray())
                 .securityMode(XmppClientConfig.SecurityMode.IF_POSSIBLE)
                 .customTrustManager(new TrustManager[]{TRUST_ALL_MANAGER})  // 信任自签名证书
-                .enableHostnameVerification(false)  // 禁用主机名验证（localhost 测试）
                 .sendPresence(false)
                 .build();
 

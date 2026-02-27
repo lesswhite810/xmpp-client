@@ -9,7 +9,6 @@ import java.net.InetAddress;
 import java.util.Locale;
 import java.util.Set;
 
-import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -65,16 +64,12 @@ public class XmppClientConfig {
     private final KeyManager[] keyManagers;
     /** 自定义 SSL 上下文 */
     private final SSLContext customSslContext;
-    /** 主机名验证器 */
-    private final HostnameVerifier hostnameVerifier;
     /** 启用的 SSL 协议列表 */
     private final String[] enabledSSLProtocols;
     /** 启用的 SSL 密码套件列表 */
     private final String[] enabledSSLCiphers;
     /** 是否使用 Direct TLS 模式 */
     private final boolean usingDirectTLS;
-    /** 是否启用主机名验证 */
-    private final boolean enableHostnameVerification;
     /** SSL 握手超时时间（毫秒） */
     private final int handshakeTimeoutMs;
     /** 启用的 SASL 机制集合 */
@@ -85,8 +80,6 @@ public class XmppClientConfig {
     private final int readTimeout;
     /** 是否发送在线状态 */
     private final boolean sendPresence;
-    /** 是否启用压缩 */
-    private final boolean compressionEnabled;
     /** 语言区域设置 */
     private final Locale language;
     /** 是否启用自动重连 */
@@ -95,8 +88,6 @@ public class XmppClientConfig {
     private final int reconnectionBaseDelay;
     /** 重连最大延迟（秒） */
     private final int reconnectionMaxDelay;
-    /** 是否启用调试模式 */
-    private final boolean debugEnabled;
 
     /**
      * 安全获取密码（返回克隆副本）。
@@ -156,22 +147,18 @@ public class XmppClientConfig {
         private TrustManager[] customTrustManager;
         private KeyManager[] keyManagers;
         private SSLContext customSslContext;
-        private HostnameVerifier hostnameVerifier;
         private String[] enabledSSLProtocols;
         private String[] enabledSSLCiphers;
         private boolean usingDirectTLS = false;
-        private boolean enableHostnameVerification = true;
         private int handshakeTimeoutMs = XmppConstants.SSL_HANDSHAKE_TIMEOUT_MS;
         private Set<String> enabledSaslMechanisms;
         private int connectTimeout = XmppConstants.DEFAULT_CONNECT_TIMEOUT_MS;
         private int readTimeout = XmppConstants.DEFAULT_READ_TIMEOUT_MS;
         private boolean sendPresence = true;
-        private boolean compressionEnabled = false;
         private Locale language = Locale.getDefault();
         private boolean reconnectionEnabled = true;
         private int reconnectionBaseDelay = XmppConstants.RECONNECT_BASE_DELAY_SECONDS;
         private int reconnectionMaxDelay = XmppConstants.RECONNECT_MAX_DELAY_SECONDS;
-        private boolean debugEnabled = false;
 
         /**
          * 设置 XMPP 服务域名。
@@ -306,17 +293,6 @@ public class XmppClientConfig {
         }
 
         /**
-         * 设置主机名验证器。
-         *
-         * @param val 主机名验证器
-         * @return Builder 实例
-         */
-        public XmppClientConfigBuilder hostnameVerifier(HostnameVerifier val) {
-            hostnameVerifier = val;
-            return this;
-        }
-
-        /**
          * 设置启用的 SSL 协议列表。
          *
          * @param val SSL 协议数组
@@ -346,19 +322,6 @@ public class XmppClientConfig {
          */
         public XmppClientConfigBuilder usingDirectTLS(boolean val) {
             usingDirectTLS = val;
-            return this;
-        }
-
-        /**
-         * 设置是否启用主机名验证。
-         *
-         * <p>默认启用。禁用会降低安全性，仅用于测试环境。</p>
-         *
-         * @param val 是否启用
-         * @return Builder 实例
-         */
-        public XmppClientConfigBuilder enableHostnameVerification(boolean val) {
-            enableHostnameVerification = val;
             return this;
         }
 
@@ -418,17 +381,6 @@ public class XmppClientConfig {
         }
 
         /**
-         * 设置是否启用压缩。
-         *
-         * @param val 是否启用
-         * @return Builder 实例
-         */
-        public XmppClientConfigBuilder compressionEnabled(boolean val) {
-            compressionEnabled = val;
-            return this;
-        }
-
-        /**
          * 设置语言区域。
          *
          * @param val 语言区域
@@ -473,17 +425,6 @@ public class XmppClientConfig {
         }
 
         /**
-         * 设置是否启用调试模式。
-         *
-         * @param val 是否启用
-         * @return Builder 实例
-         */
-        public XmppClientConfigBuilder debugEnabled(boolean val) {
-            debugEnabled = val;
-            return this;
-        }
-
-        /**
          * 构建 XmppClientConfig 实例。
          *
          * @return 配置实例
@@ -523,21 +464,17 @@ public class XmppClientConfig {
         this.customTrustManager = builder.customTrustManager;
         this.keyManagers = builder.keyManagers;
         this.customSslContext = builder.customSslContext;
-        this.hostnameVerifier = builder.hostnameVerifier;
         this.enabledSSLProtocols = builder.enabledSSLProtocols;
         this.enabledSSLCiphers = builder.enabledSSLCiphers;
         this.usingDirectTLS = builder.usingDirectTLS;
-        this.enableHostnameVerification = builder.enableHostnameVerification;
         this.handshakeTimeoutMs = builder.handshakeTimeoutMs;
         this.enabledSaslMechanisms = builder.enabledSaslMechanisms;
         this.connectTimeout = builder.connectTimeout;
         this.readTimeout = builder.readTimeout;
         this.sendPresence = builder.sendPresence;
-        this.compressionEnabled = builder.compressionEnabled;
         this.language = builder.language;
         this.reconnectionEnabled = builder.reconnectionEnabled;
         this.reconnectionBaseDelay = builder.reconnectionBaseDelay;
         this.reconnectionMaxDelay = builder.reconnectionMaxDelay;
-        this.debugEnabled = builder.debugEnabled;
     }
 }

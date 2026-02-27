@@ -59,32 +59,6 @@ class SslUtilsTest {
     }
 
     @Test
-    @DisplayName("应正确配置主机名验证")
-    void testHostnameVerification() throws XmppNetworkException {
-        // 启用主机名验证
-        XmppClientConfig configEnabled = XmppClientConfig.builder()
-                .xmppServiceDomain("example.com")
-                .host("example.com")
-                .port(5222)
-                .enableHostnameVerification(true)
-                .build();
-
-        SslHandler handlerEnabled = SslUtils.createSslHandler(configEnabled);
-        assertNotNull(handlerEnabled);
-
-        // 禁用主机名验证
-        XmppClientConfig configDisabled = XmppClientConfig.builder()
-                .xmppServiceDomain("example.com")
-                .host("example.com")
-                .port(5222)
-                .enableHostnameVerification(false)
-                .build();
-
-        SslHandler handlerDisabled = SslUtils.createSslHandler(configDisabled);
-        assertNotNull(handlerDisabled);
-    }
-
-    @Test
     @DisplayName("Direct TLS 模式应正确配置")
     void testDirectTLSConfig() {
         XmppClientConfig config = XmppClientConfig.builder()

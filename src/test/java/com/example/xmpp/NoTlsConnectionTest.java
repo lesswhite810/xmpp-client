@@ -39,7 +39,6 @@ public class NoTlsConnectionTest {
                 .securityMode(XmppClientConfig.SecurityMode.DISABLED)  // 禁用 TLS
                 .sendPresence(true)
                 .reconnectionEnabled(false)
-                .debugEnabled(true)
                 .build();
 
         XmppTcpConnection connection = new XmppTcpConnection(config);

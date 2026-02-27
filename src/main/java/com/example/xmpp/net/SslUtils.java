@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -20,18 +19,6 @@ import java.util.Set;
  * SSL/TLS 工具类。
  *
  * <p>提供创建 {@link SslHandler} 的工具方法，支持 StartTLS 和 Direct TLS 两种模式。</p>
- *
- * <p>功能特性：</p>
- * <ul>
- *   <li>使用 JDK SSLContext 创建 SSL 连接</li>
- *   <li>支持自定义 {@link TrustManager} 数组</li>
- *   <li>支持自定义 {@link KeyManager} 数组</li>
- *   <li>支持配置 SSL 协议版本（自动过滤不支持的协议）</li>
- *   <li>支持配置加密套件（自动过滤不支持的套件）</li>
- *   <li>支持 SNI（Server Name Indication）</li>
- *   <li>支持主机名验证（默认启用）</li>
- *   <li>支持握手超时配置</li>
- * </ul>
  *
  * @since 2026-02-09
  */
@@ -103,20 +90,16 @@ public final class SslUtils {
             // 5. 配置密码套件
             configureCipherSuites(sslEngine, config.getEnabledSSLCiphers());
 
-            // 6. 配置主机名验证
-            configureHostnameVerification(sslEngine, config.isEnableHostnameVerification(), host);
-
-            // 7. 创建 SslHandler
+            // 6. 创建 SslHandler
             SslHandler sslHandler = new SslHandler(sslEngine);
 
-            // 8. 设置握手超时
+            // 7. 设置握手超时
             int handshakeTimeout = config.getHandshakeTimeoutMs() > 0
                     ? config.getHandshakeTimeoutMs()
                     : DEFAULT_HANDSHAKE_TIMEOUT_MS;
             sslHandler.setHandshakeTimeoutMillis(handshakeTimeout);
 
-            log.debug("SslHandler created successfully for {}:{}, hostnameVerification={}",
-                    host, port, config.isEnableHostnameVerification());
+            log.debug("SslHandler created successfully for {}:{}", host, port);
 
             return sslHandler;
 
@@ -165,26 +148,5 @@ public final class SslUtils {
             sslEngine.setEnabledCipherSuites(ciphersToEnable);
             log.debug("Enabled SSL ciphers: {}", Arrays.asList(ciphersToEnable));
         }
-    }
-
-    /**
-     * 配置主机名验证。
-     *
-     * <p>启用时使用 HTTPS 端点识别算法，防止中间人攻击。</p>
-     */
-    private static void configureHostnameVerification(SSLEngine sslEngine, boolean enable, String host) {
-        SSLParameters sslParameters = sslEngine.getSSLParameters();
-
-        if (enable && host != null && !host.isEmpty()) {
-            sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
-            log.debug("Hostname verification enabled for {}", host);
-        } else {
-            sslParameters.setEndpointIdentificationAlgorithm(null);
-            if (!enable) {
-                log.debug("Hostname verification disabled");
-            }
-        }
-
-        sslEngine.setSSLParameters(sslParameters);
     }
 }
