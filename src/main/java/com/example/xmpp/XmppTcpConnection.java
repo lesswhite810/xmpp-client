@@ -296,6 +296,16 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     @Override
     public void disconnect() {
+        // 清理 PingManager
+        if (pingManager != null) {
+            pingManager.stopKeepAlive();
+        }
+        
+        // 清理 ReconnectionManager
+        if (reconnectionManager != null) {
+            reconnectionManager.disable();
+        }
+        
         cleanupCollectors();
 
         if (channel != null) {
