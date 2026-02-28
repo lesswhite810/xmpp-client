@@ -21,6 +21,7 @@ import com.example.xmpp.util.XmlParserUtils;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import java.io.IOException;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import lombok.extern.slf4j.Slf4j;
@@ -84,11 +85,14 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
      */
     protected Optional<Object> parseFromByteBuf(ByteBuf buf) {
         XMLEventReader reader = null;
-        try {
-            reader = INPUT_FACTORY.createXMLEventReader(new ByteBufInputStream(buf));
+        try (ByteBufInputStream in = new ByteBufInputStream(buf)) {
+            reader = INPUT_FACTORY.createXMLEventReader(in);
             return parseRootElement(reader);
         } catch (XMLStreamException e) {
             log.warn("XML parsing error: {}", e.getMessage());
+            return Optional.empty();
+        } catch (IOException e) {
+            log.warn("Error closing ByteBuf stream: {}", e.getMessage());
             return Optional.empty();
         } finally {
             if (reader != null) {
