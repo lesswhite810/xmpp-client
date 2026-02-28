@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public final class ProviderRegistry {
 
+    /** 单例实例，static final 保证线程安全 */
     private static final ProviderRegistry INSTANCE = new ProviderRegistry();
 
     private final Map<String, Provider<?>> providers = new ConcurrentHashMap<>();
