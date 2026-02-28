@@ -129,8 +129,37 @@ public class XmppClientConfig {
     }
 
     /**
-     * 获取安全模式（兼容新旧 API）。
+     * 获取 XMPP 服务域名（兼容新旧 API）。
      */
+    public String getXmppServiceDomain() {
+        if (connection != null && connection.getXmppServiceDomain() != null) {
+            return connection.getXmppServiceDomain();
+        }
+        return xmppServiceDomain;
+    }
+
+    /**
+     * 获取主机地址（兼容新旧 API）。
+     */
+    public String getHost() {
+        if (connection != null && connection.getHost() != null) {
+            return connection.getHost();
+        }
+        return host;
+    }
+
+    /**
+     * 获取用户名（兼容新旧 API）。
+     */
+    public String getUsername() {
+        if (auth != null && auth.getUsername() != null) {
+            return auth.getUsername();
+        }
+        return username;
+    }
+
+    /**
+     * 安全模式（兼容新旧 API）。
     public SecurityMode getSecurityMode() {
         if (security != null && security.getSecurityMode() != null) {
             return switch (security.getSecurityMode()) {

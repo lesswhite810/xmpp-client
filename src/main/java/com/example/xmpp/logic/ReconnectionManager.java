@@ -58,6 +58,9 @@ public class ReconnectionManager implements ConnectionListener {
     /** 当前连续重连尝试次数（线程安全） */
     private final AtomicInteger attemptCount = new AtomicInteger(0);
 
+    /** 是否因错误触发过重连（避免被正常关闭事件覆盖） */
+    private volatile boolean reconnectionScheduledDueToError = false;
+
     /**
      * 构造 ReconnectionManager。
      *
@@ -105,16 +108,23 @@ public class ReconnectionManager implements ConnectionListener {
 
     private void onConnected() {
         attemptCount.set(0);
+        reconnectionScheduledDueToError = false;
         stopReconnectTask();
         log.debug("Connection established, reconnection task stopped");
     }
 
     private void onAuthenticated() {
         attemptCount.set(0);
+        reconnectionScheduledDueToError = false;
         stopReconnectTask();
     }
 
     private void onConnectionClosed() {
+        // 如果之前因错误触发了重连，不取消（避免事件顺序问题）
+        if (reconnectionScheduledDueToError) {
+            log.debug("Connection closed but reconnection already scheduled due to previous error");
+            return;
+        }
         stopReconnectTask();
         log.debug("Connection closed normally");
     }
@@ -124,6 +134,7 @@ public class ReconnectionManager implements ConnectionListener {
             log.debug("Reconnection disabled, not attempting to reconnect");
             return;
         }
+        reconnectionScheduledDueToError = true;
         log.info("Connection closed on error. Starting reconnection...", e);
         scheduleReconnect(0);
     }
@@ -147,16 +158,17 @@ public class ReconnectionManager implements ConnectionListener {
      */
     private void scheduleReconnect(int attempt) {
         synchronized (this) {
+            log.debug("scheduleReconnect called with attempt={}, currentTask={}", attempt, currentTask);
+
             // 检查是否已有任务在运行
             if (currentTask != null && !currentTask.isDone()) {
                 log.debug("Reconnection task already scheduled, skipping");
                 return;
             }
 
-            if (connection.isConnected()) {
-                attemptCount.set(0);
-                return;
-            }
+            // 注意：这里不检查 isConnected()，因为调用 scheduleReconnect 时
+            // 连接刚刚因错误关闭，channel 可能还处于过渡状态
+            // 重连逻辑会在实际执行时检查连接状态
 
             int currentAttempt = attemptCount.updateAndGet(curr -> curr >= MAX_RECONNECT_ATTEMPTS ? curr : curr + 1);
             if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {

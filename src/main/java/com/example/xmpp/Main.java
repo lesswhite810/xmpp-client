@@ -2,6 +2,7 @@ package com.example.xmpp;
 
 import com.example.xmpp.config.AuthConfig;
 import com.example.xmpp.config.ConnectionConfig;
+import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
 
@@ -70,7 +71,12 @@ public class Main {
                         .username(username)
                         .password(password.toCharArray())
                         .build())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .reconnectionEnabled(true)
                 .build();
+
+        log.info("Security mode: {}", config.getSecurityMode());
+        log.info("Using Direct TLS: {}", config.isUsingDirectTLS());
 
         // 创建连接（PingManager 和 ReconnectionManager 自动初始化）
         XmppTcpConnection connection = new XmppTcpConnection(config);

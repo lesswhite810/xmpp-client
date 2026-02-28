@@ -290,15 +290,21 @@ public enum XmppHandlerState implements HandlerState {
                     case SaslFailure failure -> {
                         log.error("SASL authentication failed - condition: {}, text: {}",
                                 failure.getCondition(), failure.getText());
+                        // 清理 SASL negotiator 避免重连时残留状态
+                        context.setSaslNegotiator(null);
                         context.closeConnectionOnError(ctx, "Authentication failed: " + failure.getCondition());
                     }
                     default -> log.debug("Received unexpected message during SASL auth: {}", msg.getClass().getSimpleName());
                 }
             } catch (com.example.xmpp.exception.XmppAuthException e) {
                 log.error("SASL authentication error", e);
+                // 清理 SASL negotiator 避免重连时残留状态
+                context.setSaslNegotiator(null);
                 context.closeConnectionOnError(ctx, e);
             } catch (IllegalArgumentException e) {
                 log.error("Invalid SASL authentication data", e);
+                // 清理 SASL negotiator 避免重连时残留状态
+                context.setSaslNegotiator(null);
                 context.closeConnectionOnError(ctx, e);
             }
         }
