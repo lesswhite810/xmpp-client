@@ -9,6 +9,7 @@ import com.example.xmpp.util.SecurityUtils;
 import com.example.xmpp.util.XmlStringBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.ssl.SslHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -47,6 +48,11 @@ public class SaslNegotiator {
      * @throws XmppAuthException 如果认证启动失败
      */
     public void start() throws XmppAuthException {
+        // PLAIN 机制必须使用 TLS 加密通道
+        if ("PLAIN".equals(mechanism.getMechanismName()) && !isTlsEncrypted()) {
+            throw new XmppAuthException("PLAIN authentication requires TLS encryption. Please enable TLS before authenticating.");
+        }
+        
         log.info("Authenticating with {}", mechanism.getMechanismName());
         String content = "";
         if (mechanism.hasInitialResponse()) {
@@ -156,5 +162,16 @@ public class SaslNegotiator {
             throw new IllegalArgumentException(
                     "Packet must implement ExtensionElement interface: " + packet.getClass().getName());
         }
+    }
+
+    /**
+     * 检查当前通道是否使用 TLS 加密。
+     *
+     * @return 如果通道已加密返回 true，否则返回 false
+     */
+    private boolean isTlsEncrypted() {
+        return ctx.pipeline().get(SslHandler.class) != null 
+            && ctx.pipeline().get(SslHandler.class).handshakeFuture().isDone()
+            && !ctx.pipeline().get(SslHandler.class).handshakeFuture().isCancelled();
     }
 }
