@@ -124,17 +124,11 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         log.debug("Handling IQ request with handler: {} for IQ id={}",
                 handler.getClass().getSimpleName(), iq.getId());
 
-        try {
-            Iq response = handler.handleIqRequest(iq);
-            if (response != null) {
-                sendStanza(response);
-            }
-            return true;
-        } catch (Exception e) {
-            log.error("Error in IQ request handler {}: {}",
-                    handler.getClass().getSimpleName(), e.getMessage(), e);
-            return false;
+        Iq response = handler.handleIqRequest(iq);
+        if (response != null) {
+            sendStanza(response);
         }
+        return true;
     }
 
     /**

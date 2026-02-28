@@ -49,26 +49,16 @@ public class NettyUtils {
         int estimatedSize = (int) (content.length() * UTF8_MAX_BYTES_PER_CHAR);
         ByteBuf buf = ctx.alloc().buffer(estimatedSize);
 
-        try {
-            buf.writeCharSequence(content, StandardCharsets.UTF_8);
-            ChannelFuture future = ctx.writeAndFlush(buf);
+        buf.writeCharSequence(content, StandardCharsets.UTF_8);
+        ChannelFuture future = ctx.writeAndFlush(buf);
 
-            // 添加 listener 处理写入失败时的 ByteBuf 释放
-            future.addListener(f -> {
-                if (!f.isSuccess() && buf.refCnt() > 0) {
-                    log.warn("Failed to write ByteBuf, releasing buffer. Error: {}",
-                            f.cause() != null ? f.cause().getMessage() : "unknown");
-                    buf.release();
-                }
-            });
-
-        } catch (Exception e) {
-            // 异常情况下确保释放 ByteBuf
-            if (buf.refCnt() > 0) {
+        // 添加 listener 处理写入失败时的 ByteBuf 释放
+        future.addListener(f -> {
+            if (!f.isSuccess() && buf.refCnt() > 0) {
+                log.warn("Failed to write ByteBuf, releasing buffer. Error: {}",
+                        f.cause() != null ? f.cause().getMessage() : "unknown");
                 buf.release();
             }
-            log.error("Error writing string to channel", e);
-            throw new RuntimeException("Failed to write string to channel", e);
-        }
+        });
     }
 }

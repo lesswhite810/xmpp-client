@@ -137,27 +137,19 @@ public class SaslNegotiator {
 
             int bufferSize = xmlString.length() * UTF8_MAX_BYTES_PER_CHAR;
             ByteBuf buf = ctx.alloc().buffer(bufferSize);
-            try {
-                buf.writeCharSequence(xmlString, StandardCharsets.UTF_8);
-                final ByteBuf bufToWrite = buf;
-                ctx.writeAndFlush(bufToWrite).addListener(future -> {
-                    if (future.isSuccess()) {
-                        log.info("SASL stanza sent successfully");
-                    } else {
-                        log.error("Failed to send SASL stanza", future.cause());
-                        // 如果发送失败且 buf 还未被释放，确保释放
-                        if (bufToWrite.refCnt() > 0) {
-                            bufToWrite.release();
-                        }
+            buf.writeCharSequence(xmlString, StandardCharsets.UTF_8);
+            final ByteBuf bufToWrite = buf;
+            ctx.writeAndFlush(bufToWrite).addListener(future -> {
+                if (future.isSuccess()) {
+                    log.info("SASL stanza sent successfully");
+                } else {
+                    log.error("Failed to send SASL stanza", future.cause());
+                    // 如果发送失败且 buf 还未被释放，确保释放
+                    if (bufToWrite.refCnt() > 0) {
+                        bufToWrite.release();
                     }
-                });
-            } catch (Exception e) {
-                // 确保任何异常情况下都释放 ByteBuf
-                if (buf.refCnt() > 0) {
-                    buf.release();
                 }
-                throw new XmppAuthException("Failed to send SASL stanza", e);
-            }
+            });
         } else {
             throw new IllegalArgumentException(
                     "Packet must implement ExtensionElement interface: " + packet.getClass().getName());
