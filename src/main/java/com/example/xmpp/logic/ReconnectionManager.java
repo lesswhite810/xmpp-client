@@ -146,6 +146,14 @@ public class ReconnectionManager implements ConnectionListener {
      * @param attempt 当前重连尝试次数（从 0 开始）
      */
     private void scheduleReconnect(int attempt) {
+        // 检查是否已有任务在运行
+        synchronized (this) {
+            if (currentTask != null && !currentTask.isDone()) {
+                log.debug("Reconnection task already scheduled, skipping");
+                return;
+            }
+        }
+
         if (connection.isConnected()) {
             attemptCount.set(0);
             return;
