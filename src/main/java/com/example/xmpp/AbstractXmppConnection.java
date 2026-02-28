@@ -324,7 +324,12 @@ public abstract class AbstractXmppConnection implements XmppConnection {
 
         return collector.getFuture()
                 .orTimeout(timeout, unit)
-                .whenComplete((result, ex) -> collectors.remove(collector));
+                .whenComplete((result, ex) -> {
+                    collectors.remove(collector);
+                    if (ex != null) {
+                        collector.getFuture().cancel(true);
+                    }
+                });
     }
 
     /**
