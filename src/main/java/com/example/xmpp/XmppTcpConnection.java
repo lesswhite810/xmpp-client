@@ -96,11 +96,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
         // 注册 Ping IQ 请求处理器，响应服务端 Ping
         registerIqRequestHandler(new PingIqRequestHandler());
-
-        // 根据配置决定是否启用自动重连
-        if (reconnectionManager != null && !config.isReconnectionEnabled()) {
-            reconnectionManager.disable();
-        }
     }
 
     /**
