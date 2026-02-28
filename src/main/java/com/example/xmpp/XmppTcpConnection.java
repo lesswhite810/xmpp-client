@@ -26,12 +26,12 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.ssl.SslHandler;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.Validate;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -73,8 +73,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * @throws IllegalArgumentException 如果 config 为 null
      */
     public XmppTcpConnection(XmppClientConfig config) {
-        Validate.notNull(config, "XmppClientConfig must not be null");
-        this.config = config;
+        this.config = Objects.requireNonNull(config, "XmppClientConfig must not be null");
 
         // 根据配置决定是否启用 Ping 心跳和重连
         if (config.isPingEnabled()) {
