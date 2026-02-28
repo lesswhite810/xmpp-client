@@ -1,5 +1,7 @@
 package com.example.xmpp;
 
+import com.example.xmpp.config.AuthConfig;
+import com.example.xmpp.config.ConnectionConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
 
@@ -59,11 +61,15 @@ public class Main {
     private static void runClient(String domain, String username, String password)
             throws InterruptedException, XmppException {
 
-        // 创建配置（使用 Builder 模式）
+        // 创建配置（使用新的模块化配置）
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain(domain)
-                .username(username)
-                .password(password.toCharArray())
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain(domain)
+                        .build())
+                .auth(AuthConfig.builder()
+                        .username(username)
+                        .password(password.toCharArray())
+                        .build())
                 .build();
 
         // 创建连接（PingManager 和 ReconnectionManager 自动初始化）
