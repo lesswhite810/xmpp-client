@@ -160,10 +160,10 @@ public class XmppClientConfig {
         private int readTimeout = XmppConstants.DEFAULT_READ_TIMEOUT_MS;
         private boolean sendPresence = true;
         private Locale language = Locale.getDefault();
-        private boolean reconnectionEnabled = true;
+        private boolean reconnectionEnabled = false;
         private int reconnectionBaseDelay = XmppConstants.RECONNECT_BASE_DELAY_SECONDS;
         private int reconnectionMaxDelay = XmppConstants.RECONNECT_MAX_DELAY_SECONDS;
-        private boolean pingEnabled = true;
+        private boolean pingEnabled = false;
         private int pingInterval = XmppConstants.DEFAULT_PING_INTERVAL_SECONDS;
 
         /**
