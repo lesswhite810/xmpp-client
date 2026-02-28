@@ -1,6 +1,7 @@
 package com.example.xmpp.logic;
 
 import com.example.xmpp.event.ConnectionEvent;
+import com.example.xmpp.event.ConnectionListener;
 import com.example.xmpp.XmppConnection;
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmppScheduler;
@@ -26,7 +27,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @since 2026-02-09
  */
 @Slf4j
-public class PingManager {
+public class PingManager implements ConnectionListener {
 
     /** 关联的 XMPP 连接 */
     private final XmppConnection connection;
@@ -48,15 +49,21 @@ public class PingManager {
     public PingManager(XmppConnection connection) {
         this.connection = connection;
 
-        // 监听连接事件
-        connection.addConnectionListener(event -> {
-            switch (event) {
-                case ConnectionEvent.AuthenticatedEvent e -> startKeepAlive();
-                case ConnectionEvent.ConnectionClosedEvent e -> shutdown();
-                case ConnectionEvent.ConnectionClosedOnErrorEvent e -> shutdown();
-                default -> { }
-            }
-        });
+        // 注册连接监听器
+        connection.addConnectionListener(this);
+    }
+
+    /**
+     * 处理连接事件。
+     */
+    @Override
+    public void onEvent(ConnectionEvent event) {
+        switch (event) {
+            case ConnectionEvent.AuthenticatedEvent e -> startKeepAlive();
+            case ConnectionEvent.ConnectionClosedEvent e -> shutdown();
+            case ConnectionEvent.ConnectionClosedOnErrorEvent e -> shutdown();
+            default -> { }
+        }
     }
 
     /**
