@@ -19,7 +19,8 @@ class XmppClientConfigTest {
         assertEquals(5222, config.getPort());
         assertEquals(XmppClientConfig.SecurityMode.REQUIRED, config.getSecurityMode());
         assertTrue(config.isSendPresence());
-        assertTrue(config.isReconnectionEnabled());
+        assertFalse(config.isReconnectionEnabled());
+        assertFalse(config.isPingEnabled());
     }
 
     @Test
