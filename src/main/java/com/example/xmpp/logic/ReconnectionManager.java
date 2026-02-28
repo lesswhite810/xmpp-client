@@ -146,32 +146,30 @@ public class ReconnectionManager implements ConnectionListener {
      * @param attempt 当前重连尝试次数（从 0 开始）
      */
     private void scheduleReconnect(int attempt) {
-        // 检查是否已有任务在运行
         synchronized (this) {
+            // 检查是否已有任务在运行
             if (currentTask != null && !currentTask.isDone()) {
                 log.debug("Reconnection task already scheduled, skipping");
                 return;
             }
-        }
 
-        if (connection.isConnected()) {
-            attemptCount.set(0);
-            return;
-        }
+            if (connection.isConnected()) {
+                attemptCount.set(0);
+                return;
+            }
 
-        int currentAttempt = attemptCount.updateAndGet(curr -> curr >= MAX_RECONNECT_ATTEMPTS ? curr : curr + 1);
-        if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {
-            log.error("Max reconnection attempts ({}) reached, stopping reconnection", MAX_RECONNECT_ATTEMPTS);
-            attemptCount.set(0);
-            return;
-        }
+            int currentAttempt = attemptCount.updateAndGet(curr -> curr >= MAX_RECONNECT_ATTEMPTS ? curr : curr + 1);
+            if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {
+                log.error("Max reconnection attempts ({}) reached, stopping reconnection", MAX_RECONNECT_ATTEMPTS);
+                attemptCount.set(0);
+                return;
+            }
 
-        int delay = Math.min(BASE_DELAY_SECONDS * (1 << attempt), MAX_DELAY_SECONDS);
-        delay += random.nextInt(Math.max(1, delay / 4));
+            int delay = Math.min(BASE_DELAY_SECONDS * (1 << attempt), MAX_DELAY_SECONDS);
+            delay += random.nextInt(Math.max(1, delay / 4));
 
-        log.info("Reconnecting in {} seconds (Attempt {}/{})...", delay, currentAttempt, MAX_RECONNECT_ATTEMPTS);
+            log.info("Reconnecting in {} seconds (Attempt {}/{})...", delay, currentAttempt, MAX_RECONNECT_ATTEMPTS);
 
-        synchronized (this) {
             currentTask = XmppScheduler.getScheduler().schedule(() -> {
                 try {
                     if (connection.isConnected()) {
