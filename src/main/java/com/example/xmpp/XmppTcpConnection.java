@@ -1,11 +1,12 @@
 package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
-import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.exception.XmppDnsException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.logic.PingIqRequestHandler;
+import com.example.xmpp.logic.PingManager;
+import com.example.xmpp.logic.ReconnectionManager;
 import com.example.xmpp.net.DnsResolver;
 import com.example.xmpp.net.SrvRecord;
 import com.example.xmpp.net.XmppNettyHandler;
@@ -13,7 +14,6 @@ import com.example.xmpp.net.XmppStreamDecoder;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.util.ConnectionUtils;
 import com.example.xmpp.util.XmppConstants;
-import com.example.xmpp.util.XmppScheduler;
 import com.example.xmpp.net.SslUtils;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
@@ -33,11 +33,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Random;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -71,23 +66,15 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     private XmppNettyHandler nettyHandler;
 
-    // ==================== Ping 字段 ====================
-    /** Ping 任务 */
-    private volatile ScheduledFuture<?> keepAliveTask;
-    /** Ping 任务操作锁 */
-    private final ReentrantLock pingLock = new ReentrantLock();
-    /** Ping 间隔（秒） */
-    private int pingInterval = XmppConstants.DEFAULT_PING_INTERVAL_SECONDS;
+    /**
+     * Ping 管理器。
+     */
+    private PingManager pingManager;
 
-    // ==================== Reconnection 字段 ====================
-    /** 重连任务 */
-    private volatile ScheduledFuture<?> reconnectTask;
-    /** 是否启用重连 */
-    private volatile boolean reconnectionEnabled = true;
-    /** 重连尝试次数 */
-    private final AtomicInteger reconnectAttempt = new AtomicInteger(0);
-    /** 随机数生成器 */
-    private final Random random = new Random();
+    /**
+     * 重连管理器。
+     */
+    private ReconnectionManager reconnectionManager;
 
     /**
      * 构造 TCP 连接。
@@ -97,110 +84,19 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     public XmppTcpConnection(XmppClientConfig config) {
         this.config = Objects.requireNonNull(config, "XmppClientConfig must not be null");
-        this.reconnectionEnabled = config.isReconnectionEnabled();
-        this.pingInterval = config.getPingInterval();
+
+        // 根据配置决定是否启用 Ping 心跳
+        if (config.isPingEnabled()) {
+            this.pingManager = new PingManager(this);
+        }
+        
+        // 根据配置决定是否启用自动重连
+        if (config.isReconnectionEnabled()) {
+            this.reconnectionManager = new ReconnectionManager(this);
+        }
 
         // 注册 Ping IQ 请求处理器，响应服务端 Ping
         registerIqRequestHandler(new PingIqRequestHandler());
-
-        // 注册连接事件监听器（处理 Ping 心跳和自动重连）
-        addConnectionListener(event -> {
-            switch (event) {
-                case ConnectionEvent.ConnectedEvent e -> onConnected();
-                case ConnectionEvent.AuthenticatedEvent e -> onAuthenticated();
-                case ConnectionEvent.ConnectionClosedEvent e -> onConnectionClosed();
-                case ConnectionEvent.ConnectionClosedOnErrorEvent e -> onConnectionClosedOnError(e.error());
-                default -> {}
-            }
-        });
-    }
-
-    // ==================== Ping 心跳处理 ====================
-    private void onAuthenticated() {
-        startKeepAlive();
-    }
-
-    private void onConnectionClosed() {
-        stopKeepAlive();
-    }
-
-    private void onConnectionClosedOnError(Exception e) {
-        stopKeepAlive();
-        if (reconnectionEnabled) {
-            scheduleReconnect(0);
-        }
-    }
-
-    private void startKeepAlive() {
-        if (!config.isPingEnabled()) return;
-        pingLock.lock();
-        try {
-            stopKeepAliveInternal();
-            keepAliveTask = XmppScheduler.getScheduler().scheduleWithFixedDelay(
-                    this::sendPing, pingInterval, pingInterval, TimeUnit.SECONDS);
-        } finally {
-            pingLock.unlock();
-        }
-    }
-
-    private void stopKeepAlive() {
-        pingLock.lock();
-        try {
-            stopKeepAliveInternal();
-        } finally {
-            pingLock.unlock();
-        }
-    }
-
-    private void stopKeepAliveInternal() {
-        if (keepAliveTask != null) {
-            keepAliveTask.cancel(true);
-            keepAliveTask = null;
-        }
-    }
-
-    private void sendPing() {
-        if (!isConnected() || !isAuthenticated()) return;
-        String id = XmppConstants.generateStanzaId();
-        // 发送 Ping IQ（需要实现）
-        log.debug("Sending keepalive ping");
-    }
-
-    // ==================== 自动重连处理 ====================
-    private void onConnected() {
-        reconnectAttempt.set(0);
-        stopReconnectTask();
-    }
-
-    private void stopReconnectTask() {
-        if (reconnectTask != null) {
-            reconnectTask.cancel(true);
-            reconnectTask = null;
-        }
-    }
-
-    private void scheduleReconnect(int attempt) {
-        if (isConnected()) {
-            reconnectAttempt.set(0);
-            return;
-        }
-        int currentAttempt = reconnectAttempt.updateAndGet(curr -> curr >= 10 ? curr : curr + 1);
-        if (currentAttempt > 10) {
-            reconnectAttempt.set(0);
-            return;
-        }
-        int delay = Math.min(2 * (1 << attempt), 60);
-        delay += random.nextInt(Math.max(1, delay / 4));
-        log.info("Reconnecting in {} seconds (attempt {}/10)", delay, currentAttempt);
-        reconnectTask = XmppScheduler.getScheduler().schedule(() -> {
-            try {
-                if (isConnected()) return;
-                connect();
-            } catch (XmppException ex) {
-                log.warn("Reconnection failed: {}", ex.getMessage());
-                scheduleReconnect(attempt + 1);
-            }
-        }, delay, TimeUnit.SECONDS);
     }
 
     /**
