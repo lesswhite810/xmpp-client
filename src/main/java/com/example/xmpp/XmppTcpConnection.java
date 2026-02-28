@@ -67,13 +67,13 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     private XmppNettyHandler nettyHandler;
 
     /**
-     * Ping 管理器。
+     * Ping 管理器（可为 null，如果未启用）。
      */
     @Getter
     private final PingManager pingManager;
 
     /**
-     * 重连管理器。
+     * 重连管理器（可为 null，如果未启用）。
      */
     @Getter
     private final ReconnectionManager reconnectionManager;
@@ -88,15 +88,17 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         Validate.notNull(config, "XmppClientConfig must not be null");
         this.config = config;
 
-        // 初始化管理器
-        this.pingManager = new PingManager(this);
-        this.reconnectionManager = new ReconnectionManager(this);
+        // 根据配置决定是否启用 Ping 心跳
+        this.pingManager = config.isPingEnabled() ? new PingManager(this) : null;
+        
+        // 根据配置决定是否启用自动重连
+        this.reconnectionManager = config.isReconnectionEnabled() ? new ReconnectionManager(this) : null;
 
         // 注册 Ping IQ 请求处理器，响应服务端 Ping
         registerIqRequestHandler(new PingIqRequestHandler());
 
         // 根据配置决定是否启用自动重连
-        if (!config.isReconnectionEnabled()) {
+        if (reconnectionManager != null && !config.isReconnectionEnabled()) {
             reconnectionManager.disable();
         }
     }

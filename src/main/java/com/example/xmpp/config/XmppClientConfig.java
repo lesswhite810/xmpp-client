@@ -88,6 +88,10 @@ public class XmppClientConfig {
     private final int reconnectionBaseDelay;
     /** 重连最大延迟（秒） */
     private final int reconnectionMaxDelay;
+    /** 是否启用 Ping 心跳 */
+    private final boolean pingEnabled;
+    /** Ping 间隔（秒） */
+    private final int pingInterval;
 
     /**
      * 安全获取密码（返回克隆副本）。
@@ -159,6 +163,8 @@ public class XmppClientConfig {
         private boolean reconnectionEnabled = true;
         private int reconnectionBaseDelay = XmppConstants.RECONNECT_BASE_DELAY_SECONDS;
         private int reconnectionMaxDelay = XmppConstants.RECONNECT_MAX_DELAY_SECONDS;
+        private boolean pingEnabled = true;
+        private int pingInterval = XmppConstants.DEFAULT_PING_INTERVAL_SECONDS;
 
         /**
          * 设置 XMPP 服务域名。
@@ -425,6 +431,28 @@ public class XmppClientConfig {
         }
 
         /**
+         * 设置是否启用 Ping 心跳。
+         *
+         * @param val 是否启用
+         * @return Builder 实例
+         */
+        public XmppClientConfigBuilder pingEnabled(boolean val) {
+            pingEnabled = val;
+            return this;
+        }
+
+        /**
+         * 设置 Ping 间隔。
+         *
+         * @param val 间隔（秒）
+         * @return Builder 实例
+         */
+        public XmppClientConfigBuilder pingInterval(int val) {
+            pingInterval = val;
+            return this;
+        }
+
+        /**
          * 构建 XmppClientConfig 实例。
          *
          * @return 配置实例
@@ -476,5 +504,7 @@ public class XmppClientConfig {
         this.reconnectionEnabled = builder.reconnectionEnabled;
         this.reconnectionBaseDelay = builder.reconnectionBaseDelay;
         this.reconnectionMaxDelay = builder.reconnectionMaxDelay;
+        this.pingEnabled = builder.pingEnabled;
+        this.pingInterval = builder.pingInterval;
     }
 }
