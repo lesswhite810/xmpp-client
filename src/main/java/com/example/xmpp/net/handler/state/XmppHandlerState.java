@@ -1,5 +1,6 @@
 package com.example.xmpp.net.handler.state;
 
+import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppNetworkException;
@@ -56,7 +57,7 @@ public enum XmppHandlerState implements HandlerState {
         @Override
         public void onEnter(StateContext context, ChannelHandlerContext ctx) {
             // Direct TLS 模式：等待 SSL 握手完成（不打开流）
-            if (context.getConfig().isUsingDirectTLS()) {
+            if (context.getConfig().getSecurity().isUsingDirectTLS()) {
                 log.debug("Using Direct TLS, waiting for SSL handshake to complete");
                 return;
             }
@@ -103,7 +104,7 @@ public enum XmppHandlerState implements HandlerState {
         }
 
         private boolean isSecureConnection(ChannelHandlerContext ctx, XmppClientConfig config) {
-            return config.isUsingDirectTLS() || ctx.pipeline().get(SslHandler.class) != null;
+            return config.getSecurity().isUsingDirectTLS() || ctx.pipeline().get(SslHandler.class) != null;
         }
 
         private void logFeaturesDebug(StreamFeatures features) {
@@ -127,15 +128,15 @@ public enum XmppHandlerState implements HandlerState {
         }
 
         private void handleInsecureConnectionFeatures(StateContext context, ChannelHandlerContext ctx, StreamFeatures features) {
-            XmppClientConfig.SecurityMode mode = context.getConfig().getSecurityMode();
+            SecurityConfig.SecurityMode mode = context.getConfig().getSecurity().getSecurityMode();
 
-            if (mode == XmppClientConfig.SecurityMode.REQUIRED && !features.isStarttlsAvailable()) {
+            if (mode == SecurityConfig.SecurityMode.REQUIRED && !features.isStarttlsAvailable()) {
                 log.error("TLS required by configuration but not available on server");
                 context.closeConnectionOnError(ctx, "TLS required but not supported by server");
                 return;
             }
 
-            if (features.isStarttlsAvailable() && mode != XmppClientConfig.SecurityMode.DISABLED) {
+            if (features.isStarttlsAvailable() && mode != SecurityConfig.SecurityMode.DISABLED) {
                 initiateStartTls(context, ctx);
             } else if (features.isBindAvailable()) {
                 // SASL 认证成功后，服务器不再返回 mechanisms，但会返回 bind
@@ -159,10 +160,10 @@ public enum XmppHandlerState implements HandlerState {
                 return;
             }
 
-            Set<String> enabledMechanisms = context.getConfig().getEnabledSaslMechanisms();
+            Set<String> enabledMechanisms = context.getConfig().getConnection().getEnabledSaslMechanisms();
             Optional<SaslMechanism> best = SaslMechanismFactory.getInstance()
                     .createBestMechanism(serverMechanisms, enabledMechanisms,
-                            context.getConfig().getUsername(), context.getConfig().getPassword());
+                            context.getConfig().getAuth().getUsername(), context.getConfig().getAuth().getPassword());
 
             if (best.isPresent()) {
                 SaslMechanism mech = best.get();
@@ -193,7 +194,7 @@ public enum XmppHandlerState implements HandlerState {
 
         private void handleBindRequest(StateContext context, ChannelHandlerContext ctx) {
             log.debug("Sending resource bind request");
-            String resource = context.getConfig().getResource();
+            String resource = context.getConfig().getConnection().getResource();
 
             Bind bind = Bind.builder()
                     .resource(resource)
@@ -234,10 +235,10 @@ public enum XmppHandlerState implements HandlerState {
             try {
                 log.info("TLS proceed received, starting SSL handshake");
 
-                String hostname = context.getConfig().getHost() != null
-                        ? context.getConfig().getHost()
-                        : context.getConfig().getXmppServiceDomain();
-                int port = context.getConfig().getPort() > 0 ? context.getConfig().getPort() : 5222;
+                String hostname = context.getConfig().getConnection().getHost() != null
+                        ? context.getConfig().getConnection().getHost()
+                        : context.getConfig().getConnection().getXmppServiceDomain();
+                int port = context.getConfig().getConnection().getPort() > 0 ? context.getConfig().getConnection().getPort() : 5222;
 
                 var sslHandler = SslUtils.createSslHandler(hostname, port, context.getConfig());
 
@@ -333,7 +334,7 @@ public enum XmppHandlerState implements HandlerState {
                 log.info("Resource binding successful");
                 context.transitionTo(SESSION_ACTIVE, ctx);
 
-                if (context.getConfig().isSendPresence()) {
+                if (context.getConfig().getConnection().isSendPresence()) {
                     log.debug("Sending initial presence");
                     context.sendStanza(ctx, new Presence());
                 }

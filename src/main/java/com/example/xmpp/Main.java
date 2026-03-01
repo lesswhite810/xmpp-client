@@ -2,6 +2,7 @@ package com.example.xmpp;
 
 import com.example.xmpp.config.AuthConfig;
 import com.example.xmpp.config.ConnectionConfig;
+import com.example.xmpp.config.KeepAliveConfig;
 import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
@@ -62,7 +63,7 @@ public class Main {
     private static void runClient(String domain, String username, String password)
             throws InterruptedException, XmppException {
 
-        // 创建配置（使用新的模块化配置）
+        // 创建配置（使用模块化配置类）
         XmppClientConfig config = XmppClientConfig.builder()
                 .connection(ConnectionConfig.builder()
                         .xmppServiceDomain(domain)
@@ -71,12 +72,16 @@ public class Main {
                         .username(username)
                         .password(password.toCharArray())
                         .build())
-                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
-                .reconnectionEnabled(true)
+                .security(SecurityConfig.builder()
+                        .securityMode(SecurityConfig.SecurityMode.DISABLED)
+                        .build())
+                .keepAlive(KeepAliveConfig.builder()
+                        .reconnectionEnabled(true)
+                        .build())
                 .build();
 
-        log.info("Security mode: {}", config.getSecurityMode());
-        log.info("Using Direct TLS: {}", config.isUsingDirectTLS());
+        log.info("Security mode: {}", config.getSecurity().getSecurityMode());
+        log.info("Using Direct TLS: {}", config.getSecurity().isUsingDirectTLS());
 
         // 创建连接（PingManager 和 ReconnectionManager 自动初始化）
         XmppTcpConnection connection = new XmppTcpConnection(config);

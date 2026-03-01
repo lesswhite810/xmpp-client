@@ -1,5 +1,9 @@
 package com.example.xmpp;
 
+import com.example.xmpp.config.AuthConfig;
+import com.example.xmpp.config.ConnectionConfig;
+import com.example.xmpp.config.KeepAliveConfig;
+import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEvent;
 import lombok.extern.slf4j.Slf4j;
@@ -80,13 +84,19 @@ public class XmppIntegrationTest {
         log.info("\n--- Test: {} ---", testName);
 
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain(DOMAIN)
-                .username(USERNAME)
-                .password(PASSWORD.toCharArray())
-                .host(HOST)
-                .port(PORT_PLAIN)
-                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
-                .sendPresence(false)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain(DOMAIN)
+                        .host(HOST)
+                        .port(PORT_PLAIN)
+                        .sendPresence(false)
+                        .build())
+                .auth(AuthConfig.builder()
+                        .username(USERNAME)
+                        .password(PASSWORD.toCharArray())
+                        .build())
+                .security(SecurityConfig.builder()
+                        .securityMode(SecurityConfig.SecurityMode.DISABLED)
+                        .build())
                 .build();
 
         try {
@@ -109,13 +119,19 @@ public class XmppIntegrationTest {
         log.info("\n--- Test: {} ---", testName);
 
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain(DOMAIN)
-                .username(USERNAME)
-                .password(PASSWORD.toCharArray())
-                .host(HOST)
-                .port(PORT_PLAIN)
-                .securityMode(XmppClientConfig.SecurityMode.REQUIRED)
-                .sendPresence(false)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain(DOMAIN)
+                        .host(HOST)
+                        .port(PORT_PLAIN)
+                        .sendPresence(false)
+                        .build())
+                .auth(AuthConfig.builder()
+                        .username(USERNAME)
+                        .password(PASSWORD.toCharArray())
+                        .build())
+                .security(SecurityConfig.builder()
+                        .securityMode(SecurityConfig.SecurityMode.REQUIRED)
+                        .build())
                 .build();
 
         try {
@@ -143,13 +159,19 @@ public class XmppIntegrationTest {
         log.info("\n--- Test: {} ---", testName);
 
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain(DOMAIN)
-                .username(USERNAME)
-                .password(PASSWORD.toCharArray())
-                .host(HOST)
-                .port(PORT_TLS) // 5223
-                .usingDirectTLS(true)
-                .sendPresence(false)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain(DOMAIN)
+                        .host(HOST)
+                        .port(PORT_TLS)
+                        .sendPresence(false)
+                        .build())
+                .auth(AuthConfig.builder()
+                        .username(USERNAME)
+                        .password(PASSWORD.toCharArray())
+                        .build())
+                .security(SecurityConfig.builder()
+                        .usingDirectTLS(true)
+                        .build())
                 .build();
 
         try {
@@ -168,22 +190,22 @@ public class XmppIntegrationTest {
     }
 
     private static String testSaslScramSha1() {
-        return testSaslMechanism("SCRAM-SHA-1", XmppClientConfig.SecurityMode.DISABLED);
+        return testSaslMechanism("SCRAM-SHA-1", SecurityConfig.SecurityMode.DISABLED);
     }
 
     private static String testSaslScramSha256() {
-        return testSaslMechanism("SCRAM-SHA-256", XmppClientConfig.SecurityMode.DISABLED);
+        return testSaslMechanism("SCRAM-SHA-256", SecurityConfig.SecurityMode.DISABLED);
     }
 
     private static String testSaslScramSha512() {
-        return testSaslMechanism("SCRAM-SHA-512", XmppClientConfig.SecurityMode.DISABLED);
+        return testSaslMechanism("SCRAM-SHA-512", SecurityConfig.SecurityMode.DISABLED);
     }
 
     private static String testSaslPlain() {
-        return testSaslMechanism("PLAIN", XmppClientConfig.SecurityMode.DISABLED);
+        return testSaslMechanism("PLAIN", SecurityConfig.SecurityMode.DISABLED);
     }
 
-    private static String testSaslMechanism(String mechanism, XmppClientConfig.SecurityMode securityMode) {
+    private static String testSaslMechanism(String mechanism, SecurityConfig.SecurityMode securityMode) {
         String testName = "[SASL " + mechanism + "]";
         log.info("\n--- Test: {} ---", testName);
 
@@ -191,14 +213,20 @@ public class XmppIntegrationTest {
         mechanisms.add(mechanism);
 
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain(DOMAIN)
-                .username(USERNAME)
-                .password(PASSWORD.toCharArray())
-                .host(HOST)
-                .port(PORT_PLAIN)
-                .securityMode(securityMode)
-                .enabledSaslMechanisms(mechanisms)
-                .sendPresence(false)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain(DOMAIN)
+                        .host(HOST)
+                        .port(PORT_PLAIN)
+                        .enabledSaslMechanisms(mechanisms)
+                        .sendPresence(false)
+                        .build())
+                .auth(AuthConfig.builder()
+                        .username(USERNAME)
+                        .password(PASSWORD.toCharArray())
+                        .build())
+                .security(SecurityConfig.builder()
+                        .securityMode(securityMode)
+                        .build())
                 .build();
 
         try {
@@ -226,14 +254,22 @@ public class XmppIntegrationTest {
         log.info("3. Watch for automatic reconnection");
 
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain(DOMAIN)
-                .username(USERNAME)
-                .password(PASSWORD.toCharArray())
-                .host(HOST)
-                .port(PORT_PLAIN)
-                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
-                .sendPresence(false)
-                .reconnectionEnabled(true)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain(DOMAIN)
+                        .host(HOST)
+                        .port(PORT_PLAIN)
+                        .sendPresence(false)
+                        .build())
+                .auth(AuthConfig.builder()
+                        .username(USERNAME)
+                        .password(PASSWORD.toCharArray())
+                        .build())
+                .security(SecurityConfig.builder()
+                        .securityMode(SecurityConfig.SecurityMode.DISABLED)
+                        .build())
+                .keepAlive(KeepAliveConfig.builder()
+                        .reconnectionEnabled(true)
+                        .build())
                 .build();
 
         XmppTcpConnection connection = new XmppTcpConnection(config);
@@ -298,13 +334,19 @@ public class XmppIntegrationTest {
         log.info("\n--- Test: {} ---", testName);
 
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain(DOMAIN)
-                .username(USERNAME)
-                .password(PASSWORD.toCharArray())
-                .host(HOST)
-                .port(PORT_PLAIN)
-                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
-                .sendPresence(true)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain(DOMAIN)
+                        .host(HOST)
+                        .port(PORT_PLAIN)
+                        .sendPresence(true)
+                        .build())
+                .auth(AuthConfig.builder()
+                        .username(USERNAME)
+                        .password(PASSWORD.toCharArray())
+                        .build())
+                .security(SecurityConfig.builder()
+                        .securityMode(SecurityConfig.SecurityMode.DISABLED)
+                        .build())
                 .build();
 
         XmppTcpConnection connection = new XmppTcpConnection(config);

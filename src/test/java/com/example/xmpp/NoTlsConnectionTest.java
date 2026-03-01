@@ -1,5 +1,9 @@
 package com.example.xmpp;
 
+import com.example.xmpp.config.AuthConfig;
+import com.example.xmpp.config.ConnectionConfig;
+import com.example.xmpp.config.KeepAliveConfig;
+import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEvent;
 import lombok.extern.slf4j.Slf4j;
@@ -30,14 +34,22 @@ public class NoTlsConnectionTest {
         log.info("Target: {}:{}, domain: {}, user: {}", HOST, PORT, XMPP_DOMAIN, USERNAME);
 
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain(XMPP_DOMAIN)
-                .username(USERNAME)
-                .password(PASSWORD.toCharArray())
-                .host(HOST)
-                .port(PORT)
-                .securityMode(XmppClientConfig.SecurityMode.DISABLED)  // 禁用 TLS
-                .sendPresence(true)
-                .reconnectionEnabled(false)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain(XMPP_DOMAIN)
+                        .host(HOST)
+                        .port(PORT)
+                        .sendPresence(true)
+                        .build())
+                .auth(AuthConfig.builder()
+                        .username(USERNAME)
+                        .password(PASSWORD.toCharArray())
+                        .build())
+                .security(SecurityConfig.builder()
+                        .securityMode(SecurityConfig.SecurityMode.DISABLED)
+                        .build())
+                .keepAlive(KeepAliveConfig.builder()
+                        .reconnectionEnabled(false)
+                        .build())
                 .build();
 
         XmppTcpConnection connection = new XmppTcpConnection(config);

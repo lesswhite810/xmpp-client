@@ -1,5 +1,8 @@
 package com.example.xmpp;
 
+import com.example.xmpp.config.AuthConfig;
+import com.example.xmpp.config.ConnectionConfig;
+import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.net.SrvRecord;
@@ -24,21 +27,27 @@ class CoreFunctionalityTest {
     @Test
     void testXmppClientConfigBuilder() {
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain("example.com")
-                .username("testuser")
-                .password("testpass".toCharArray())
-                .host("xmpp.example.com")
-                .port(5222)
-                .securityMode(XmppClientConfig.SecurityMode.IF_POSSIBLE)
-                .sendPresence(true)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain("example.com")
+                        .host("xmpp.example.com")
+                        .port(5222)
+                        .sendPresence(true)
+                        .build())
+                .auth(AuthConfig.builder()
+                        .username("testuser")
+                        .password("testpass".toCharArray())
+                        .build())
+                .security(SecurityConfig.builder()
+                        .securityMode(SecurityConfig.SecurityMode.IF_POSSIBLE)
+                        .build())
                 .build();
 
-        assertEquals("example.com", config.getXmppServiceDomain());
-        assertEquals("testuser", config.getUsername());
+        assertEquals("example.com", config.getConnection().getXmppServiceDomain());
+        assertEquals("testuser", config.getAuth().getUsername());
         assertArrayEquals("testpass".toCharArray(), config.getPassword());
-        assertEquals("xmpp.example.com", config.getHost());
+        assertEquals("xmpp.example.com", config.getConnection().getHost());
         assertEquals(5222, config.getPort());
-        assertEquals(XmppClientConfig.SecurityMode.IF_POSSIBLE, config.getSecurityMode());
+        assertEquals(SecurityConfig.SecurityMode.IF_POSSIBLE, config.getSecurity().getSecurityMode());
         assertTrue(config.isSendPresence());
     }
 
@@ -132,10 +141,10 @@ class CoreFunctionalityTest {
 
     @Test
     void testSecurityModeEnum() {
-        assertEquals(3, XmppClientConfig.SecurityMode.values().length);
-        assertNotNull(XmppClientConfig.SecurityMode.REQUIRED);
-        assertNotNull(XmppClientConfig.SecurityMode.IF_POSSIBLE);
-        assertNotNull(XmppClientConfig.SecurityMode.DISABLED);
+        assertEquals(3, SecurityConfig.SecurityMode.values().length);
+        assertNotNull(SecurityConfig.SecurityMode.REQUIRED);
+        assertNotNull(SecurityConfig.SecurityMode.IF_POSSIBLE);
+        assertNotNull(SecurityConfig.SecurityMode.DISABLED);
     }
 
     @Test

@@ -38,7 +38,7 @@ public class SslUtils {
      */
     public static SslHandler createSslHandler(XmppClientConfig config)
             throws XmppNetworkException {
-        return createSslHandler(config.getHost(), config.getPort(), config);
+        return createSslHandler(config.getConnection().getHost(), config.getConnection().getPort(), config);
     }
 
     /**
@@ -58,13 +58,13 @@ public class SslUtils {
             // 1. 创建 JDK SSLContext
             SSLContext sslContext = SSLContext.getInstance("TLS");
 
-            TrustManager[] trustManagers = config.getCustomTrustManager();
-            KeyManager[] keyManagers = config.getKeyManagers();
+            TrustManager[] trustManagers = config.getSecurity().getCustomTrustManager();
+            KeyManager[] keyManagers = config.getSecurity().getKeyManagers();
 
             // 如果配置了自定义 SSLContext，使用它的 TrustManager 和 KeyManager
-            if (config.getCustomSslContext() != null) {
+            if (config.getSecurity().getCustomSslContext() != null) {
                 log.debug("Using custom SSLContext");
-                sslContext = config.getCustomSslContext();
+                sslContext = config.getSecurity().getCustomSslContext();
             } else {
                 sslContext.init(keyManagers, trustManagers, new SecureRandom());
             }
@@ -81,17 +81,17 @@ public class SslUtils {
             sslEngine.setUseClientMode(true);
 
             // 4. 配置 SSL 协议
-            configureProtocols(sslEngine, config.getEnabledSSLProtocols());
+            configureProtocols(sslEngine, config.getSecurity().getEnabledSSLProtocols());
 
             // 5. 配置密码套件
-            configureCipherSuites(sslEngine, config.getEnabledSSLCiphers());
+            configureCipherSuites(sslEngine, config.getSecurity().getEnabledSSLCiphers());
 
             // 6. 创建 SslHandler
             SslHandler sslHandler = new SslHandler(sslEngine);
 
             // 7. 设置握手超时
-            int handshakeTimeout = config.getHandshakeTimeoutMs() > 0
-                    ? config.getHandshakeTimeoutMs()
+            int handshakeTimeout = config.getSecurity().getHandshakeTimeoutMs() > 0
+                    ? config.getSecurity().getHandshakeTimeoutMs()
                     : DEFAULT_HANDSHAKE_TIMEOUT_MS;
             sslHandler.setHandshakeTimeoutMillis(handshakeTimeout);
 

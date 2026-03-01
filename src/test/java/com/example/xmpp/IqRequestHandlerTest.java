@@ -1,5 +1,7 @@
 package com.example.xmpp;
 
+import com.example.xmpp.config.AuthConfig;
+import com.example.xmpp.config.ConnectionConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.handler.IqRequestHandler;
 import com.example.xmpp.logic.PingIqRequestHandler;
@@ -23,9 +25,13 @@ class IqRequestHandlerTest {
     @BeforeEach
     void setUp() {
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain("example.com")
-                .username("user")
-                .password("pass".toCharArray())
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain("example.com")
+                        .build())
+                .auth(AuthConfig.builder()
+                        .username("user")
+                        .password("pass".toCharArray())
+                        .build())
                 .build();
         connection = new TestXmppConnection(config);
     }

@@ -138,7 +138,7 @@ public class PingManager implements ConnectionListener {
         }
 
         String id = XmppConstants.generateStanzaId();
-        Iq pingIq = PingIq.createPingRequest(id, connection.getConfig().getXmppServiceDomain());
+        Iq pingIq = PingIq.createPingRequest(id, connection.getConfig().getConnection().getXmppServiceDomain());
 
         log.debug("Sending Keepalive Ping...");
         connection.sendIqPacketAsync(pingIq)

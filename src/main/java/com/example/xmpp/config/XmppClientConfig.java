@@ -4,10 +4,8 @@ import com.example.xmpp.util.SecurityUtils;
 import com.example.xmpp.util.XmppConstants;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.experimental.FieldDefaults;
 
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
 import java.net.InetAddress;
 import java.util.Locale;
 import java.util.Set;
@@ -15,85 +13,34 @@ import java.util.Set;
 /**
  * XMPP 客户端配置类（不可变）。
  *
- * <p>提供两种配置方式：</p>
- * <ul>
- *   <li>新方式：使用模块化配置类（ConnectionConfig, AuthConfig, SecurityConfig, KeepAliveConfig）</li>
- *   <li>旧方式：直接使用 XmppClientConfig.builder() 方法（保留向后兼容）</li>
- * </ul>
+ * 使用模块化配置类构建：
+ * - ConnectionConfig：连接配置
+ * - AuthConfig：认证配置
+ * - SecurityConfig：安全配置
+ * - KeepAliveConfig：心跳/重连配置
  *
  * @since 2026-02-09
  */
 @Getter
 @Builder
+@FieldDefaults(makeFinal = true)
 public class XmppClientConfig {
 
-    /**
-     * TLS 安全模式枚举。
-     */
-    public enum SecurityMode {
-        REQUIRED,
-        IF_POSSIBLE,
-        DISABLED
-    }
-
-    // ==================== 模块化配置（推荐） ====================
-
     /** 连接配置 */
-    private final ConnectionConfig connection;
+    private ConnectionConfig connection;
 
     /** 认证配置 */
-    private final AuthConfig auth;
+    private AuthConfig auth;
 
     /** 安全配置 */
-    private final SecurityConfig security;
+    private SecurityConfig security;
 
     /** 心跳/保活配置 */
-    private final KeepAliveConfig keepAlive;
+    private KeepAliveConfig keepAlive;
 
     /** 语言区域设置 */
     @Builder.Default
     private Locale language = Locale.getDefault();
-
-    // ==================== 向后兼容字段（旧 API） ====================
-
-    /** XMPP 服务域名 */
-    private final String xmppServiceDomain;
-    private final String host;
-    private final InetAddress hostAddress;
-    @Builder.Default
-    private int port = XmppConstants.DEFAULT_XMPP_PORT;
-    private final String username;
-    private final char[] password;
-    private final String resource;
-    private final String authzid;
-    @Builder.Default
-    private SecurityMode securityMode = SecurityMode.REQUIRED;
-    private final TrustManager[] customTrustManager;
-    private final KeyManager[] keyManagers;
-    private final SSLContext customSslContext;
-    private final String[] enabledSSLProtocols;
-    private final String[] enabledSSLCiphers;
-    @Builder.Default
-    private boolean usingDirectTLS = false;
-    @Builder.Default
-    private int handshakeTimeoutMs = XmppConstants.SSL_HANDSHAKE_TIMEOUT_MS;
-    private final Set<String> enabledSaslMechanisms;
-    @Builder.Default
-    private int connectTimeout = XmppConstants.DEFAULT_CONNECT_TIMEOUT_MS;
-    @Builder.Default
-    private int readTimeout = XmppConstants.DEFAULT_READ_TIMEOUT_MS;
-    @Builder.Default
-    private boolean sendPresence = true;
-    @Builder.Default
-    private boolean reconnectionEnabled = false;
-    @Builder.Default
-    private int reconnectionBaseDelay = XmppConstants.RECONNECT_BASE_DELAY_SECONDS;
-    @Builder.Default
-    private int reconnectionMaxDelay = XmppConstants.RECONNECT_MAX_DELAY_SECONDS;
-    @Builder.Default
-    private boolean pingEnabled = false;
-    @Builder.Default
-    private int pingInterval = XmppConstants.DEFAULT_PING_INTERVAL_SECONDS;
 
     // ==================== 便捷方法 ====================
 
@@ -101,9 +48,6 @@ public class XmppClientConfig {
      * 安全获取密码（返回克隆副本）。
      */
     public char[] getPassword() {
-        if (password != null) {
-            return password.clone();
-        }
         return auth != null ? auth.getPassword() : null;
     }
 
@@ -111,9 +55,6 @@ public class XmppClientConfig {
      * 清除内存中的密码。
      */
     public void clearPassword() {
-        if (password != null) {
-            SecurityUtils.clear(password);
-        }
         if (auth != null && auth.getPassword() != null) {
             SecurityUtils.clear(auth.getPassword());
         }
@@ -128,76 +69,42 @@ public class XmppClientConfig {
         return "und".equals(tag) ? null : tag;
     }
 
+    // ==================== Null 安全访问方法 ====================
+
     /**
-     * 获取 XMPP 服务域名（兼容新旧 API）。
+     * 获取端口号，默认值 5222。
      */
-    public String getXmppServiceDomain() {
-        if (connection != null && connection.getXmppServiceDomain() != null) {
-            return connection.getXmppServiceDomain();
+    public int getPort() {
+        if (connection != null && connection.getPort() > 0) {
+            return connection.getPort();
         }
-        return xmppServiceDomain;
+        return XmppConstants.DEFAULT_XMPP_PORT;
     }
 
     /**
-     * 获取主机地址（兼容新旧 API）。
+     * 获取连接超时，默认值 30000ms。
      */
-    public String getHost() {
-        if (connection != null && connection.getHost() != null) {
-            return connection.getHost();
+    public int getConnectTimeout() {
+        if (connection != null && connection.getConnectTimeout() > 0) {
+            return connection.getConnectTimeout();
         }
-        return host;
+        return XmppConstants.DEFAULT_CONNECT_TIMEOUT_MS;
     }
 
     /**
-     * 获取用户名（兼容新旧 API）。
+     * 获取读取超时，默认值 60000ms。
      */
-    public String getUsername() {
-        if (auth != null && auth.getUsername() != null) {
-            return auth.getUsername();
+    public int getReadTimeout() {
+        if (connection != null && connection.getReadTimeout() > 0) {
+            return connection.getReadTimeout();
         }
-        return username;
+        return XmppConstants.DEFAULT_READ_TIMEOUT_MS;
     }
 
     /**
-     * 安全模式（兼容新旧 API）。
-    public SecurityMode getSecurityMode() {
-        if (security != null && security.getSecurityMode() != null) {
-            return switch (security.getSecurityMode()) {
-                case REQUIRED -> SecurityMode.REQUIRED;
-                case IF_POSSIBLE -> SecurityMode.IF_POSSIBLE;
-                case DISABLED -> SecurityMode.DISABLED;
-            };
-        }
-        return securityMode;
-    }
-
-    /**
-     * 是否使用 Direct TLS。
+     * 是否发送在线状态，默认 true。
      */
-    public boolean isUsingDirectTLS() {
-        if (security != null) {
-            return security.isUsingDirectTLS();
-        }
-        return usingDirectTLS;
-    }
-
-    /**
-     * 是否启用重连。
-     */
-    public boolean isReconnectionEnabled() {
-        if (keepAlive != null) {
-            return keepAlive.isReconnectionEnabled();
-        }
-        return reconnectionEnabled;
-    }
-
-    /**
-     * 是否启用 Ping。
-     */
-    public boolean isPingEnabled() {
-        if (keepAlive != null) {
-            return keepAlive.isPingEnabled();
-        }
-        return pingEnabled;
+    public boolean isSendPresence() {
+        return connection == null || connection.isSendPresence();
     }
 }

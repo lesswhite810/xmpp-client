@@ -1,5 +1,8 @@
 package com.example.xmpp;
 
+import com.example.xmpp.config.AuthConfig;
+import com.example.xmpp.config.ConnectionConfig;
+import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.protocol.model.Iq;
@@ -39,13 +42,19 @@ public class XmppServerIntegrationTest {
     @Test
     public void testConnectionAndAuthentication() throws Exception {
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain(XMPP_DOMAIN)
-                .username(USERNAME)
-                .password(PASSWORD.toCharArray())
-                .host(HOST)
-                .port(PORT)
-                .securityMode(XmppClientConfig.SecurityMode.IF_POSSIBLE)
-                .sendPresence(true)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain(XMPP_DOMAIN)
+                        .host(HOST)
+                        .port(PORT)
+                        .sendPresence(true)
+                        .build())
+                .auth(AuthConfig.builder()
+                        .username(USERNAME)
+                        .password(PASSWORD.toCharArray())
+                        .build())
+                .security(SecurityConfig.builder()
+                        .securityMode(SecurityConfig.SecurityMode.IF_POSSIBLE)
+                        .build())
                 .build();
 
         XmppTcpConnection connection = new XmppTcpConnection(config);
@@ -91,13 +100,19 @@ public class XmppServerIntegrationTest {
     @Test
     public void testPingRequestResponse() throws Exception {
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain(XMPP_DOMAIN)
-                .username(USERNAME)
-                .password(PASSWORD.toCharArray())
-                .host(HOST)
-                .port(PORT)
-                .securityMode(XmppClientConfig.SecurityMode.IF_POSSIBLE)
-                .sendPresence(true)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain(XMPP_DOMAIN)
+                        .host(HOST)
+                        .port(PORT)
+                        .sendPresence(true)
+                        .build())
+                .auth(AuthConfig.builder()
+                        .username(USERNAME)
+                        .password(PASSWORD.toCharArray())
+                        .build())
+                .security(SecurityConfig.builder()
+                        .securityMode(SecurityConfig.SecurityMode.IF_POSSIBLE)
+                        .build())
                 .build();
 
         XmppTcpConnection connection = new XmppTcpConnection(config);

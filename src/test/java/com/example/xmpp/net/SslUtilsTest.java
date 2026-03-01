@@ -1,5 +1,8 @@
 package com.example.xmpp.net;
 
+import com.example.xmpp.config.AuthConfig;
+import com.example.xmpp.config.ConnectionConfig;
+import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppNetworkException;
 import io.netty.handler.ssl.SslHandler;
@@ -23,10 +26,14 @@ class SslUtilsTest {
     @DisplayName("应正确创建默认 SslHandler")
     void testCreateDefaultSslHandler() throws XmppNetworkException {
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain("example.com")
-                .host("example.com")
-                .port(5222)
-                .securityMode(XmppClientConfig.SecurityMode.IF_POSSIBLE)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain("example.com")
+                        .host("example.com")
+                        .port(5222)
+                        .build())
+                .security(SecurityConfig.builder()
+                        .securityMode(SecurityConfig.SecurityMode.IF_POSSIBLE)
+                        .build())
                 .build();
 
         SslHandler handler = SslUtils.createSslHandler(config);
@@ -48,10 +55,14 @@ class SslUtilsTest {
         };
 
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain("example.com")
-                .host("example.com")
-                .port(5222)
-                .customTrustManager(new TrustManager[]{trustAllManager})
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain("example.com")
+                        .host("example.com")
+                        .port(5222)
+                        .build())
+                .security(SecurityConfig.builder()
+                        .customTrustManager(new TrustManager[]{trustAllManager})
+                        .build())
                 .build();
 
         SslHandler handler = SslUtils.createSslHandler(config);
@@ -62,14 +73,18 @@ class SslUtilsTest {
     @DisplayName("Direct TLS 模式应正确配置")
     void testDirectTLSConfig() {
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain("example.com")
-                .host("example.com")
-                .port(5223)
-                .usingDirectTLS(true)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain("example.com")
+                        .host("example.com")
+                        .port(5223)
+                        .build())
+                .security(SecurityConfig.builder()
+                        .usingDirectTLS(true)
+                        .build())
                 .build();
 
-        assertTrue(config.isUsingDirectTLS());
-        assertEquals(5223, config.getPort());
+        assertTrue(config.getSecurity().isUsingDirectTLS());
+        assertEquals(5223, config.getConnection().getPort());
     }
 
     @Test
@@ -77,10 +92,14 @@ class SslUtilsTest {
     void testHandshakeTimeout() throws XmppNetworkException {
         int customTimeout = 5000;
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain("example.com")
-                .host("example.com")
-                .port(5222)
-                .handshakeTimeoutMs(customTimeout)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain("example.com")
+                        .host("example.com")
+                        .port(5222)
+                        .build())
+                .security(SecurityConfig.builder()
+                        .handshakeTimeoutMs(customTimeout)
+                        .build())
                 .build();
 
         SslHandler handler = SslUtils.createSslHandler(config);

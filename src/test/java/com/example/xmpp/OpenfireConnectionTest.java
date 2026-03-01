@@ -1,5 +1,8 @@
 package com.example.xmpp;
 
+import com.example.xmpp.config.AuthConfig;
+import com.example.xmpp.config.ConnectionConfig;
+import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.protocol.model.Iq;
@@ -65,14 +68,20 @@ class OpenfireConnectionTest {
         log.info("========================================");
 
         XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain(XMPP_DOMAIN)
-                .host(HOST)
-                .port(PORT)
-                .username(USERNAME)
-                .password(PASSWORD.toCharArray())
-                .securityMode(XmppClientConfig.SecurityMode.IF_POSSIBLE)
-                .customTrustManager(new TrustManager[]{TRUST_ALL_MANAGER})  // 信任自签名证书
-                .sendPresence(false)
+                .connection(ConnectionConfig.builder()
+                        .xmppServiceDomain(XMPP_DOMAIN)
+                        .host(HOST)
+                        .port(PORT)
+                        .sendPresence(false)
+                        .build())
+                .auth(AuthConfig.builder()
+                        .username(USERNAME)
+                        .password(PASSWORD.toCharArray())
+                        .build())
+                .security(SecurityConfig.builder()
+                        .securityMode(SecurityConfig.SecurityMode.IF_POSSIBLE)
+                        .customTrustManager(new TrustManager[]{TRUST_ALL_MANAGER})
+                        .build())
                 .build();
 
         XmppTcpConnection connection = new XmppTcpConnection(config);
