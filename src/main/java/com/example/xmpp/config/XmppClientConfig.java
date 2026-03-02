@@ -46,6 +46,8 @@ public class XmppClientConfig {
 
     /**
      * 安全获取密码（返回克隆副本）。
+     *
+     * @return 密码字符数组的克隆，如果未设置则返回 null
      */
     public char[] getPassword() {
         return auth != null ? auth.getPassword() : null;
@@ -53,6 +55,8 @@ public class XmppClientConfig {
 
     /**
      * 清除内存中的密码。
+     *
+     * <p>安全地清除认证密码的内存副本，防止密码泄露。</p>
      */
     public void clearPassword() {
         if (auth != null && auth.getPassword() != null) {
@@ -62,6 +66,8 @@ public class XmppClientConfig {
 
     /**
      * 获取 XML 语言标签。
+     *
+     * @return RFC 5646 语言标签，如果未设置则返回 null
      */
     public String getXmlLang() {
         if (language == null) return null;
@@ -73,6 +79,8 @@ public class XmppClientConfig {
 
     /**
      * 获取端口号，默认值 5222。
+     *
+     * @return XMPP 服务器端口号
      */
     public int getPort() {
         if (connection != null && connection.getPort() > 0) {
@@ -83,6 +91,8 @@ public class XmppClientConfig {
 
     /**
      * 获取连接超时，默认值 30000ms。
+     *
+     * @return 连接超时时间（毫秒）
      */
     public int getConnectTimeout() {
         if (connection != null && connection.getConnectTimeout() > 0) {
@@ -93,6 +103,8 @@ public class XmppClientConfig {
 
     /**
      * 获取读取超时，默认值 60000ms。
+     *
+     * @return 读取超时时间（毫秒）
      */
     public int getReadTimeout() {
         if (connection != null && connection.getReadTimeout() > 0) {
@@ -103,6 +115,8 @@ public class XmppClientConfig {
 
     /**
      * 是否发送在线状态，默认 true。
+     *
+     * @return 如果连接成功后发送 Presence 节则返回 true
      */
     public boolean isSendPresence() {
         return connection == null || connection.isSendPresence();

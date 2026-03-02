@@ -15,6 +15,9 @@ public final class Ping implements ExtensionElement {
 
     public static final Ping INSTANCE = new Ping();
 
+    /**
+     * 构造 Ping 实例。
+     */
     public Ping() {
     }
 
