@@ -27,16 +27,20 @@ import java.util.Set;
 public class XmppClientConfig {
 
     /** 连接配置 */
-    private ConnectionConfig connection;
+    @Builder.Default
+    private ConnectionConfig connection = ConnectionConfig.builder().build();
 
     /** 认证配置 */
-    private AuthConfig auth;
+    @Builder.Default
+    private AuthConfig auth = AuthConfig.builder().build();
 
     /** 安全配置 */
-    private SecurityConfig security;
+    @Builder.Default
+    private SecurityConfig security = SecurityConfig.builder().build();
 
     /** 心跳/保活配置 */
-    private KeepAliveConfig keepAlive;
+    @Builder.Default
+    private KeepAliveConfig keepAlive = KeepAliveConfig.builder().build();
 
     /** 语言区域设置 */
     @Builder.Default
