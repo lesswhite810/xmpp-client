@@ -55,6 +55,8 @@ public class PingManager implements ConnectionListener {
 
     /**
      * 处理连接事件。
+     *
+     * @param event 连接事件
      */
     @Override
     public void onEvent(ConnectionEvent event) {
@@ -80,6 +82,8 @@ public class PingManager implements ConnectionListener {
 
     /**
      * 启动保活任务。
+     *
+     * <p>发送定期 Ping 请求以保持 XMPP 连接活跃。</p>
      */
     public void startKeepAlive() {
         taskLock.lock();
@@ -95,6 +99,8 @@ public class PingManager implements ConnectionListener {
 
     /**
      * 停止保活任务。
+     *
+     * <p>取消定期 Ping 请求，但保持与 XMPP 服务器的连接。</p>
      */
     public void stopKeepAlive() {
         taskLock.lock();
@@ -118,6 +124,8 @@ public class PingManager implements ConnectionListener {
 
     /**
      * 关闭 PingManager。
+     *
+     * <p>停止保活任务并释放相关资源。此方法不会关闭 XMPP 连接。</p>
      */
     public void shutdown() {
         taskLock.lock();
@@ -131,6 +139,8 @@ public class PingManager implements ConnectionListener {
 
     /**
      * 发送 Ping 请求。
+     *
+     * <p>向 XMPP 服务器发送 Keepalive Ping 以检测连接状态。</p>
      */
     private void sendPing() {
         if (!connection.isConnected() || !connection.isAuthenticated()) {

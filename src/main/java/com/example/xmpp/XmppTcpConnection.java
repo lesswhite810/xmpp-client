@@ -293,6 +293,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     /**
      * 断开连接。
+     *
+     * <p>关闭 Netty 通道、停止 Ping 定时任务，并清理相关资源。</p>
      */
     @Override
     public void disconnect() {

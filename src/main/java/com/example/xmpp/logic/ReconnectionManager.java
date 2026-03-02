@@ -75,6 +75,8 @@ public class ReconnectionManager implements ConnectionListener {
 
     /**
      * 启用自动重连。
+     *
+     * <p>允许在连接断开时自动尝试重新连接。</p>
      */
     public void enable() {
         this.enabled = true;
@@ -141,6 +143,8 @@ public class ReconnectionManager implements ConnectionListener {
 
     /**
      * 停止重连任务。
+     *
+     * <p>取消当前待执行的重连任务并重置重连计数。</p>
      */
     private synchronized void stopReconnectTask() {
         if (currentTask != null) {
