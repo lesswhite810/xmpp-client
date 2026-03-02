@@ -339,7 +339,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     /**
      * 清理已完成的收集器。
      *
-     * <p>移除所有 Future 已完成的收集器，避免内存泄漏。</p>
+     * <p>移除所有 Future 已完成（正常完成、异常或取消）的收集器，避免内存泄漏。</p>
      */
     protected void cleanupCollectors() {
         collectors.removeIf(collector -> {

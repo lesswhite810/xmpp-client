@@ -50,9 +50,9 @@ import lombok.extern.slf4j.Slf4j;
 public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
 
     /**
-     * 状态上下文（状态模式）
+     * 状态上下文（状态模式），使用 volatile 保证多线程可见性
      */
-    private StateContext stateContext;
+    private volatile StateContext stateContext;
 
     /**
      * 客户端配置，不可变

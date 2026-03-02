@@ -73,9 +73,13 @@ public class PingManager implements ConnectionListener {
      *
      * <p>如果当前有任务在运行，会先停止旧任务再启动新任务。</p>
      *
-     * @param seconds 间隔时间（秒）
+     * @param seconds 间隔时间（秒），必须为正数
+     * @throws IllegalArgumentException 如果 seconds 不为正数
      */
     public void setPingInterval(int seconds) {
+        if (seconds <= 0) {
+            throw new IllegalArgumentException("Ping interval must be positive: " + seconds);
+        }
         taskLock.lock();
         try {
             this.pingIntervalSeconds = seconds;
