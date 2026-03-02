@@ -91,10 +91,13 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     /**
      * 检查连接是否已认证。
      *
+     * <p>使用局部变量避免竞态条件：先读取引用到局部变量，再进行空检查。</p>
+     *
      * @return 如果已认证并处于 SESSION_ACTIVE 状态则返回 true
      */
     public boolean isAuthenticated() {
-        return stateContext != null && stateContext.isAuthenticated();
+        StateContext ctx = this.stateContext;
+        return ctx != null && ctx.isAuthenticated();
     }
 
     @Override

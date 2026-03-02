@@ -57,10 +57,14 @@ public class StateContext {
     /**
      * 检查是否已认证。
      *
+     * <p>使用同步块保护，确保线程安全。</p>
+     *
      * @return 如果已认证返回 true
      */
     public boolean isAuthenticated() {
-        return currentState.isSessionActive();
+        synchronized (stateLock) {
+            return currentState.isSessionActive();
+        }
     }
 
     /**
