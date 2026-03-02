@@ -7,6 +7,7 @@ import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.protocol.AsyncStanzaCollector;
 import com.example.xmpp.protocol.StanzaFilter;
 import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.protocol.model.XmppStanza;
 
 import lombok.extern.slf4j.Slf4j;
@@ -140,7 +141,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      */
     private String getChildElementName(Object childElement) {
         // 子元素可能是扩展对象或字符串
-        if (childElement instanceof com.example.xmpp.protocol.model.ExtensionElement ext) {
+        if (childElement instanceof ExtensionElement ext) {
             return ext.getElementName();
         }
         return childElement.getClass().getSimpleName().toLowerCase();
@@ -154,7 +155,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @return 命名空间，如果无法获取返回 null
      */
     private String getChildElementNamespace(Object childElement) {
-        if (childElement instanceof com.example.xmpp.protocol.model.ExtensionElement ext) {
+        if (childElement instanceof ExtensionElement ext) {
             return ext.getNamespace();
         }
         return null;

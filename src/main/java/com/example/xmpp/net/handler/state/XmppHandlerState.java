@@ -297,7 +297,7 @@ public enum XmppHandlerState implements HandlerState {
                     }
                     default -> log.debug("Received unexpected message during SASL auth: {}", msg.getClass().getSimpleName());
                 }
-            } catch (com.example.xmpp.exception.XmppAuthException e) {
+            } catch (XmppAuthException e) {
                 log.error("SASL authentication error", e);
                 // 清理 SASL negotiator 避免重连时残留状态
                 context.setSaslNegotiator(null);
