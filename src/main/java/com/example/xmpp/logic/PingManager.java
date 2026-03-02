@@ -71,12 +71,22 @@ public class PingManager implements ConnectionListener {
     /**
      * 设置 Ping 间隔时间。
      *
+     * <p>如果当前有任务在运行，会先停止旧任务再启动新任务。</p>
+     *
      * @param seconds 间隔时间（秒）
      */
     public void setPingInterval(int seconds) {
-        this.pingIntervalSeconds = seconds;
-        if (keepAliveTask != null && !keepAliveTask.isCancelled()) {
-            startKeepAlive();
+        taskLock.lock();
+        try {
+            this.pingIntervalSeconds = seconds;
+            // 如果任务存在，先停止再启动
+            if (keepAliveTask != null && !keepAliveTask.isCancelled()) {
+                stopKeepAliveInternal();
+                keepAliveTask = XmppScheduler.getScheduler().scheduleWithFixedDelay(
+                        this::sendPing, pingIntervalSeconds, pingIntervalSeconds, TimeUnit.SECONDS);
+            }
+        } finally {
+            taskLock.unlock();
         }
     }
 
