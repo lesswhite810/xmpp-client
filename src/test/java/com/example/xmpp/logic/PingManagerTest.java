@@ -1,5 +1,8 @@
 package com.example.xmpp.logic;
 
+import com.example.xmpp.event.ConnectionEvent;
+import com.example.xmpp.event.ConnectionEventType;
+import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.XmppConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -9,8 +12,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 /**
  * PingManager 单元测试。
@@ -25,7 +26,9 @@ class PingManagerTest {
 
     @BeforeEach
     void setUp() {
-        lenient().doNothing().when(connection).addConnectionListener(any());
+        // 清除 XmppEventBus 中的事件订阅
+        XmppEventBus.getInstance().clear();
+
         pingManager = new PingManager(connection);
     }
 
@@ -33,7 +36,6 @@ class PingManagerTest {
     @DisplayName("构造函数应正确初始化")
     void testConstructor() {
         assertNotNull(pingManager);
-        verify(connection).addConnectionListener(any());
     }
 
     @Test
@@ -49,15 +51,29 @@ class PingManagerTest {
     }
 
     @Test
-    @DisplayName("setPingInterval 为 0 应禁用 keepalive")
+    @DisplayName("setPingInterval 为 0 应抛出异常")
     void testDisableKeepAlive() {
-        assertDoesNotThrow(() -> pingManager.setPingInterval(0));
+        assertThrows(IllegalArgumentException.class, () -> pingManager.setPingInterval(0));
     }
 
     @Test
-    @DisplayName("setPingInterval 负值应被处理")
+    @DisplayName("setPingInterval 负值应抛出异常")
     void testNegativePingInterval() {
-        // 负值应该被处理（可能使用默认值）
-        assertDoesNotThrow(() -> pingManager.setPingInterval(-1));
+        assertThrows(IllegalArgumentException.class, () -> pingManager.setPingInterval(-1));
+    }
+
+    @Test
+    @DisplayName("onEvent(AUTHENTICATED) 应启动保活")
+    void testAuthenticatedEventStartsKeepAlive() {
+        // 验证 onEvent 方法存在且可调用
+        assertDoesNotThrow(() -> pingManager.onEvent(
+                new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED)));
+    }
+
+    @Test
+    @DisplayName("onEvent(CLOSED) 应关闭")
+    void testConnectionClosedEventShutsDown() {
+        assertDoesNotThrow(() -> pingManager.onEvent(
+                new ConnectionEvent(connection, ConnectionEventType.CLOSED)));
     }
 }

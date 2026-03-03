@@ -5,6 +5,8 @@ import com.example.xmpp.config.ConnectionConfig;
 import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEvent;
+import com.example.xmpp.event.ConnectionEventType;
+import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.PingIq;
 import com.example.xmpp.protocol.model.Presence;
@@ -89,23 +91,19 @@ class OpenfireConnectionTest {
         CountDownLatch authLatch = new CountDownLatch(1);
         CountDownLatch closeLatch = new CountDownLatch(1);
 
-        connection.addConnectionListener(event -> {
-            switch (event) {
-                case ConnectionEvent.ConnectedEvent e ->
-                    log.info("[Event] Connected to server");
-                case ConnectionEvent.AuthenticatedEvent e -> {
-                    log.info("[Event] Authentication successful (resumed={})", e.resumed());
-                    authLatch.countDown();
-                }
-                case ConnectionEvent.ConnectionClosedEvent e -> {
-                    log.info("[Event] Connection closed");
-                    closeLatch.countDown();
-                }
-                case ConnectionEvent.ConnectionClosedOnErrorEvent e -> {
-                    log.error("[Event] Connection closed with error: {}", e.error().getMessage(), e.error());
-                    closeLatch.countDown();
-                }
-            }
+        XmppEventBus eventBus = XmppEventBus.getInstance();
+        eventBus.subscribe(connection, ConnectionEventType.CONNECTED, e -> log.info("[Event] Connected to server"));
+        eventBus.subscribe(connection, ConnectionEventType.AUTHENTICATED, e -> {
+            log.info("[Event] Authentication successful");
+            authLatch.countDown();
+        });
+        eventBus.subscribe(connection, ConnectionEventType.CLOSED, e -> {
+            log.info("[Event] Connection closed");
+            closeLatch.countDown();
+        });
+        eventBus.subscribe(connection, ConnectionEventType.ERROR, e -> {
+            log.error("[Event] Connection closed with error: {}", e.error().getMessage(), e.error());
+            closeLatch.countDown();
         });
 
         try {

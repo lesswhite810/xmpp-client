@@ -1,7 +1,8 @@
 package com.example.xmpp.logic;
 
 import com.example.xmpp.event.ConnectionEvent;
-import com.example.xmpp.event.ConnectionListener;
+import com.example.xmpp.event.ConnectionEventType;
+import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.XmppConnection;
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmppScheduler;
@@ -9,10 +10,10 @@ import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.PingIq;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-
 /**
  * XMPP Ping 管理器（XEP-0199）。
  *
@@ -27,7 +28,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @since 2026-02-09
  */
 @Slf4j
-public class PingManager implements ConnectionListener {
+public class PingManager {
 
     /** 关联的 XMPP 连接 */
     private final XmppConnection connection;
@@ -41,6 +42,9 @@ public class PingManager implements ConnectionListener {
     /** Ping 间隔时间（秒） */
     private volatile int pingIntervalSeconds = XmppConstants.DEFAULT_PING_INTERVAL_SECONDS;
 
+    /** 事件订阅取消回调 */
+    private Runnable unsubscribe;
+
     /**
      * 构造 PingManager。
      *
@@ -49,22 +53,26 @@ public class PingManager implements ConnectionListener {
     public PingManager(XmppConnection connection) {
         this.connection = connection;
 
-        // 注册连接监听器
-        connection.addConnectionListener(this);
-    }
+        // 通过 XmppEventBus 订阅连接事件（连接专属订阅，只响应本连接的事件）
+        XmppEventBus eventBus = XmppEventBus.getInstance();
 
-    /**
+        unsubscribe = eventBus.subscribeAll(connection, Map.of(
+                ConnectionEventType.AUTHENTICATED, event -> startKeepAlive(),
+                ConnectionEventType.CLOSED, event -> shutdown(),
+                ConnectionEventType.ERROR, event -> shutdown()
+        ));
+}
+/**
      * 处理连接事件。
+     *
+     * <p>此方法用于测试目的，实际事件处理通过 XmppEventBus 自动触发。</p>
      *
      * @param event 连接事件
      */
-    @Override
     public void onEvent(ConnectionEvent event) {
-        switch (event) {
-            case ConnectionEvent.AuthenticatedEvent e -> startKeepAlive();
-            case ConnectionEvent.ConnectionClosedEvent e -> shutdown();
-            case ConnectionEvent.ConnectionClosedOnErrorEvent e -> shutdown();
-            default -> { }
+        switch (event.eventType()) {
+            case AUTHENTICATED -> startKeepAlive();
+            case CLOSED, ERROR -> shutdown();
         }
     }
 
@@ -144,6 +152,11 @@ public class PingManager implements ConnectionListener {
     public void shutdown() {
         taskLock.lock();
         try {
+            // 取消事件订阅
+            if (unsubscribe != null) {
+                unsubscribe.run();
+                unsubscribe = null;
+            }
             stopKeepAliveInternal();
             log.debug("PingManager shutdown");
         } finally {

@@ -6,6 +6,8 @@ import com.example.xmpp.config.KeepAliveConfig;
 import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEvent;
+import com.example.xmpp.event.ConnectionEventType;
+import com.example.xmpp.event.XmppEventBus;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 
@@ -57,23 +59,19 @@ public class NoTlsConnectionTest {
         CountDownLatch authLatch = new CountDownLatch(1);
         CountDownLatch closeLatch = new CountDownLatch(1);
 
-        connection.addConnectionListener(event -> {
-            switch (event) {
-                case ConnectionEvent.ConnectedEvent e ->
-                    log.info(">>> TCP connection established");
-                case ConnectionEvent.AuthenticatedEvent e -> {
-                    log.info(">>> Authentication successful! resumed={}", e.resumed());
-                    authLatch.countDown();
-                }
-                case ConnectionEvent.ConnectionClosedEvent e -> {
-                    log.info(">>> Connection closed");
-                    closeLatch.countDown();
-                }
-                case ConnectionEvent.ConnectionClosedOnErrorEvent e -> {
-                    log.error(">>> Connection error: {}", e.error().getMessage(), e.error());
-                    closeLatch.countDown();
-                }
-            }
+        XmppEventBus eventBus = XmppEventBus.getInstance();
+        eventBus.subscribe(connection, ConnectionEventType.CONNECTED, e -> log.info(">>> TCP connection established"));
+        eventBus.subscribe(connection, ConnectionEventType.AUTHENTICATED, e -> {
+            log.info(">>> Authentication successful!");
+            authLatch.countDown();
+        });
+        eventBus.subscribe(connection, ConnectionEventType.CLOSED, e -> {
+            log.info(">>> Connection closed");
+            closeLatch.countDown();
+        });
+        eventBus.subscribe(connection, ConnectionEventType.ERROR, e -> {
+            log.error(">>> Connection error: {}", e.error().getMessage(), e.error());
+            closeLatch.countDown();
         });
 
         try {

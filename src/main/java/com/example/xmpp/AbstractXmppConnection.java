@@ -1,7 +1,8 @@
 package com.example.xmpp;
 
 import com.example.xmpp.event.ConnectionEvent;
-import com.example.xmpp.event.ConnectionListener;
+import com.example.xmpp.event.ConnectionEventType;
+import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.handler.IqRequestHandler;
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.protocol.AsyncStanzaCollector;
@@ -16,17 +17,15 @@ import org.apache.commons.lang3.Validate;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeUnit;
 
 /**
  * XMPP 连接抽象基类。
  *
- * <p>提供连接监听器管理、IQ 请求发送等公共功能。</p>
+ * <p>提供 IQ 请求发送等公共功能。连接事件通过 {@link XmppEventBus} 发布。</p>
  *
  * @since 2026-02-09
  */
@@ -37,9 +36,6 @@ public abstract class AbstractXmppConnection implements XmppConnection {
 
     /** 节收集器队列 */
     protected final Queue<AsyncStanzaCollector> collectors = new ConcurrentLinkedQueue<>();
-
-    /** 连接监听器集合 */
-    protected final Set<ConnectionListener> connectionListeners = new CopyOnWriteArraySet<>();
 
     /** IQ 请求处理器映射表，键为 (element, namespace, iqType) 组合 */
     private final Map<IqHandlerKey, IqRequestHandler> iqRequestHandlers = new ConcurrentHashMap<>();
@@ -205,30 +201,10 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     }
 
     /**
-     * 添加连接状态监听器。
-     *
-     * @param listener 连接监听器
-     */
-    @Override
-    public void addConnectionListener(ConnectionListener listener) {
-        connectionListeners.add(listener);
-    }
-
-    /**
-     * 移除连接状态监听器。
-     *
-     * @param listener 要移除的监听器
-     */
-    @Override
-    public void removeConnectionListener(ConnectionListener listener) {
-        connectionListeners.remove(listener);
-    }
-
-    /**
      * 通知所有监听器连接已关闭。
      */
     public void notifyConnectionClosed() {
-        fireEvent(new ConnectionEvent.ConnectionClosedEvent(this));
+        fireEvent(ConnectionEventType.CLOSED);
     }
 
     /**
@@ -237,14 +213,14 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @param e 导致关闭的异常
      */
     public void notifyConnectionClosedOnError(Exception e) {
-        fireEvent(new ConnectionEvent.ConnectionClosedOnErrorEvent(this, e));
+        fireEvent(ConnectionEventType.ERROR, e);
     }
 
     /**
      * 通知所有监听器连接已建立。
      */
     public void notifyConnected() {
-        fireEvent(new ConnectionEvent.ConnectedEvent(this));
+        fireEvent(ConnectionEventType.CONNECTED);
     }
 
     /**
@@ -253,28 +229,29 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @param resumed 是否为恢复的会话
      */
     public void notifyAuthenticated(boolean resumed) {
-        fireEvent(new ConnectionEvent.AuthenticatedEvent(this, resumed));
+        fireEvent(ConnectionEventType.AUTHENTICATED);
     }
 
     /**
      * 分发连接事件到所有监听器（事件驱动核心方法）。
      *
-     * <p>统一的事件分发入口，所有连接事件都通过此方法分发。
-     * 捕获监听器异常以防止一个监听器的错误影响其他监听器。</p>
+     * <p>统一的事件分发入口，所有连接事件都通过 {@link XmppEventBus} 发布。</p>
      *
-     * @param event 连接事件
+     * @param eventType 事件类型
      */
-    protected void fireEvent(ConnectionEvent event) {
-        connectionListeners.forEach(listener -> {
-            try {
-                listener.onEvent(event);
-            } catch (Exception e) {
-                log.error("Error in listener {} for event {}: {}",
-                        listener.getClass().getSimpleName(),
-                        event.getClass().getSimpleName(),
-                        e.getMessage(), e);
-            }
-        });
+    protected void fireEvent(ConnectionEventType eventType) {
+        fireEvent(eventType, null);
+    }
+
+    /**
+     * 分发连接事件到所有监听器（带错误信息）。
+     *
+     * @param eventType 事件类型
+     * @param error     错误信息（可选）
+     */
+    protected void fireEvent(ConnectionEventType eventType, Exception error) {
+        // 通过 XmppEventBus 发布事件
+        XmppEventBus.getInstance().publish(this, eventType, error);
     }
 
     /**

@@ -1,6 +1,8 @@
 package com.example.xmpp.logic;
 
 import com.example.xmpp.event.ConnectionEvent;
+import com.example.xmpp.event.ConnectionEventType;
+import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.XmppConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -10,7 +12,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
@@ -26,16 +27,16 @@ class ReconnectionManagerTest {
 
     @BeforeEach
     void setUp() {
-        lenient().doNothing().when(connection).addConnectionListener(any());
-        lenient().when(connection.isConnected()).thenReturn(false);
+        // 清除 XmppEventBus 中的事件订阅
+        XmppEventBus.getInstance().clear();
+
         reconnectionManager = new ReconnectionManager(connection);
     }
 
     @Test
-    @DisplayName("构造函数应正确初始化并注册监听器")
+    @DisplayName("构造函数应正确初始化")
     void testConstructor() {
         assertNotNull(reconnectionManager);
-        verify(connection).addConnectionListener(reconnectionManager);
     }
 
     @Test
@@ -63,40 +64,39 @@ class ReconnectionManagerTest {
     }
 
     @Test
-    @DisplayName("onEvent(ConnectedEvent) 回调应安全执行")
+    @DisplayName("onEvent(CONNECTED) 回调应安全执行")
     void testConnectedEventCallback() {
-        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent.ConnectedEvent(connection)));
+        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED)));
     }
 
     @Test
-    @DisplayName("onEvent(AuthenticatedEvent) 回调应安全执行")
+    @DisplayName("onEvent(AUTHENTICATED) 回调应安全执行")
     void testAuthenticatedEventCallback() {
-        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent.AuthenticatedEvent(connection, false)));
-        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent.AuthenticatedEvent(connection, true)));
+        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED)));
+        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED)));
     }
 
     @Test
-    @DisplayName("onEvent(ConnectionClosedEvent) 回调应安全执行")
+    @DisplayName("onEvent(CLOSED) 回调应安全执行")
     void testConnectionClosedEventCallback() {
-        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent.ConnectionClosedEvent(connection)));
+        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CLOSED)));
     }
 
     @Test
-    @DisplayName("onEvent(ConnectionClosedOnErrorEvent) 回调应安全执行")
+    @DisplayName("onEvent(ERROR) 回调应安全执行")
     void testConnectionClosedOnErrorEventCallback() {
         reconnectionManager.disable(); // 禁用避免实际重连
 
         assertDoesNotThrow(() -> reconnectionManager.onEvent(
-                new ConnectionEvent.ConnectionClosedOnErrorEvent(connection, new Exception("Test error"))));
+                new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("Test error"))));
     }
 
     @Test
     @DisplayName("启用状态下错误关闭应触发重连")
     void testConnectionClosedOnErrorWithEnabled() {
-        when(connection.isConnected()).thenReturn(true);
         reconnectionManager.enable();
 
         assertDoesNotThrow(() -> reconnectionManager.onEvent(
-                new ConnectionEvent.ConnectionClosedOnErrorEvent(connection, new Exception("Test error"))));
+                new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("Test error"))));
     }
 }

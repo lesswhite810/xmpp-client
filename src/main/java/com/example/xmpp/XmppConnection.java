@@ -1,6 +1,5 @@
 package com.example.xmpp;
 
-import com.example.xmpp.event.ConnectionListener;
 import com.example.xmpp.handler.IqRequestHandler;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
@@ -61,20 +60,6 @@ public interface XmppConnection {
      * @return {@link CompletableFuture}，完成时包含响应节
      */
     CompletableFuture<XmppStanza> sendIqPacketAsync(Iq iq);
-
-    /**
-     * 添加连接状态监听器。
-     *
-     * @param listener 连接监听器
-     */
-    void addConnectionListener(ConnectionListener listener);
-
-    /**
-     * 移除连接状态监听器。
-     *
-     * @param listener 要移除的监听器
-     */
-    void removeConnectionListener(ConnectionListener listener);
 
     /**
      * 注册 IQ 请求处理器。

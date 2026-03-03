@@ -6,6 +6,8 @@ import com.example.xmpp.config.KeepAliveConfig;
 import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEvent;
+import com.example.xmpp.event.ConnectionEventType;
+import com.example.xmpp.event.XmppEventBus;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -277,26 +279,20 @@ public class XmppIntegrationTest {
         AtomicInteger reconnectCount = new AtomicInteger(0);
         AtomicBoolean reconnected = new AtomicBoolean(false);
 
-        connection.addConnectionListener(event -> {
-            switch (event) {
-                case ConnectionEvent.ConnectedEvent e ->
-                    log.info("Connected");
-                case ConnectionEvent.AuthenticatedEvent e -> {
-                    log.info("Authenticated (resumed={})", e.resumed());
-                    if (authLatch.getCount() > 0) {
-                        authLatch.countDown();
-                    } else {
-                        reconnectCount.incrementAndGet();
-                        reconnected.set(true);
-                        log.info("Reconnection #{} successful!", reconnectCount.get());
-                    }
-                }
-                case ConnectionEvent.ConnectionClosedEvent e ->
-                    log.info("Connection closed normally");
-                case ConnectionEvent.ConnectionClosedOnErrorEvent e ->
-                    log.warn("Connection closed on error: {}", e.error().getMessage());
+        XmppEventBus eventBus = XmppEventBus.getInstance();
+        eventBus.subscribe(connection, ConnectionEventType.CONNECTED, e -> log.info("Connected"));
+        eventBus.subscribe(connection, ConnectionEventType.AUTHENTICATED, e -> {
+            log.info("Authenticated");
+            if (authLatch.getCount() > 0) {
+                authLatch.countDown();
+            } else {
+                reconnectCount.incrementAndGet();
+                reconnected.set(true);
+                log.info("Reconnection #{} successful!", reconnectCount.get());
             }
         });
+        eventBus.subscribe(connection, ConnectionEventType.CLOSED, e -> log.info("Connection closed normally"));
+        eventBus.subscribe(connection, ConnectionEventType.ERROR, e -> log.warn("Connection closed on error: {}", e.error().getMessage()));
 
         try {
             connection.connect();
@@ -352,12 +348,8 @@ public class XmppIntegrationTest {
         XmppTcpConnection connection = new XmppTcpConnection(config);
         CountDownLatch authLatch = new CountDownLatch(1);
 
-        connection.addConnectionListener(event -> {
-            switch (event) {
-                case ConnectionEvent.AuthenticatedEvent e -> authLatch.countDown();
-                default -> { }
-            }
-        });
+        XmppEventBus eventBus = XmppEventBus.getInstance();
+        eventBus.subscribe(connection, ConnectionEventType.AUTHENTICATED, e -> authLatch.countDown());
 
         try {
             connection.connect();
@@ -392,21 +384,16 @@ public class XmppIntegrationTest {
         CountDownLatch authLatch = new CountDownLatch(1);
         AtomicReference<Exception> errorRef = new AtomicReference<>();
 
-        connection.addConnectionListener(event -> {
-            switch (event) {
-                case ConnectionEvent.ConnectedEvent e ->
-                    log.debug("Connected event received");
-                case ConnectionEvent.AuthenticatedEvent e -> {
-                    log.info("Authenticated successfully");
-                    authLatch.countDown();
-                }
-                case ConnectionEvent.ConnectionClosedEvent e ->
-                    log.debug("Connection closed");
-                case ConnectionEvent.ConnectionClosedOnErrorEvent e -> {
-                    log.error("Connection error: {}", e.error().getMessage());
-                    errorRef.set(e.error());
-                }
-            }
+        XmppEventBus eventBus = XmppEventBus.getInstance();
+        eventBus.subscribe(connection, ConnectionEventType.CONNECTED, e -> log.debug("Connected event received"));
+        eventBus.subscribe(connection, ConnectionEventType.AUTHENTICATED, e -> {
+            log.info("Authenticated successfully");
+            authLatch.countDown();
+        });
+        eventBus.subscribe(connection, ConnectionEventType.CLOSED, e -> log.debug("Connection closed"));
+        eventBus.subscribe(connection, ConnectionEventType.ERROR, e -> {
+            log.error("Connection error: {}", e.error().getMessage());
+            errorRef.set(e.error());
         });
 
         try {

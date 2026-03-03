@@ -1,7 +1,8 @@
 package com.example.xmpp.logic;
 
 import com.example.xmpp.event.ConnectionEvent;
-import com.example.xmpp.event.ConnectionListener;
+import com.example.xmpp.event.ConnectionEventType;
+import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.XmppConnection;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.util.XmppConstants;
@@ -9,11 +10,11 @@ import com.example.xmpp.util.XmppScheduler;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 /**
  * 自动重连管理器。
  *
@@ -32,34 +33,55 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @since 2026-02-09
  */
 @Slf4j
-public class ReconnectionManager implements ConnectionListener {
+public class ReconnectionManager {
 
-    /** 基础重连延迟（秒） */
+    /**
+     * 基础重连延迟（秒）
+     */
     private static final int BASE_DELAY_SECONDS = XmppConstants.RECONNECT_BASE_DELAY_SECONDS;
 
-    /** 最大重连延迟（秒） */
+    /**
+     * 最大重连延迟（秒）
+     */
     private static final int MAX_DELAY_SECONDS = XmppConstants.RECONNECT_MAX_DELAY_SECONDS;
 
-    /** 最大重连尝试次数 */
+    /**
+     * 最大重连尝试次数
+     */
     private static final int MAX_RECONNECT_ATTEMPTS = XmppConstants.MAX_RECONNECT_ATTEMPTS;
 
-    /** 关联的 XMPP 连接 */
+    /**
+     * 关联的 XMPP 连接
+     */
     private final XmppConnection connection;
 
-    /** 当前重连任务 */
+    /**
+     * 当前重连任务
+     */
     private volatile ScheduledFuture<?> currentTask;
 
-    /** 是否启用自动重连 */
+    /**
+     * 是否启用自动重连
+     */
     private volatile boolean enabled = true;
 
-    /** 随机数生成器（用于添加抖动） */
+    /**
+     * 随机数生成器（用于添加抖动）
+     */
     private final Random random = new Random();
 
-    /** 当前连续重连尝试次数（线程安全） */
+    /**
+     * 当前连续重连尝试次数（线程安全）
+     */
     private final AtomicInteger attemptCount = new AtomicInteger(0);
 
-    /** 是否因错误触发过重连（避免被正常关闭事件覆盖） */
+    /**
+     * 是否因错误触发过重连（避免被正常关闭事件覆盖）
+     */
     private volatile boolean reconnectionScheduledDueToError = false;
+
+    /** 事件订阅取消回调 */
+    private Runnable unsubscribe;
 
     /**
      * 构造 ReconnectionManager。
@@ -69,11 +91,17 @@ public class ReconnectionManager implements ConnectionListener {
     public ReconnectionManager(XmppConnection connection) {
         this.connection = connection;
 
-        // 注册连接监听器
-        connection.addConnectionListener(this);
-    }
+        // 通过 XmppEventBus 订阅连接事件（连接专属订阅，只响应本连接的事件）
+        XmppEventBus eventBus = XmppEventBus.getInstance();
 
-    /**
+        unsubscribe = eventBus.subscribeAll(connection, Map.of(
+                ConnectionEventType.CONNECTED, event -> onConnected(),
+                ConnectionEventType.AUTHENTICATED, event -> onAuthenticated(),
+                ConnectionEventType.CLOSED, event -> onConnectionClosed(),
+                ConnectionEventType.ERROR, event -> onConnectionClosedOnError(event.error())
+        ));
+}
+/**
      * 启用自动重连。
      *
      * <p>允许在连接断开时自动尝试重新连接。</p>
@@ -86,25 +114,39 @@ public class ReconnectionManager implements ConnectionListener {
      * 禁用自动重连。
      *
      * <p>取消所有待执行的重连任务。</p>
-     */
-    public void disable() {
+*/
+public void disable() {
         this.enabled = false;
         stopReconnectTask();
     }
 
     /**
+     * 关闭 ReconnectionManager。
+     *
+     * <p>停止重连任务并释放相关资源（取消事件订阅）。</p>
+     */
+    public void shutdown() {
+        this.enabled = false;
+        stopReconnectTask();
+        if (unsubscribe != null) {
+            unsubscribe.run();
+            unsubscribe = null;
+        }
+        log.debug("ReconnectionManager shutdown");
+}
+/**
      * 处理连接事件。
+     *
+     * <p>此方法用于测试目的，实际事件处理通过 XmppEventBus 自动触发。</p>
      *
      * @param event 连接事件
      */
-    @Override
     public void onEvent(ConnectionEvent event) {
-        switch (event) {
-            case ConnectionEvent.ConnectedEvent e -> onConnected();
-            case ConnectionEvent.AuthenticatedEvent e -> onAuthenticated();
-            case ConnectionEvent.ConnectionClosedEvent e -> onConnectionClosed();
-            case ConnectionEvent.ConnectionClosedOnErrorEvent e -> onConnectionClosedOnError(e.error());
-            default -> { }
+        switch (event.eventType()) {
+            case CONNECTED -> onConnected();
+            case AUTHENTICATED -> onAuthenticated();
+            case CLOSED -> onConnectionClosed();
+            case ERROR -> onConnectionClosedOnError(event.error());
         }
     }
 

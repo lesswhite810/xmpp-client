@@ -3,61 +3,94 @@ package com.example.xmpp.event;
 import com.example.xmpp.XmppConnection;
 
 /**
- * 连接事件 sealed interface。
+ * XMPP 连接事件。
  *
  * <p>表示 XMPP 连接生命周期中发生的各种事件。
- * 使用 sealed interface 确保只有定义的事件类型可以被创建。</p>
+ * 使用 {@link ConnectionEventType} 枚举区分事件类型。</p>
  *
- * @since 2026-02-25
+ * <p>使用示例：</p>
+ * <pre>{@code
+ * // 创建事件
+ * ConnectionEvent event = new ConnectionEvent(connection, ConnectionEventType.CONNECTED);
+ *
+ * // 订阅特定连接的事件
+ * eventBus.subscribe(connection, ConnectionEventType.CONNECTED, e -> {
+ *     log.info("Connected: {}", e.connection().getConfig().getUser());
+ * });
+ *
+ * // 订阅全局事件（所有连接）
+ * eventBus.subscribe(ConnectionEventType.AUTHENTICATED, e -> {
+ *     log.info("User authenticated: {}", e.connection().getUser());
+ * });
+ *
+ * // 发布事件
+ * eventBus.publish(connection, new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
+ * }</pre>
+ *
+ * @since 2026-03-03
  */
-public sealed interface ConnectionEvent {
+public class ConnectionEvent {
+
+    private final XmppConnection connection;
+    private final ConnectionEventType eventType;
+    private final Exception error;
 
     /**
-     * 获取关联的连接对象。
+     * 创建连接事件（无错误）。
+     *
+     * @param connection 关联的连接
+     * @param eventType  事件类型
+     */
+    public ConnectionEvent(XmppConnection connection, ConnectionEventType eventType) {
+        this(connection, eventType, null);
+    }
+
+    /**
+     * 创建连接事件（带错误，用于 ERROR 类型）。
+     *
+     * @param connection 关联的连接
+     * @param eventType  事件类型
+     * @param error     错误信息（可选，仅 ERROR 类型需要）
+     */
+    public ConnectionEvent(XmppConnection connection, ConnectionEventType eventType, Exception error) {
+        this.connection = connection;
+        this.eventType = eventType;
+        this.error = error;
+    }
+
+    /**
+     * 获取关联的连接。
      *
      * @return XMPP 连接实例
      */
-    XmppConnection connection();
-
-    /**
-     * 连接建立事件。
-     *
-     * <p>当 TCP 连接成功建立并且 XMPP 流初始化完成时触发。</p>
-     *
-     * @param connection 已建立的连接对象
-     */
-    record ConnectedEvent(XmppConnection connection) implements ConnectionEvent {
+    public XmppConnection connection() {
+        return connection;
     }
 
     /**
-     * 认证成功事件。
+     * 获取事件类型。
      *
-     * <p>当 SASL 认证完成并且资源绑定成功时触发。</p>
-     *
-     * @param connection 已认证的连接对象
-     * @param resumed    是否为恢复的会话
+     * @return 事件类型枚举
      */
-    record AuthenticatedEvent(XmppConnection connection, boolean resumed) implements ConnectionEvent {
+    public ConnectionEventType eventType() {
+        return eventType;
     }
 
     /**
-     * 连接正常关闭事件。
+     * 获取错误信息。
      *
-     * <p>当主动断开连接时触发。</p>
-     *
-     * @param connection 被关闭的连接对象
+     * @return 错误异常，仅 ERROR 类型有效
      */
-    record ConnectionClosedEvent(XmppConnection connection) implements ConnectionEvent {
+    public Exception error() {
+        return error;
     }
 
-    /**
-     * 连接因错误关闭事件。
-     *
-     * <p>当连接由于网络错误、认证失败或其他异常而意外断开时触发。</p>
-     *
-     * @param connection 被关闭的连接对象
-     * @param error      导致连接关闭的异常
-     */
-    record ConnectionClosedOnErrorEvent(XmppConnection connection, Exception error) implements ConnectionEvent {
+    @Override
+    public String toString() {
+        if (error != null) {
+            return "ConnectionEvent{connection=%s, type=%s, error=%s}".formatted(
+                    connection, eventType, error.getMessage());
+        }
+        return "ConnectionEvent{connection=%s, type=%s}".formatted(connection, eventType);
     }
 }
