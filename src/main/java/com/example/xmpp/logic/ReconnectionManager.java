@@ -114,8 +114,8 @@ public class ReconnectionManager {
      * 禁用自动重连。
      *
      * <p>取消所有待执行的重连任务。</p>
-*/
-public void disable() {
+     */
+    public void disable() {
         this.enabled = false;
         stopReconnectTask();
     }
