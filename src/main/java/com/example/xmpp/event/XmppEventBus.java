@@ -56,7 +56,7 @@ public final class XmppEventBus {
         return INSTANCE;
     }
 
-    // ==================== 订阅 ====================
+    // 订阅
 
     /**
      * 订阅特定连接的事件。
@@ -262,7 +262,7 @@ public final class XmppEventBus {
         log.debug("Unsubscribed all handlers for connection: {}", connection);
     }
 
-    // ==================== 发布 ====================
+    // 发布
 
     /**
      * 发布事件。
@@ -295,7 +295,7 @@ public final class XmppEventBus {
         publishEvent(event);
     }
 
-    // ==================== 私有辅助方法 ====================
+    // 私有辅助方法
 
     private void publishEvent(ConnectionEvent event) {
         XmppConnection connection = event.connection();
@@ -321,7 +321,7 @@ public final class XmppEventBus {
         }
     }
 
-    // ==================== 查询方法 ====================
+    // 查询方法
 
     /**
      * 检查是否有订阅者。

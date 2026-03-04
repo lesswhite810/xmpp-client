@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class SaslModelTest {
 
-    // ==================== Auth 测试 ====================
+    // Auth 测试
 
     @Test
     @DisplayName("Auth 应正确创建")
@@ -30,7 +30,7 @@ class SaslModelTest {
         assertNull(auth.getContent());
     }
 
-    // ==================== SaslChallenge 测试 ====================
+    // SaslChallenge 测试
 
     @Test
     @DisplayName("SaslChallenge 应正确创建")
@@ -50,7 +50,7 @@ class SaslModelTest {
         assertNull(challenge.getContent());
     }
 
-    // ==================== SaslResponse 测试 ====================
+    // SaslResponse 测试
 
     @Test
     @DisplayName("SaslResponse 应正确创建")
@@ -68,7 +68,7 @@ class SaslModelTest {
         assertNull(response.getContent());
     }
 
-    // ==================== SaslSuccess 测试 ====================
+    // SaslSuccess 测试
 
     @Test
     @DisplayName("SaslSuccess 应正确创建")
@@ -88,7 +88,7 @@ class SaslModelTest {
         assertNull(success.getContent());
     }
 
-    // ==================== SaslFailure 测试 ====================
+    // SaslFailure 测试
 
     @Test
     @DisplayName("SaslFailure 应正确创建")

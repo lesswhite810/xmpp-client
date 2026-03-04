@@ -41,7 +41,7 @@ class XmppEventBusTest {
         assertSame(instance1, instance2);
     }
 
-    // ==================== 订阅测试 ====================
+    // 订阅测试
 
     @Test
     @DisplayName("应正确订阅事件")
@@ -153,7 +153,7 @@ class XmppEventBusTest {
         assertEquals(0, eventBus.getSubscriberCount(mockConnection1, ConnectionEventType.CONNECTED));
     }
 
-    // ==================== 连接隔离测试 ====================
+    // 连接隔离测试
 
     @Test
     @DisplayName("不同连接的事件应相互独立")
@@ -272,7 +272,7 @@ class XmppEventBusTest {
 
     }
 
-    // ==================== 批量订阅测试 ====================
+    // 批量订阅测试
 
     @Test
     @DisplayName("应正确批量订阅多个事件")
