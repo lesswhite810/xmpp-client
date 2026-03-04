@@ -52,6 +52,12 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * Stanza 公共属性（id、from、to）及类型。
+     *
+     * @param type 节类型
+     * @param id 节 ID
+     * @param from 发送者
+     * @param to 接收者
+     * @since 2026-02-09
      */
     private record StanzaAttrs(String type, String id, String from, String to) {
         static StanzaAttrs from(StartElement element) {
@@ -82,6 +88,9 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 从 ByteBuf 解析 XML。
+     *
+     * @param buf 字节缓冲区
+     * @return 解析结果的可选对象
      */
     protected Optional<Object> parseFromByteBuf(ByteBuf buf) {
         XMLEventReader reader = null;
@@ -107,6 +116,10 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析根元素。
+     *
+     * @param reader XML 事件读取器
+     * @return 解析结果的可选对象
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
     private Optional<Object> parseRootElement(XMLEventReader reader) throws XMLStreamException {
         while (reader.hasNext()) {
@@ -130,6 +143,13 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析 XML 元素（顶层元素路由）。
+     *
+     * @param reader XML 事件读取器
+     * @param start 开始元素
+     * @param localName 元素本地名称
+     * @param namespace 命名空间
+     * @return 解析结果的可选对象
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
     private Optional<Object> parseElement(XMLEventReader reader, StartElement start,
                                           String localName, String namespace) throws XMLStreamException {
@@ -144,6 +164,13 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析非 Stanza 元素（流级别元素或 Provider 扩展）。
+     *
+     * @param reader XML 事件读取器
+     * @param start 开始元素
+     * @param localName 元素本地名称
+     * @param namespace 命名空间
+     * @return 解析结果的可选对象
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
     private Optional<Object> parseOtherElement(XMLEventReader reader, StartElement start,
                                                 String localName, String namespace) throws XMLStreamException {
@@ -156,6 +183,12 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析流级别元素（SASL、TLS、Features 等）。
+     *
+     * @param reader XML 事件读取器
+     * @param start 开始元素
+     * @param localName 元素本地名称
+     * @return 解析的流元素对象，如果没有匹配的类型返回 null
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
     private Object parseStreamElement(XMLEventReader reader, StartElement start,
                                        String localName) throws XMLStreamException {
@@ -178,6 +211,12 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 尝试使用 Provider 解析元素。
+     *
+     * @param reader XML 事件读取器
+     * @param localName 元素本地名称
+     * @param namespace 命名空间
+     * @return 解析结果的可选对象
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
     private Optional<Object> tryParseWithProvider(XMLEventReader reader,
                                                    String localName, String namespace) throws XMLStreamException {
@@ -197,6 +236,10 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析 StreamFeatures 元素。
+     *
+     * @param reader XML 事件读取器
+     * @return 解析的 StreamFeatures 对象
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
     private StreamFeatures parseFeatures(XMLEventReader reader) throws XMLStreamException {
         List<String> mechanisms = new ArrayList<>();
@@ -229,6 +272,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析 SASL Auth 元素。
+     *
+     * @param reader XML 事件读取器
+     * @param element 开始元素
+     * @return 解析的 Auth 对象
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
     private Auth parseSaslAuth(XMLEventReader reader, StartElement element) throws XMLStreamException {
         String mechanism = getAttributeValue(element, "mechanism");
@@ -238,6 +286,10 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析 SASL Failure 元素。
+     *
+     * @param reader XML 事件读取器
+     * @return 解析的 SaslFailure 对象
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
     private SaslFailure parseSaslFailure(XMLEventReader reader) throws XMLStreamException {
         String condition = "undefined-condition";
@@ -267,6 +319,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析 IQ 节。
+     *
+     * @param reader XML 事件读取器
+     * @param element 开始元素
+     * @return 解析的 Iq 对象
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
     private Iq parseIq(XMLEventReader reader, StartElement element) throws XMLStreamException {
         StanzaAttrs attrs = StanzaAttrs.from(element);
@@ -288,6 +345,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析 IQ 子元素。
+     *
+     * @param reader XML 事件读取器
+     * @param start 开始元素
+     * @param builder IQ 构建器
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
     private void parseIqChildElement(XMLEventReader reader, StartElement start, Iq.Builder builder)
             throws XMLStreamException {
@@ -307,6 +369,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析 XMPP Error 元素。
+     *
+     * @param reader XML 事件读取器
+     * @param element 开始元素
+     * @return 解析的 XmppError 对象
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
     private XmppError parseError(XMLEventReader reader, StartElement element) throws XMLStreamException {
         String typeStr = getAttributeValue(element, "type");
@@ -359,6 +426,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析 Message 节。
+     *
+     * @param reader XML 事件读取器
+     * @param element 开始元素
+     * @return 解析的 Message 对象
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
     private Message parseMessage(XMLEventReader reader, StartElement element) throws XMLStreamException {
         StanzaAttrs attrs = StanzaAttrs.from(element);
@@ -389,6 +461,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析 Presence 节。
+     *
+     * @param reader XML 事件读取器
+     * @param element 开始元素
+     * @return 解析的 Presence 对象
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
     private Presence parsePresence(XMLEventReader reader, StartElement element) throws XMLStreamException {
         StanzaAttrs attrs = StanzaAttrs.from(element);
@@ -419,6 +496,9 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 解析 priority 值。
+     *
+     * @param reader XML 事件读取器
+     * @param builder Presence 构建器
      */
     private void parsePriority(XMLEventReader reader, Presence.Builder builder) {
         try {
@@ -464,6 +544,10 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 判断是否为指定名称的结束元素。
+     *
+     * @param event XML 事件
+     * @param elementName 元素名称
+     * @return 如果是指定名称的结束元素返回 true，否则返回 false
      */
     private boolean isEndElement(XMLEvent event, String elementName) {
         return event.isEndElement()
@@ -472,6 +556,10 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 获取元素属性值。
+     *
+     * @param element 开始元素
+     * @param attrName 属性名称
+     * @return 属性值，如果不存在返回 null
      */
     private String getAttributeValue(StartElement element, String attrName) {
         var attr = element.getAttributeByName(new QName(attrName));

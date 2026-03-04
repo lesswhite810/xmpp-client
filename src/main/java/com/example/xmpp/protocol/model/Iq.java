@@ -34,6 +34,11 @@ public final class Iq extends Stanza {
 
     /**
      * 合并子元素、错误和扩展为单一列表。
+     *
+     * @param childElement 子元素
+     * @param error 错误元素
+     * @param extensions 扩展列表
+     * @return 合并后的扩展元素列表
      */
     private static List<ExtensionElement> consolidateExtensions(
             ExtensionElement childElement, XmppError error, List<ExtensionElement> extensions) {

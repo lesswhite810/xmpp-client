@@ -108,6 +108,9 @@ public class SslUtils {
      * 配置 SSL 协议。
      *
      * <p>只启用指定的协议，自动过滤掉不支持的协议。</p>
+     *
+     * @param sslEngine SSL 引擎
+     * @param enabledProtocols 启用的协议数组
      */
     private static void configureProtocols(SSLEngine sslEngine, String[] enabledProtocols) {
         if (enabledProtocols == null || enabledProtocols.length == 0) {
@@ -129,6 +132,9 @@ public class SslUtils {
      * 配置密码套件。
      *
      * <p>只启用指定的密码套件，自动过滤掉不支持的套件。</p>
+     *
+     * @param sslEngine SSL 引擎
+     * @param enabledCiphers 启用的密码套件数组
      */
     private static void configureCipherSuites(SSLEngine sslEngine, String[] enabledCiphers) {
         if (enabledCiphers == null || enabledCiphers.length == 0) {

@@ -59,6 +59,8 @@ public class GenericExtensionElement implements ExtensionElement {
 
     /**
      * 获取所有属性。
+     *
+     * @return 属性映射
      */
     public Map<String, String> getAttributes() {
         return attributes;
@@ -66,6 +68,8 @@ public class GenericExtensionElement implements ExtensionElement {
 
     /**
      * 获取子元素列表。
+     *
+     * @return 子元素列表
      */
     public List<GenericExtensionElement> getChildren() {
         return children;
@@ -88,6 +92,10 @@ public class GenericExtensionElement implements ExtensionElement {
 
     /**
      * 获取指定名称和命名空间的第一个子元素。
+     *
+     * @param elementName 元素名称
+     * @param namespace 命名空间
+     * @return 子元素，不存在返回 null
      */
     public GenericExtensionElement getFirstChild(String elementName, String namespace) {
         for (GenericExtensionElement child : children) {
@@ -101,6 +109,8 @@ public class GenericExtensionElement implements ExtensionElement {
 
     /**
      * 获取文本内容。
+     *
+     * @return 文本内容
      */
     public String getText() {
         return text;
@@ -108,6 +118,8 @@ public class GenericExtensionElement implements ExtensionElement {
 
     /**
      * 获取 QName。
+     *
+     * @return QName 对象
      */
     public QName getQName() {
         return new QName(namespace, elementName);
@@ -153,6 +165,8 @@ public class GenericExtensionElement implements ExtensionElement {
 
     /**
      * 构建空元素的 XML（自闭合标签）。
+     *
+     * @return XML 字符串
      */
     private String buildEmptyElementXml() {
         StringBuilder sb = new StringBuilder();
@@ -175,6 +189,9 @@ public class GenericExtensionElement implements ExtensionElement {
 
     /**
      * XML 转义。
+     *
+     * @param value 需要转义的值
+     * @return 转义后的字符串
      */
     private String escapeXml(String value) {
         if (value == null) {
@@ -225,6 +242,10 @@ public class GenericExtensionElement implements ExtensionElement {
 
         /**
          * 添加属性。
+         *
+         * @param name 属性名
+         * @param value 属性值
+         * @return Builder 实例
          */
         public Builder addAttribute(String name, String value) {
             if (attributes == null) {
@@ -236,6 +257,9 @@ public class GenericExtensionElement implements ExtensionElement {
 
         /**
          * 添加所有属性。
+         *
+         * @param attrs 属性映射
+         * @return Builder 实例
          */
         public Builder addAttributes(Map<String, String> attrs) {
             if (attrs == null || attrs.isEmpty()) {
@@ -250,6 +274,9 @@ public class GenericExtensionElement implements ExtensionElement {
 
         /**
          * 添加子元素。
+         *
+         * @param child 子元素
+         * @return Builder 实例
          */
         public Builder addChild(GenericExtensionElement child) {
             if (children == null) {
@@ -261,6 +288,9 @@ public class GenericExtensionElement implements ExtensionElement {
 
         /**
          * 设置文本内容。
+         *
+         * @param text 文本内容
+         * @return Builder 实例
          */
         public Builder text(String text) {
             this.text = text;
@@ -269,6 +299,8 @@ public class GenericExtensionElement implements ExtensionElement {
 
         /**
          * 构建 GenericExtensionElement。
+         *
+         * @return GenericExtensionElement 实例
          */
         public GenericExtensionElement build() {
             return new GenericExtensionElement(this);

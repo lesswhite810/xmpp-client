@@ -78,6 +78,10 @@ public final class ProviderRegistry {
 
     /**
      * 获取 IQ Provider。
+     *
+     * @param elementName 元素名称
+     * @param namespace 命名空间
+     * @return IQ Provider 的可选对象
      */
     public Optional<IqProvider> getIqProvider(String elementName, String namespace) {
         return getProvider(elementName, namespace)
@@ -124,6 +128,8 @@ public final class ProviderRegistry {
 
     /**
      * 获取所有已注册的键。
+     *
+     * @return 注册键的集合
      */
     public Set<String> getRegisteredKeys() {
         return Set.copyOf(providers.keySet());
@@ -131,6 +137,10 @@ public final class ProviderRegistry {
 
     /**
      * 检查是否存在 Provider。
+     *
+     * @param elementName 元素名称
+     * @param namespace 命名空间
+     * @return 如果存在返回 true，否则返回 false
      */
     public boolean hasProvider(String elementName, String namespace) {
         return providers.containsKey(createKey(elementName, namespace));
@@ -138,6 +148,8 @@ public final class ProviderRegistry {
 
     /**
      * 获取 Provider 数量。
+     *
+     * @return Provider 数量
      */
     public int size() {
         return providers.size();

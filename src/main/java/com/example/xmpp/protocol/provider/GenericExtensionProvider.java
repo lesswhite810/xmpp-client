@@ -48,6 +48,11 @@ public class GenericExtensionProvider {
 
     /**
      * 解析当前元素及其所有子元素。
+     *
+     * @param reader XML 事件读取器
+     * @param start 开始元素
+     * @return 解析后的 GenericExtensionElement
+     * @throws XMLStreamException XML 流异常
      */
     private GenericExtensionElement parseElement(XMLEventReader reader, StartElement start)
             throws XMLStreamException {
