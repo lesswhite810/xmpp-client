@@ -53,7 +53,7 @@ public class PingManager {
     public PingManager(XmppConnection connection) {
         this.connection = connection;
 
-        /** 通过 XmppEventBus 订阅连接事件（连接专属订阅，只响应本连接的事件） */
+        // 通过 XmppEventBus 订阅连接事件（连接专属订阅，只响应本连接的事件）
         XmppEventBus eventBus = XmppEventBus.getInstance();
 
         unsubscribe = eventBus.subscribeAll(connection, Map.of(

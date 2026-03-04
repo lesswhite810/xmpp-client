@@ -63,7 +63,7 @@ public class Main {
     private static void runClient(String domain, String username, String password)
             throws InterruptedException, XmppException {
 
-        /** 创建配置（使用模块化配置类） */
+        // 创建配置（使用模块化配置类）
         XmppClientConfig config = XmppClientConfig.builder()
                 .connection(ConnectionConfig.builder()
                         .xmppServiceDomain(domain)
@@ -83,15 +83,15 @@ public class Main {
         log.info("Security mode: {}", config.getSecurity().getSecurityMode());
         log.info("Using Direct TLS: {}", config.getSecurity().isUsingDirectTLS());
 
-        /** 创建连接（PingManager 和 ReconnectionManager 自动初始化） */
+        // 创建连接（PingManager 和 ReconnectionManager 自动初始化）
         XmppTcpConnection connection = new XmppTcpConnection(config);
 
-        /** 建立连接 */
+        // 建立连接
         connection.connect();
 
         log.info("Connected to XMPP server: {}", domain);
 
-        /** 保持程序运行 */
+        // 保持程序运行
         Thread.sleep(Long.MAX_VALUE);
     }
 }

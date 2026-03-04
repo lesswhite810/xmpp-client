@@ -45,14 +45,14 @@ public class NettyUtils {
         Validate.notNull(ctx, "ChannelHandlerContext must not be null");
         Validate.notNull(content, "Content must not be null");
 
-        /** 预估 UTF-8 编码后的最大字节数，避免多次扩容 */
+        // 预估 UTF-8 编码后的最大字节数，避免多次扩容
         int estimatedSize = (int) (content.length() * UTF8_MAX_BYTES_PER_CHAR);
         ByteBuf buf = ctx.alloc().buffer(estimatedSize);
 
         buf.writeCharSequence(content, StandardCharsets.UTF_8);
         ChannelFuture future = ctx.writeAndFlush(buf);
 
-        /** 添加 listener 处理写入失败时的 ByteBuf 释放 */
+        // 添加 listener 处理写入失败时的 ByteBuf 释放
         future.addListener(f -> {
             if (!f.isSuccess() && buf.refCnt() > 0) {
                 log.warn("Failed to write ByteBuf, releasing buffer. Error: {}",

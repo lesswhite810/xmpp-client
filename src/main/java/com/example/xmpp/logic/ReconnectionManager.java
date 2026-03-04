@@ -91,7 +91,7 @@ public class ReconnectionManager {
     public ReconnectionManager(XmppConnection connection) {
         this.connection = connection;
 
-        /** 通过 XmppEventBus 订阅连接事件（连接专属订阅，只响应本连接的事件） */
+        // 通过 XmppEventBus 订阅连接事件（连接专属订阅，只响应本连接的事件）
         XmppEventBus eventBus = XmppEventBus.getInstance();
 
         unsubscribe = eventBus.subscribeAll(connection, Map.of(
@@ -164,7 +164,7 @@ public class ReconnectionManager {
     }
 
     private void onConnectionClosed() {
-        /** 如果之前因错误触发了重连，不取消（避免事件顺序问题） */
+        // 如果之前因错误触发了重连，不取消（避免事件顺序问题）
         if (reconnectionScheduledDueToError) {
             log.debug("Connection closed but reconnection already scheduled due to previous error");
             return;

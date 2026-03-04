@@ -182,12 +182,12 @@ public class GenericExtensionElement implements ExtensionElement {
         StringBuilder sb = new StringBuilder();
         sb.append('<').append(elementName);
 
-        /** 添加命名空间 */
+        // 添加命名空间
         if (!namespace.isEmpty()) {
             sb.append(" xmlns=\"").append(escapeXml(namespace)).append('"');
         }
 
-        /** 添加属性 */
+        // 添加属性
         for (Map.Entry<String, String> attr : attributes.entrySet()) {
             sb.append(' ').append(attr.getKey()).append("=\"")
               .append(escapeXml(attr.getValue())).append('"');
