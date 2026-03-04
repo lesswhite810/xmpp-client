@@ -37,11 +37,21 @@ public class GenericExtensionElement implements ExtensionElement {
         this.text = builder.text;
     }
 
+    /**
+     * 获取元素名称。
+     *
+     * @return 元素名称
+     */
     @Override
     public String getElementName() {
         return elementName;
     }
 
+    /**
+     * 获取命名空间。
+     *
+     * @return 命名空间
+     */
     @Override
     public String getNamespace() {
         return namespace;
@@ -129,32 +139,32 @@ public class GenericExtensionElement implements ExtensionElement {
     public String toXml() {
         XmlStringBuilder xml = new XmlStringBuilder();
 
-        /** 如果没有子元素和文本，使用自闭合标签 */
+        // 如果没有子元素和文本，使用自闭合标签
         if (children.isEmpty() && (text == null || text.isEmpty())) {
             return buildEmptyElementXml();
         }
 
-        /** 有内容时使用完整标签 */
+        // 有内容时使用完整标签
         xml.element(elementName);
 
-        /** 添加命名空间 */
+        // 添加命名空间
         if (!namespace.isEmpty()) {
             xml.attribute("xmlns", namespace);
         }
 
-        /** 添加属性 */
+        // 添加属性
         for (Map.Entry<String, String> attr : attributes.entrySet()) {
             xml.attribute(attr.getKey(), attr.getValue());
         }
 
         xml.rightAngleBracket();
 
-        /** 添加文本内容 */
+        // 添加文本内容
         if (text != null && !text.isEmpty()) {
             xml.escapedContent(text);
         }
 
-        /** 添加子元素 */
+        // 添加子元素
         for (GenericExtensionElement child : children) {
             xml.append(child.toXml());
         }
@@ -228,6 +238,9 @@ public class GenericExtensionElement implements ExtensionElement {
     /**
      * Builder 类。
      */
+    /**
+     * Builder 类。
+     */
     public static class Builder {
         private final String elementName;
         private final String namespace;
@@ -235,6 +248,12 @@ public class GenericExtensionElement implements ExtensionElement {
         private List<GenericExtensionElement> children;
         private String text;
 
+        /**
+         * 构造 Builder 实例。
+         *
+         * @param elementName 元素名称
+         * @param namespace 命名空间
+         */
         public Builder(String elementName, String namespace) {
             this.elementName = elementName;
             this.namespace = namespace;

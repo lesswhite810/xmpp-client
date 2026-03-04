@@ -43,6 +43,11 @@ public final class ProviderRegistry {
         log.debug("ProviderRegistry initialized with {} providers", providers.size());
     }
 
+    /**
+     * 获取 ProviderRegistry 单例实例。
+     *
+     * @return ProviderRegistry 单例实例
+     */
     public static ProviderRegistry getInstance() {
         return INSTANCE;
     }
@@ -69,6 +74,10 @@ public final class ProviderRegistry {
 
     /**
      * 获取扩展元素 Provider。
+     *
+     * @param elementName 元素名称
+     * @param namespace 命名空间
+     * @return 扩展元素 Provider 的可选对象
      */
     public Optional<ExtensionElementProvider<?>> getExtensionProvider(String elementName, String namespace) {
         return getProvider(elementName, namespace)
@@ -91,6 +100,10 @@ public final class ProviderRegistry {
 
     /**
      * 获取任意 Provider。
+     *
+     * @param elementName 元素名称
+     * @param namespace 命名空间
+     * @return Provider 的可选对象
      */
     public Optional<Provider<?>> getProvider(String elementName, String namespace) {
         String key = createKey(elementName, namespace);
@@ -106,6 +119,10 @@ public final class ProviderRegistry {
 
     /**
      * 移除 Provider。
+     *
+     * @param elementName 元素名称
+     * @param namespace 命名空间
+     * @return 被移除的 Provider 的可选对象
      */
     public Optional<Provider<?>> removeProvider(String elementName, String namespace) {
         String key = createKey(elementName, namespace);
