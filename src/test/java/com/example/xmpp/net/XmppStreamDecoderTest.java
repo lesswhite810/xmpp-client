@@ -43,7 +43,7 @@ class XmppStreamDecoderTest {
         channel = new EmbeddedChannel(decoder);
     }
 
-    // ==================== 基础解析测试 ====================
+    // 基础解析测试
 
     @Test
     @DisplayName("应正确处理完整 XML")
@@ -84,7 +84,7 @@ class XmppStreamDecoderTest {
         }
     }
 
-    // ==================== Stanza 解析测试 ====================
+    // Stanza 解析测试
 
     @Test
     @DisplayName("应跳过 stream 元素")
@@ -225,7 +225,7 @@ class XmppStreamDecoderTest {
         assertEquals("Invalid credentials", failure.getText());
     }
 
-    // ==================== IQ Stanza 测试 ====================
+    // IQ Stanza 测试
 
     @Test
     @DisplayName("应正确解析 IQ get")
@@ -314,7 +314,7 @@ class XmppStreamDecoderTest {
         assertEquals(Iq.Type.ERROR, iq.getType());
     }
 
-    // ==================== Message Stanza 测试 ====================
+    // Message Stanza 测试
 
     @Test
     @DisplayName("应正确解析 Message chat")
@@ -373,7 +373,7 @@ class XmppStreamDecoderTest {
         assertEquals("thread-123", message.getThread());
     }
 
-    // ==================== Presence Stanza 测试 ====================
+    // Presence Stanza 测试
 
     @Test
     @DisplayName("应正确解析 Presence available")
@@ -431,7 +431,7 @@ class XmppStreamDecoderTest {
         assertEquals(Presence.Type.SUBSCRIBE, presence.getType());
     }
 
-    // ==================== 分段数据测试 ====================
+    // 分段数据测试
 
     @Test
     @DisplayName("应正确处理分段发送的完整 XML")
@@ -473,7 +473,7 @@ class XmppStreamDecoderTest {
         assertEquals("test2", ((Iq) msg).getId());
     }
 
-    // ==================== 重置测试 ====================
+    // 重置测试
 
     @Test
     @DisplayName("连续解码应正常工作")
@@ -495,7 +495,7 @@ class XmppStreamDecoderTest {
         assertEquals("test2", ((Iq) msg).getId());
     }
 
-    // ==================== 特殊字符处理测试 ====================
+    // 特殊字符处理测试
 
     @Test
     @DisplayName("应正确处理消息中的特殊字符")
@@ -531,7 +531,7 @@ class XmppStreamDecoderTest {
         assertEquals("Let's discuss the project timeline.", message.getBody());
     }
 
-    // ==================== 辅助方法 ====================
+    // 辅助方法
 
     /**
      * 发送 XML 数据到通道。

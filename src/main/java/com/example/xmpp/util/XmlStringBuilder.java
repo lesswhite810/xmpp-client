@@ -27,7 +27,7 @@ public class XmlStringBuilder {
         this.sb = new StringBuilder(capacity);
     }
 
-    // --- 基础 append 方法 ---
+    // 基础 append 方法
 
     /**
      * 添加字符串。
@@ -47,7 +47,7 @@ public class XmlStringBuilder {
         return this;
     }
 
-    // --- 元素构建方法 ---
+    // 元素构建方法
 
     /**
      * 添加元素开标签前缀（不带右尖括号）。
@@ -117,7 +117,7 @@ public class XmlStringBuilder {
         return this;
     }
 
-    // --- 属性方法 ---
+    // 属性方法
 
     /**
      * 添加属性。
@@ -141,7 +141,7 @@ public class XmlStringBuilder {
         return this;
     }
 
-    // --- 内容方法 ---
+    // 内容方法
 
     /**
      * 添加转义的文本内容。
@@ -201,7 +201,7 @@ public class XmlStringBuilder {
         return this;
     }
 
-    // --- 空元素方法 ---
+    // 空元素方法
 
     /**
      * 添加空元素（自闭合标签）。
@@ -223,7 +223,7 @@ public class XmlStringBuilder {
         return this;
     }
 
-    // --- 工具方法 ---
+    // 工具方法
 
     /**
      * 获取字符串长度。
@@ -244,7 +244,7 @@ public class XmlStringBuilder {
         return sb.toString();
     }
 
-    // --- 私有方法 ---
+    // 私有方法
 
     /**
      * 转义 XML 特殊字符（委托给 SecurityUtils）。

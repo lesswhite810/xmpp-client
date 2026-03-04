@@ -139,7 +139,7 @@ class AbstractProviderTest {
         assertSame(cause, ex.getCause());
     }
 
-    // ==================== 测试辅助类 ====================
+    // 测试辅助类
 
     private static class TestElement implements ExtensionElement {
         private final String content;

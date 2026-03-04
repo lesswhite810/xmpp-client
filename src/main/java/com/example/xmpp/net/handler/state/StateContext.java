@@ -136,7 +136,7 @@ public class StateContext {
         this.saslNegotiator = null;
     }
 
-    // --- 公共方法 ---
+    // 公共方法
 
     /**
      * 发送 Stanza 到服务器。

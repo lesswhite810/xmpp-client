@@ -36,7 +36,7 @@ import java.util.Set;
 @Slf4j
 public enum XmppHandlerState implements HandlerState {
 
-    // --- 初始状态 ---
+    // 初始状态
     INITIAL {
         @Override
         public boolean canTransitionTo(XmppHandlerState target) {
@@ -51,7 +51,7 @@ public enum XmppHandlerState implements HandlerState {
         }
     },
 
-    // --- 连接阶段 ---
+    // 连接阶段
 
     CONNECTING {
         @Override
@@ -80,7 +80,7 @@ public enum XmppHandlerState implements HandlerState {
         }
     },
 
-    // --- 等待流特性 ---
+    // 等待流特性
 
     AWAITING_FEATURES {
         @Override
@@ -218,7 +218,7 @@ public enum XmppHandlerState implements HandlerState {
         }
     },
 
-    // --- TLS 协商 ---
+    // TLS 协商
 
     TLS_NEGOTIATING {
         @Override
@@ -262,7 +262,7 @@ public enum XmppHandlerState implements HandlerState {
         }
     },
 
-    // --- SASL 认证 ---
+    // SASL 认证
 
     SASL_AUTH {
         @Override
@@ -316,7 +316,7 @@ public enum XmppHandlerState implements HandlerState {
         }
     },
 
-    // --- 资源绑定 ---
+    // 资源绑定
 
     BINDING {
         @Override
@@ -357,7 +357,7 @@ public enum XmppHandlerState implements HandlerState {
         }
     },
 
-    // --- 会话激活 ---
+    // 会话激活
 
     SESSION_ACTIVE {
         @Override
