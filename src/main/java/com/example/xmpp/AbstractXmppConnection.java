@@ -136,7 +136,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @return 元素名称，如果无法获取返回 null
      */
     private String getChildElementName(Object childElement) {
-        // 子元素可能是扩展对象或字符串
+        /** 子元素可能是扩展对象或字符串 */
         if (childElement instanceof ExtensionElement ext) {
             return ext.getElementName();
         }
@@ -166,7 +166,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         private final Iq.Type iqType;
 
         IqHandlerKey(String element, String namespace, Iq.Type iqType) {
-            // 校验 element 和 iqType 不能为 null
+            /** 校验 element 和 iqType 不能为 null */
             if (element == null || iqType == null) {
                 throw new IllegalArgumentException("element and iqType must not be null");
             }
@@ -250,7 +250,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @param error     错误信息（可选）
      */
     protected void fireEvent(ConnectionEventType eventType, Exception error) {
-        // 通过 XmppEventBus 发布事件
+        /** 通过 XmppEventBus 发布事件 */
         XmppEventBus.getInstance().publish(this, eventType, error);
     }
 

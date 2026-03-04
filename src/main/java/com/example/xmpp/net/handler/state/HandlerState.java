@@ -24,7 +24,7 @@ public interface HandlerState {
      * @param msg     接收到的消息
      */
     default void handleMessage(StateContext context, ChannelHandlerContext ctx, Object msg) {
-        // 默认空实现
+        /** 默认空实现 */
     }
 
     /**
@@ -34,7 +34,7 @@ public interface HandlerState {
      * @param ctx     Netty 通道上下文
      */
     default void onEnter(StateContext context, ChannelHandlerContext ctx) {
-        // 默认空实现
+        /** 默认空实现 */
     }
 
     /**
@@ -44,7 +44,7 @@ public interface HandlerState {
      * @param ctx     Netty 通道上下文
      */
     default void onExit(StateContext context, ChannelHandlerContext ctx) {
-        // 默认空实现
+        /** 默认空实现 */
     }
 
     /**

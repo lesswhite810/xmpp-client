@@ -50,7 +50,7 @@ public class StateContext {
     public StateContext(XmppClientConfig config, XmppTcpConnection connection, ChannelHandlerContext ctx) {
         this.config = config;
         this.connection = connection;
-        // 初始化到 CONNECTING 状态
+        /** 初始化到 CONNECTING 状态 */
         transitionTo(XmppHandlerState.CONNECTING, ctx);
     }
 
@@ -93,14 +93,14 @@ public class StateContext {
                 return;
             }
 
-            // 验证状态转换
+            /** 验证状态转换 */
             currentState.validateTransition(newState);
 
-            // 记录状态转换日志
+            /** 记录状态转换日志 */
             String connectionId = config.getConnection().getXmppServiceDomain();
             log.debug("[{}] State transition: {} -> {}", connectionId, currentState.name(), newState.name());
 
-            // 调用退出和进入回调
+            /** 调用退出和进入回调 */
             currentState.onExit(this, ctx);
             currentState = newState;
             newState.onEnter(this, ctx);
@@ -136,7 +136,7 @@ public class StateContext {
         this.saslNegotiator = null;
     }
 
-    // 公共方法
+    /** 公共方法 */
 
     /**
      * 发送 Stanza 到服务器。

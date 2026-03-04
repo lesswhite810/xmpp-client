@@ -48,7 +48,7 @@ public class SaslNegotiator {
      * @throws XmppAuthException 如果认证启动失败
      */
     public void start() throws XmppAuthException {
-        // PLAIN 机制必须使用 TLS 加密通道
+        /** PLAIN 机制必须使用 TLS 加密通道 */
         if ("PLAIN".equals(mechanism.getMechanismName()) && !isTlsEncrypted()) {
             throw new XmppAuthException("PLAIN authentication requires TLS encryption. Please enable TLS before authenticating.");
         }
@@ -144,7 +144,7 @@ public class SaslNegotiator {
                     log.info("SASL stanza sent successfully");
                 } else {
                     log.error("Failed to send SASL stanza", future.cause());
-                    // 如果发送失败且 buf 还未被释放，确保释放
+                    /** 如果发送失败且 buf 还未被释放，确保释放 */
                     if (bufToWrite.refCnt() > 0) {
                         bufToWrite.release();
                     }

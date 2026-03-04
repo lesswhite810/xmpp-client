@@ -72,7 +72,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
      * @param ctx Netty 通道上下文
      */
     private void initStateContext(ChannelHandlerContext ctx) {
-        // 构造函数中已初始化状态到 CONNECTING
+        /** 构造函数中已初始化状态到 CONNECTING */
         this.stateContext = new StateContext(config, connection, ctx);
     }
 
@@ -134,7 +134,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
             return;
         }
 
-        // 状态模式：委托给当前状态处理
+        /** 状态模式：委托给当前状态处理 */
         stateContext.handleMessage(ctx, msg);
     }
 

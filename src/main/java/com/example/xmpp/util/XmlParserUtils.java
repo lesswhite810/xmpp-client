@@ -52,17 +52,17 @@ public class XmlParserUtils {
     private static XMLInputFactory createInputFactoryInternal() {
         XMLInputFactory factory = XMLInputFactory.newInstance();
 
-        // 安全配置（XXE 防护）
+        /** 安全配置（XXE 防护） */
         factory.setProperty(XMLInputFactory.IS_VALIDATING, Boolean.FALSE);
         factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, Boolean.FALSE);
         factory.setXMLResolver(SECURE_XML_RESOLVER);
 
-        // Woodstox 特定属性
+        /** Woodstox 特定属性 */
         setPropertyIfSupported(factory, "com.ctc.wstx.enableTDs", Boolean.FALSE);
         setPropertyIfSupported(factory, "javax.xml.stream.supportDTD", Boolean.FALSE);
 
-        // 功能配置
+        /** 功能配置 */
         factory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.TRUE);
         factory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
 

@@ -85,17 +85,17 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     public XmppTcpConnection(XmppClientConfig config) {
         this.config = Objects.requireNonNull(config, "XmppClientConfig must not be null");
 
-        // 根据配置决定是否启用 Ping 心跳
+        /** 根据配置决定是否启用 Ping 心跳 */
         if (config.getKeepAlive().isPingEnabled()) {
             this.pingManager = new PingManager(this);
         }
         
-        // 根据配置决定是否启用自动重连
+        /** 根据配置决定是否启用自动重连 */
         if (config.getKeepAlive().isReconnectionEnabled()) {
             this.reconnectionManager = new ReconnectionManager(this);
         }
 
-        // 注册 Ping IQ 请求处理器，响应服务端 Ping
+        /** 注册 Ping IQ 请求处理器，响应服务端 Ping */
         registerIqRequestHandler(new PingIqRequestHandler());
     }
 
@@ -106,20 +106,20 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     @Override
     public void connect() throws XmppException {
-        // 每个连接使用独立的 EventLoopGroup
+        /** 每个连接使用独立的 EventLoopGroup */
         workerGroup = new NioEventLoopGroup();
         nettyHandler = new XmppNettyHandler(config, this);
 
-        // 1. 解析连接目标列表
+        /** 1. 解析连接目标列表 */
         List<ConnectionTarget> targets = resolveConnectionTargets();
         if (targets.isEmpty()) {
             throw new XmppNetworkException("No connection targets available");
         }
 
-        // 2. 创建 Netty Bootstrap（合并所有配置）
+        /** 2. 创建 Netty Bootstrap（合并所有配置） */
         Bootstrap bootstrap = createBootstrap();
 
-        // 3. 尝试连接到目标列表
+        /** 3. 尝试连接到目标列表 */
         this.channel = connectToTargets(bootstrap, targets)
                 .orElseThrow(() -> new XmppNetworkException("All connection attempts failed"));
     }
@@ -197,26 +197,26 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * @return 连接目标列表
      */
     private List<ConnectionTarget> resolveConnectionTargets() {
-        // 确定端口
+        /** 确定端口 */
         int basePort = config.getSecurity().isUsingDirectTLS()
                 ? XmppConstants.DIRECT_TLS_PORT
                 : XmppConstants.DEFAULT_XMPP_PORT;
         int port = config.getConnection().getPort() > 0 ? config.getConnection().getPort() : basePort;
 
-        // 优先级1和2：从配置创建（IP地址或主机名）
+        /** 优先级1和2：从配置创建（IP地址或主机名） */
         Optional<ConnectionTarget> configTarget = ConnectionTarget.of(
                 config.getConnection().getHostAddress(), config.getConnection().getHost(), port);
         if (configTarget.isPresent()) {
             return List.of(configTarget.get());
         }
 
-        // 优先级3：DNS SRV 记录
+        /** 优先级3：DNS SRV 记录 */
         List<SrvRecord> srvRecords = resolveSrvRecords(config.getConnection().getXmppServiceDomain());
         if (!srvRecords.isEmpty()) {
             return ConnectionTarget.fromSrvRecords(srvRecords);
         }
 
-        // 优先级4：回退到服务域名
+        /** 优先级4：回退到服务域名 */
         return ConnectionTarget.of(null, config.getConnection().getXmppServiceDomain(), port)
                 .map(List::of)
                 .orElse(List.of());
@@ -231,7 +231,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(workerGroup);
         bootstrap.channel(NioSocketChannel.class);
-        // P2-PERF-1 修复：Netty Pipeline 优化配置
+        /** P2-PERF-1 修复：Netty Pipeline 优化配置 */
         bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
         bootstrap.option(ChannelOption.TCP_NODELAY, true); // 禁用 Nagle 算法，降低延迟
         bootstrap.option(ChannelOption.SO_RCVBUF, 64 * 1024); // 接收缓冲区 64KB
@@ -240,14 +240,14 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
-                // Direct TLS 模式：添加 SSL 处理器
+                /** Direct TLS 模式：添加 SSL 处理器 */
                 if (config.getSecurity().isUsingDirectTLS()) {
                     String host = config.getConnection().getHost() != null ? config.getConnection().getHost() : config.getConnection().getXmppServiceDomain();
                     int port = config.getConnection().getPort() > 0 ? config.getConnection().getPort() : XmppConstants.DIRECT_TLS_PORT;
                     SslHandler sslHandler = SslUtils.createSslHandler(host, port, config);
                     ch.pipeline().addLast(sslHandler);
                 }
-                // 添加 XMPP 协议处理器
+                /** 添加 XMPP 协议处理器 */
                 ch.pipeline().addLast(new XmppStreamDecoder());
                 ch.pipeline().addLast(nettyHandler);
             }
@@ -298,12 +298,12 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     @Override
     public void disconnect() {
-        // 清理 PingManager
+        /** 清理 PingManager */
         if (pingManager != null) {
             pingManager.stopKeepAlive();
         }
         
-        // 清理 ReconnectionManager
+        /** 清理 ReconnectionManager */
         if (reconnectionManager != null) {
             reconnectionManager.disable();
         }

@@ -91,7 +91,7 @@ public class ReconnectionManager {
     public ReconnectionManager(XmppConnection connection) {
         this.connection = connection;
 
-        // 通过 XmppEventBus 订阅连接事件（连接专属订阅，只响应本连接的事件）
+        /** 通过 XmppEventBus 订阅连接事件（连接专属订阅，只响应本连接的事件） */
         XmppEventBus eventBus = XmppEventBus.getInstance();
 
         unsubscribe = eventBus.subscribeAll(connection, Map.of(
@@ -164,7 +164,7 @@ public void disable() {
     }
 
     private void onConnectionClosed() {
-        // 如果之前因错误触发了重连，不取消（避免事件顺序问题）
+        /** 如果之前因错误触发了重连，不取消（避免事件顺序问题） */
         if (reconnectionScheduledDueToError) {
             log.debug("Connection closed but reconnection already scheduled due to previous error");
             return;
@@ -206,15 +206,15 @@ public void disable() {
         synchronized (this) {
             log.debug("scheduleReconnect called with attempt={}, currentTask={}", attempt, currentTask);
 
-            // 检查是否已有任务在运行
+            /** 检查是否已有任务在运行 */
             if (currentTask != null && !currentTask.isDone()) {
                 log.debug("Reconnection task already scheduled, skipping");
                 return;
             }
 
-            // 注意：这里不检查 isConnected()，因为调用 scheduleReconnect 时
-            // 连接刚刚因错误关闭，channel 可能还处于过渡状态
-            // 重连逻辑会在实际执行时检查连接状态
+            /** 注意：这里不检查 isConnected()，因为调用 scheduleReconnect 时 */
+            /** 连接刚刚因错误关闭，channel 可能还处于过渡状态 */
+            /** 重连逻辑会在实际执行时检查连接状态 */
 
             int currentAttempt = attemptCount.updateAndGet(curr -> curr >= MAX_RECONNECT_ATTEMPTS ? curr : curr + 1);
             if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {

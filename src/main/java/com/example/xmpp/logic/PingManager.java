@@ -53,7 +53,7 @@ public class PingManager {
     public PingManager(XmppConnection connection) {
         this.connection = connection;
 
-        // 通过 XmppEventBus 订阅连接事件（连接专属订阅，只响应本连接的事件）
+        /** 通过 XmppEventBus 订阅连接事件（连接专属订阅，只响应本连接的事件） */
         XmppEventBus eventBus = XmppEventBus.getInstance();
 
         unsubscribe = eventBus.subscribeAll(connection, Map.of(
@@ -91,7 +91,7 @@ public class PingManager {
         taskLock.lock();
         try {
             this.pingIntervalSeconds = seconds;
-            // 如果任务存在，先停止再启动
+            /** 如果任务存在，先停止再启动 */
             if (keepAliveTask != null && !keepAliveTask.isCancelled()) {
                 stopKeepAliveInternal();
                 keepAliveTask = XmppScheduler.getScheduler().scheduleWithFixedDelay(
@@ -152,7 +152,7 @@ public class PingManager {
     public void shutdown() {
         taskLock.lock();
         try {
-            // 取消事件订阅
+            /** 取消事件订阅 */
             if (unsubscribe != null) {
                 unsubscribe.run();
                 unsubscribe = null;

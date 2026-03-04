@@ -56,7 +56,7 @@ public final class XmppEventBus {
         return INSTANCE;
     }
 
-    // 订阅
+    /** 订阅 */
 
     /**
      * 订阅特定连接的事件。
@@ -68,7 +68,7 @@ public final class XmppEventBus {
      */
     public Runnable subscribe(XmppConnection connection, ConnectionEventType eventType,
                               Consumer<ConnectionEvent> handler) {
-        // 原子化操作：获取或创建 handlers 列表并添加 handler
+        /** 原子化操作：获取或创建 handlers 列表并添加 handler */
         List<Consumer<ConnectionEvent>> handlers = listeners
                 .computeIfAbsent(connection, k -> new ConcurrentHashMap<>())
                 .computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>());
@@ -132,10 +132,10 @@ public final class XmppEventBus {
             return () -> {};
         }
 
-        // 存储所有订阅的处理器，用于取消时移除
+        /** 存储所有订阅的处理器，用于取消时移除 */
         List<Object[]> subscriptions = new java.util.ArrayList<>(handlers.size());
 
-        // 批量添加处理器（不打印单独的日志）
+        /** 批量添加处理器（不打印单独的日志） */
         for (Map.Entry<ConnectionEventType, Consumer<ConnectionEvent>> entry : handlers.entrySet()) {
             ConnectionEventType eventType = entry.getKey();
             Consumer<ConnectionEvent> handler = entry.getValue();
@@ -179,7 +179,7 @@ public final class XmppEventBus {
             return () -> {};
         }
 
-        // 包装为异步处理器
+        /** 包装为异步处理器 */
         Map<ConnectionEventType, Consumer<ConnectionEvent>> asyncHandlers = new java.util.HashMap<>(handlers.size());
         for (Map.Entry<ConnectionEventType, Consumer<ConnectionEvent>> entry : handlers.entrySet()) {
             Consumer<ConnectionEvent> asyncHandler = event -> executor.execute(() -> {
@@ -210,16 +210,16 @@ public final class XmppEventBus {
         if (connectionHandlers != null) {
             List<Consumer<ConnectionEvent>> handlers = connectionHandlers.get(eventType);
             if (handlers != null) {
-                // CopyOnWriteArrayList 本身线程安全
+                /** CopyOnWriteArrayList 本身线程安全 */
                 handlers.removeIf(h -> h == handler);
                 log.debug("Unsubscribed handler for connection {} event: {}", connection, eventType);
 
-                // 清理空的 eventType 映射
+                /** 清理空的 eventType 映射 */
                 if (handlers.isEmpty()) {
                     connectionHandlers.remove(eventType);
                 }
             }
-            // 清理空的 connection 映射
+            /** 清理空的 connection 映射 */
             if (connectionHandlers.isEmpty()) {
                 listeners.remove(connection);
             }
@@ -240,12 +240,12 @@ public final class XmppEventBus {
             if (handlerList != null) {
                 handlerList.removeIf(h -> h == handler);
 
-                // 清理空的 eventType 映射
+                /** 清理空的 eventType 映射 */
                 if (handlerList.isEmpty()) {
                     connectionHandlers.remove(eventType);
                 }
             }
-            // 清理空的 connection 映射
+            /** 清理空的 connection 映射 */
             if (connectionHandlers.isEmpty()) {
                 listeners.remove(connection);
             }
@@ -262,7 +262,7 @@ public final class XmppEventBus {
         log.debug("Unsubscribed all handlers for connection: {}", connection);
     }
 
-    // 发布
+    /** 发布 */
 
     /**
      * 发布事件。
@@ -295,7 +295,7 @@ public final class XmppEventBus {
         publishEvent(event);
     }
 
-    // 私有辅助方法
+    /** 私有辅助方法 */
 
     private void publishEvent(ConnectionEvent event) {
         XmppConnection connection = event.connection();
@@ -310,7 +310,7 @@ public final class XmppEventBus {
             return;
         }
 
-        // 直接复制列表，避免迭代时并发修改
+        /** 直接复制列表，避免迭代时并发修改 */
         for (Consumer<ConnectionEvent> handler : List.copyOf(handlers)) {
             try {
                 handler.accept(event);
@@ -321,7 +321,7 @@ public final class XmppEventBus {
         }
     }
 
-    // 查询方法
+    /** 查询方法 */
 
     /**
      * 检查是否有订阅者。

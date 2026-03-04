@@ -113,7 +113,7 @@ public abstract class ScramMechanism implements SaslMechanism {
      */
     protected ScramMechanism(String username, char[] password) {
         this.username = username;
-        // 创建密码副本，原始密码由调用者负责清除
+        /** 创建密码副本，原始密码由调用者负责清除 */
         this.password = password != null ? password.clone() : null;
         this.clientNonce = generateSecureNonce();
     }
@@ -233,13 +233,13 @@ public abstract class ScramMechanism implements SaslMechanism {
         byte[] salt = Base64.getDecoder().decode(saltBase64);
         int iterations = Integer.parseInt(iterationsStr);
 
-        // 验证迭代次数最小值，防止降级攻击
+        /** 验证迭代次数最小值，防止降级攻击 */
         if (iterations < EFFECTIVE_MIN_ITERATIONS) {
             throw new SaslException(
                     "Iterations too low: " + iterations + ", minimum is " + EFFECTIVE_MIN_ITERATIONS);
         }
 
-        // 警告低于 OWASP 建议值的迭代次数
+        /** 警告低于 OWASP 建议值的迭代次数 */
         if (iterations < OWASP_RECOMMENDED_ITERATIONS) {
             log.warn("Server SCRAM iterations ({}) below OWASP 2023 recommendation ({}). " +
                     "Consider updating server configuration for better security.",
@@ -286,18 +286,18 @@ public abstract class ScramMechanism implements SaslMechanism {
         byte[] serverSignatureExpected = Base64.getDecoder().decode(verifierBase64);
 
         if (!MessageDigest.isEqual(serverSignature, serverSignatureExpected)) {
-            // 验证失败也要清除敏感数据
+            /** 验证失败也要清除敏感数据 */
             SecurityUtils.clear(saltedPassword);
             saltedPassword = null;
             throw new SaslException("Server signature verification failed");
         }
 
-        // 验证成功，清除敏感密钥材料和密码副本
+        /** 验证成功，清除敏感密钥材料和密码副本 */
         SecurityUtils.clear(saltedPassword);
         saltedPassword = null;
 
-        // 清除存储的密码副本，防止敏感数据在内存中驻留
-        // 认证流程已结束，密码不再需要
+        /** 清除存储的密码副本，防止敏感数据在内存中驻留 */
+        /** 认证流程已结束，密码不再需要 */
         SecurityUtils.clear(password);
     }
 

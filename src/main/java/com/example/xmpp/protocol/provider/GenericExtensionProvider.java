@@ -26,7 +26,7 @@ public class GenericExtensionProvider {
     public static final GenericExtensionProvider INSTANCE = new GenericExtensionProvider();
 
     private GenericExtensionProvider() {
-        // 单例
+        /** 单例 */
     }
 
     /**
@@ -56,7 +56,7 @@ public class GenericExtensionProvider {
 
         GenericExtensionElement.Builder builder = GenericExtensionElement.builder(elementName, namespace);
 
-        // 添加所有属性
+        /** 添加所有属性 */
         builder.addAttributes(XmlParserUtils.getAttributes(start));
 
         StringBuilder textBuilder = new StringBuilder();
@@ -70,16 +70,16 @@ public class GenericExtensionProvider {
                     break;
                 }
             } else if (event.isStartElement()) {
-                // 递归解析子元素
+                /** 递归解析子元素 */
                 GenericExtensionElement child = parseElement(reader, event.asStartElement());
                 builder.addChild(child);
             } else if (event.isCharacters()) {
-                // 收集文本内容
+                /** 收集文本内容 */
                 textBuilder.append(event.asCharacters().getData());
             }
         }
 
-        // 设置文本（去除首尾空白）
+        /** 设置文本（去除首尾空白） */
         String text = textBuilder.toString().trim();
         if (!text.isEmpty()) {
             builder.text(text);

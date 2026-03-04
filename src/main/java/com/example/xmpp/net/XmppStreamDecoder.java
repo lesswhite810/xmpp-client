@@ -118,7 +118,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             StartElement start = event.asStartElement();
             String localName = start.getName().getLocalPart();
 
-            // 跳过 stream 元素
+            /** 跳过 stream 元素 */
             if ("stream".equals(localName)) {
                 continue;
             }
@@ -133,7 +133,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
      */
     private Optional<Object> parseElement(XMLEventReader reader, StartElement start,
                                           String localName, String namespace) throws XMLStreamException {
-        // 优先处理 Stanza 元素
+        /** 优先处理 Stanza 元素 */
         return switch (localName) {
             case "iq" -> Optional.of(parseIq(reader, start));
             case "message" -> Optional.of(parseMessage(reader, start));
@@ -294,14 +294,14 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         String name = start.getName().getLocalPart();
         String namespace = start.getName().getNamespaceURI();
 
-        // 特殊处理 error 元素
+        /** 特殊处理 error 元素 */
         if ("error".equals(name)) {
             XmppError error = parseError(reader, start);
             builder.error(error);
             return;
         }
 
-        // 使用公共方法解析扩展元素
+        /** 使用公共方法解析扩展元素 */
         parseExtensionElement(reader, start, name, namespace, builder::childElement);
     }
 
@@ -327,7 +327,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             if ("text".equals(name)) {
                 text = XmlParserUtils.getElementText(reader);
             } else {
-                // 错误条件元素
+                /** 错误条件元素 */
                 condition = XmppError.Condition.fromString(name);
             }
         }
