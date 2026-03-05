@@ -54,8 +54,7 @@ com.example.xmpp
 ├── XmppTcpConnection.java     # 主连接类
 ├── XmppConnection.java        # 接口
 ├── AbstractXmppConnection.java
-├── ConnectionListener.java    # 连接监听器接口
-└── ConnectionEvent.java       # 连接事件
+└── ConnectionEvent.java       # 连接事件（Java record）
 ```
 
 ### 连接状态机（状态模式）
@@ -85,7 +84,7 @@ INITIAL → CONNECTING → AWAITING_FEATURES → TLS_NEGOTIATING → AWAITING_FE
 - **状态模式**：`XmppHandlerState` 枚举实现状态模式，每个状态独立处理消息
 - **构建者模式**：用于 `XmppClientConfig` 和节的构建
 - **提供者注册表**：将 XML 命名空间映射到提供者以进行扩展解析
-- **监听器模式**：`ConnectionListener` 用于连接生命周期事件
+- **事件总线**：`XmppEventBus` 管理连接生命周期事件
 - **自动 Ping 响应**：服务器 ping 请求（XEP-0199）在 `SESSION_ACTIVE` 状态自动处理
 
 ## 重要约定

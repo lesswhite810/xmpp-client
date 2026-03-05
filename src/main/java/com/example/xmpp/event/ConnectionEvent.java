@@ -29,11 +29,7 @@ import com.example.xmpp.XmppConnection;
  *
  * @since 2026-03-03
  */
-public class ConnectionEvent {
-
-    private final XmppConnection connection;
-    private final ConnectionEventType eventType;
-    private final Exception error;
+public record ConnectionEvent(XmppConnection connection, ConnectionEventType eventType, Exception error) {
 
     /**
      * 创建连接事件（无错误）。
@@ -43,37 +39,6 @@ public class ConnectionEvent {
      */
     public ConnectionEvent(XmppConnection connection, ConnectionEventType eventType) {
         this(connection, eventType, null);
-    }
-
-    /**
-     * 创建连接事件（带错误，用于 ERROR 类型）。
-     *
-     * @param connection 关联的连接
-     * @param eventType  事件类型
-     * @param error     错误信息（可选，仅 ERROR 类型需要）
-     */
-    public ConnectionEvent(XmppConnection connection, ConnectionEventType eventType, Exception error) {
-        this.connection = connection;
-        this.eventType = eventType;
-        this.error = error;
-    }
-
-    /**
-     * 获取关联的连接。
-     *
-     * @return XMPP 连接实例
-     */
-    public XmppConnection connection() {
-        return connection;
-    }
-
-    /**
-     * 获取事件类型。
-     *
-     * @return 事件类型枚举
-     */
-    public ConnectionEventType eventType() {
-        return eventType;
     }
 
     /**

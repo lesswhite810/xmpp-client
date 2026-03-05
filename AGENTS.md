@@ -200,7 +200,7 @@ public String toXml() {
 ```
 com.example.xmpp
 ├── config/           # 配置 (Builder pattern)
-├── event/            # 连接事件 (ConnectionEvent, ConnectionListener)
+├── event/            # 连接事件 (ConnectionEvent, XmppEventBus)
 ├── exception/        # 自定义异常
 ├── handler/          # IQ 请求处理器 (IqRequestHandler, AbstractIqRequestHandler)
 ├── logic/            # 管理器 (PingManager, ReconnectionManager)

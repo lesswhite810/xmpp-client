@@ -37,6 +37,9 @@ import java.util.function.Consumer;
 @Slf4j
 public final class XmppEventBus {
 
+    /** 订阅记录，用于取消订阅 */
+    private record Subscription(ConnectionEventType eventType, Consumer<ConnectionEvent> handler) {}
+
     /** 单例实例 */
     private static final XmppEventBus INSTANCE = new XmppEventBus();
 
@@ -129,7 +132,7 @@ public final class XmppEventBus {
             return () -> {};
         }
 
-        List<Object[]> subscriptions = new java.util.ArrayList<>(handlers.size());
+        List<Subscription> subscriptions = new java.util.ArrayList<>(handlers.size());
 
         for (Map.Entry<ConnectionEventType, Consumer<ConnectionEvent>> entry : handlers.entrySet()) {
             ConnectionEventType eventType = entry.getKey();
@@ -140,17 +143,14 @@ public final class XmppEventBus {
                     .computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>());
 
             handlerList.add(handler);
-            subscriptions.add(new Object[]{eventType, handler});
+            subscriptions.add(new Subscription(eventType, handler));
         }
 
         log.debug("Batch subscribed {} handlers for connection {}", handlers.size(), connection);
 
         return () -> {
-            for (Object[] sub : subscriptions) {
-                ConnectionEventType eventType = (ConnectionEventType) sub[0];
-                @SuppressWarnings("unchecked")
-                Consumer<ConnectionEvent> handler = (Consumer<ConnectionEvent>) sub[1];
-                unsubscribeSilent(connection, eventType, handler);
+            for (Subscription sub : subscriptions) {
+                unsubscribeSilent(connection, sub.eventType(), sub.handler());
             }
             log.debug("Batch unsubscribed {} handlers for connection {}", handlers.size(), connection);
         };
