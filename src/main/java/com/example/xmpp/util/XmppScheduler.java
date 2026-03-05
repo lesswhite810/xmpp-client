@@ -21,16 +21,12 @@ import java.util.concurrent.SynchronousQueue;
 @Slf4j
 public final class XmppScheduler {
 
-    /** 调度线程池核心线程数 */
     private static final int CORE_POOL_SIZE = 2;
 
-    /** 关闭超时时间（秒） */
     private static final int SHUTDOWN_TIMEOUT_SECONDS = 5;
 
-    /** 全局调度线程池 */
     private static final ScheduledThreadPoolExecutor SCHEDULER = createScheduler();
 
-    /** 虚拟线程执行器 */
     private static final ExecutorService VIRTUAL_EXECUTOR = createVirtualExecutor();
 
     private XmppScheduler() {
@@ -98,7 +94,7 @@ public final class XmppScheduler {
     /**
      * 在虚拟线程中执行任务。
      *
-     * @param task 要执行的任务
+     * @param task 要执行的任务，不能为 null
      */
     public static void executeVirtual(Runnable task) {
         VIRTUAL_EXECUTOR.execute(task);
@@ -106,6 +102,8 @@ public final class XmppScheduler {
 
     /**
      * 优雅关闭调度器。
+     *
+     * @throws InterruptedException 如果关闭过程中线程被中断
      */
     public static void shutdown() {
         log.debug("Shutting down XmppScheduler...");

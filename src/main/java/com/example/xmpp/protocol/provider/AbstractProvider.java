@@ -27,9 +27,9 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     /**
      * 解析 XML 元素。
      *
-     * @param reader XMLEventReader
-     * @return 解析后的对象
-     * @throws XmppParseException 如果解析失败
+     * @param reader XMLEventReader，用于读取 XML 事件流
+     * @return 解析后的扩展元素对象
+     * @throws XmppParseException 如果解析失败，如 XML 格式错误或命名空间不匹配
      */
     @Override
     public final T parse(XMLEventReader reader) throws XmppParseException {
@@ -58,8 +58,8 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     /**
      * 序列化对象为 XML。
      *
-     * @param object 要序列化的对象
-     * @param xml    XmlStringBuilder
+     * @param object 要序列化的扩展元素对象，不能为 null
+     * @param xml    XmlStringBuilder，用于构建 XML 输出，不能为 null
      */
     @Override
     public final void serialize(T object, XmlStringBuilder xml) {
@@ -83,17 +83,17 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     /**
      * 执行具体的解析逻辑，子类在此方法中实现元素特定的解析逻辑。
      *
-     * @param reader XMLEventReader
-     * @return 解析后的对象
-     * @throws XMLStreamException 如果解析过程中发生错误
+     * @param reader XMLEventReader，用于读取 XML 事件流
+     * @return 解析后的扩展元素对象
+     * @throws XMLStreamException 如果解析过程中发生 XML 错误，如读取超时或格式错误
      */
     protected abstract T parseInstance(XMLEventReader reader) throws XMLStreamException;
 
     /**
      * 执行具体的序列化逻辑，子类在此方法中将对象内容写入 XmlStringBuilder。
      *
-     * @param object 要序列化的对象（非 null）
-     * @param xml    XmlStringBuilder（非 null）
+     * @param object 要序列化的扩展元素对象（非 null）
+     * @param xml    XmlStringBuilder，用于构建 XML 输出（非 null）
      */
     protected abstract void serializeInstance(T object, XmlStringBuilder xml);
 
@@ -125,9 +125,9 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     /**
      * 安全地获取元素文本内容。
      *
-     * @param reader XMLEventReader
+     * @param reader XMLEventReader，用于读取 XML 事件流
      * @return 元素文本内容，可能为 null
-     * @throws XMLStreamException 如果读取失败
+     * @throws XMLStreamException 如果读取过程中发生 XML 错误
      */
     protected final String getElementText(XMLEventReader reader) throws XMLStreamException {
         return XmlParserUtils.getElementText(reader);
@@ -136,9 +136,9 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     /**
      * 创建 Provider 解析异常。
      *
-     * @param message 错误消息
-     * @param cause   原因（可为 null）
-     * @return XmppParseException
+     * @param message 错误消息，描述解析失败的原因
+     * @param cause   原因异常，可为 null
+     * @return XmppParseException 新创建的解析异常实例
      */
     protected final XmppParseException createParseException(String message, Throwable cause) {
         return new XmppParseException(message, cause);
@@ -147,8 +147,8 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     /**
      * 创建 Provider 解析异常（无原因）。
      *
-     * @param message 错误消息
-     * @return XmppParseException
+     * @param message 错误消息，描述解析失败的原因
+     * @return XmppParseException 新创建的解析异常实例
      */
     protected final XmppParseException createParseException(String message) {
         return new XmppParseException(message);
@@ -157,7 +157,7 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     /**
      * 获取日志记录器。
      *
-     * @return Logger 实例
+     * @return Logger 实例，用于记录此类相关的日志
      */
     protected final org.slf4j.Logger log() {
         return log;

@@ -10,6 +10,34 @@ import java.util.List;
 /**
  * IQ (Info/Query) 节。
  *
+ * <p>IQ 节是 XMPP 中用于请求/响应交互的 stanza 类型。
+ * 与 Message 和 Presence 不同，IQ 節必须得到响应。</p>
+ *
+ * <p>IQ 类型：
+ * <ul>
+ *   <li>{@link Type#GET} - 请求数据</li>
+ *   <li>{@link Type#SET} - 设置数据</li>
+ *   <li>{@link Type#RESULT} - 响应成功</li>
+ *   <li>{@link Type#ERROR} - 响应错误</li>
+ * </ul>
+ * </p>
+ *
+ * <p>使用示例：</p>
+ * <pre>{@code
+ * // 创建获取请求
+ * Iq iq = new Iq.Builder(Type.GET)
+ *     .id("request-1")
+ *     .to("user@example.com")
+ *     .childElement(new Ping())
+ *     .build();
+ *
+ * // 创建错误响应
+ * Iq errorResponse = Iq.createErrorResponse(request, XmppError.fromCondition(...));
+ *
+ * // 创建结果响应
+ * Iq resultResponse = Iq.createResultResponse(request, resultElement);
+ * }</pre>
+ *
  * @since 2026-02-09
  */
 @Getter
@@ -84,9 +112,12 @@ public final class Iq extends Stanza {
     /**
      * 创建错误响应。
      *
-     * @param request 请求 IQ
-     * @param error 错误信息
+     * <p>根据请求 IQ 创建对应的错误响应节。</p>
+     *
+     * @param request 请求 IQ，不能为 {@code null}
+     * @param error 错误信息，不能为 {@code null}
      * @return 错误响应 IQ
+     * @throws NullPointerException 如果 request 或 error 为 null
      */
     public static Iq createErrorResponse(Iq request, XmppError error) {
         return new Builder(Type.ERROR)
@@ -100,9 +131,12 @@ public final class Iq extends Stanza {
     /**
      * 创建结果响应。
      *
-     * @param request 请求 IQ
-     * @param childElement 子元素
+     * <p>根据请求 IQ 创建对应的结果响应节。</p>
+     *
+     * @param request 请求 IQ，不能为 {@code null}
+     * @param childElement 子元素（可选）
      * @return 结果响应 IQ
+     * @throws NullPointerException 如果 request 为 null
      */
     public static Iq createResultResponse(Iq request, ExtensionElement childElement) {
         return new Builder(Type.RESULT)
@@ -206,7 +240,6 @@ public final class Iq extends Stanza {
     /**
      * IQ Builder。
      *
-     * @since 2026-02-09
      */
     public static class Builder extends Stanza.Builder<Builder, Iq> {
         /** IQ 类型 */
@@ -300,7 +333,6 @@ public final class Iq extends Stanza {
     /**
      * IQ 类型枚举。
      *
-     * @since 2026-02-09
      */
     public enum Type {
         /** 获取类型 */

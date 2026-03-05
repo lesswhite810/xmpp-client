@@ -36,7 +36,6 @@ import java.util.Set;
 @Slf4j
 public enum XmppHandlerState implements HandlerState {
 
-    /** 初始状态 */
     INITIAL {
         @Override
         public boolean canTransitionTo(XmppHandlerState target) {
@@ -51,17 +50,13 @@ public enum XmppHandlerState implements HandlerState {
         }
     },
 
-    /** 连接阶段 */
-
     CONNECTING {
         @Override
         public void onEnter(StateContext context, ChannelHandlerContext ctx) {
-            /** Direct TLS 模式：等待 SSL 握手完成（不打开流） */
             if (context.getConfig().getSecurity().isUsingDirectTLS()) {
                 log.debug("Using Direct TLS, waiting for SSL handshake to complete");
                 return;
             }
-            /** 非 Direct TLS 模式：打开初始流并转换状态 */
             log.debug("Opening initial XMPP stream");
             context.openStreamAndResetDecoder(ctx);
             context.transitionTo(AWAITING_FEATURES, ctx);
@@ -69,7 +64,6 @@ public enum XmppHandlerState implements HandlerState {
 
         @Override
         public void handleMessage(StateContext context, ChannelHandlerContext ctx, Object msg) {
-            /** Direct TLS 模式下，等待 SSL 握手完成 */
             log.warn("Received {} in CONNECTING state (Direct TLS mode, waiting for handshake)",
                     msg.getClass().getSimpleName());
         }
@@ -79,8 +73,6 @@ public enum XmppHandlerState implements HandlerState {
             return target == AWAITING_FEATURES || target == CONNECTING;
         }
     },
-
-    /** 等待流特性 */
 
     AWAITING_FEATURES {
         @Override
@@ -139,8 +131,6 @@ public enum XmppHandlerState implements HandlerState {
             if (features.isStarttlsAvailable() && mode != SecurityConfig.SecurityMode.DISABLED) {
                 initiateStartTls(context, ctx);
             } else if (features.isBindAvailable()) {
-                /** SASL 认证成功后，服务器不再返回 mechanisms，但会返回 bind */
-                /** 此时应该直接进入绑定阶段 */
                 handleBindRequest(context, ctx);
             } else {
                 startSaslAuthentication(context, ctx, features.getMechanisms());
@@ -168,7 +158,6 @@ public enum XmppHandlerState implements HandlerState {
             if (best.isPresent()) {
                 SaslMechanism mech = best.get();
 
-                /** 安全检查：PLAIN 机制只能在 TLS 加密连接上使用 */
                 if ("PLAIN".equals(mech.getMechanismName()) && !isSecureConnection(ctx, context.getConfig())) {
                     log.error("PLAIN SASL mechanism requires TLS encryption. Current connection is not secure.");
                     context.closeConnectionOnError(ctx, "PLAIN mechanism requires TLS encryption");
@@ -218,8 +207,6 @@ public enum XmppHandlerState implements HandlerState {
         }
     },
 
-    /** TLS 协商 */
-
     TLS_NEGOTIATING {
         @Override
         public void handleMessage(StateContext context, ChannelHandlerContext ctx, Object msg) {
@@ -245,8 +232,6 @@ public enum XmppHandlerState implements HandlerState {
                 ctx.pipeline().addFirst(sslHandler);
                 log.debug("SSL handler added to pipeline, handshake starting");
 
-                /** 保持 TLS_NEGOTIATING 状态，等待 SslHandshakeCompletionEvent */
-
             } catch (XmppNetworkException e) {
                 log.error("Network error while initializing SSL handler", e);
                 context.closeConnectionOnError(ctx, e);
@@ -262,12 +247,9 @@ public enum XmppHandlerState implements HandlerState {
         }
     },
 
-    /** SASL 认证 */
-
     SASL_AUTH {
         @Override
         public void handleMessage(StateContext context, ChannelHandlerContext ctx, Object msg) {
-            /** 检查 SASL negotiator 是否存在 */
             if (context.getSaslNegotiator() == null) {
                 log.error("SASL negotiator is null, cannot process authentication");
                 context.closeConnectionOnError(ctx, "SASL negotiator not initialized");
@@ -291,7 +273,6 @@ public enum XmppHandlerState implements HandlerState {
                     case SaslFailure failure -> {
                         log.error("SASL authentication failed - condition: {}, text: {}",
                                 failure.getCondition(), failure.getText());
-                        /** 清理 SASL negotiator 避免重连时残留状态 */
                         context.setSaslNegotiator(null);
                         context.closeConnectionOnError(ctx, "Authentication failed: " + failure.getCondition());
                     }
@@ -299,12 +280,10 @@ public enum XmppHandlerState implements HandlerState {
                 }
             } catch (XmppAuthException e) {
                 log.error("SASL authentication error", e);
-                /** 清理 SASL negotiator 避免重连时残留状态 */
                 context.setSaslNegotiator(null);
                 context.closeConnectionOnError(ctx, e);
             } catch (IllegalArgumentException e) {
                 log.error("Invalid SASL authentication data", e);
-                /** 清理 SASL negotiator 避免重连时残留状态 */
                 context.setSaslNegotiator(null);
                 context.closeConnectionOnError(ctx, e);
             }
@@ -315,8 +294,6 @@ public enum XmppHandlerState implements HandlerState {
             return target == AWAITING_FEATURES || target == CONNECTING;
         }
     },
-
-    /** 资源绑定 */
 
     BINDING {
         @Override
@@ -357,8 +334,6 @@ public enum XmppHandlerState implements HandlerState {
         }
     },
 
-    /** 会话激活 */
-
     SESSION_ACTIVE {
         @Override
         public boolean isSessionActive() {
@@ -370,14 +345,12 @@ public enum XmppHandlerState implements HandlerState {
             if (msg instanceof Iq iq) {
                 log.debug("Received IQ stanza - type: {}, id: {}, from: {}", iq.getType(), iq.getId(), iq.getFrom());
 
-                /** 使用 IqRequestHandler 处理 IQ 请求 */
                 if (context.getConnection().handleIqRequest(iq)) {
                     log.debug("IQ request handled by IqRequestHandler, id: {}", iq.getId());
                     return;
                 }
             }
 
-            /** 其他 stanza 类型统一处理 */
             if (msg instanceof XmppStanza stanza) {
                 log.debug("Received Stanza - type: {}", stanza.getClass().getSimpleName());
                 context.getConnection().notifyStanzaReceived(stanza);

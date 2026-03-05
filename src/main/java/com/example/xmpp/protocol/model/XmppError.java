@@ -7,25 +7,19 @@ import lombok.Getter;
 /**
  * XMPP 错误节元素。
  *
- * 表示 XMPP 错误条件，包括错误类型、条件、可选的文本描述和可选的应用特定扩展。
+ * <p>表示 XMPP 错误条件，包括错误类型、条件、可选的文本描述和可选的应用特定扩展。</p>
  *
  * @since 2026-02-09
  */
 @Getter
 public class XmppError implements XmppExtension {
 
-    /** 错误元素名称 */
     public static final String ELEMENT = "error";
-    /** XMPP 节命名空间 */
     public static final String NAMESPACE = XmppConstants.NS_XMPP_STANZAS;
 
-    /** 错误条件 */
     private final Condition condition;
-    /** 错误描述 */
     private final String text;
-    /** 错误类型 */
     private final Type type;
-    /** 应用特定扩展 */
     private final XmppExtension extension;
 
     private XmppError(Builder builder) {
@@ -84,18 +78,13 @@ public class XmppError implements XmppExtension {
     }
 
     /**
-     * 构建器。
+     * 构建器，用于构造 XmppError 实例。
      *
-     * @since 2026-02-09
      */
     public static class Builder {
-        /** 错误条件 */
         private Condition condition;
-        /** 错误描述 */
         private String text;
-        /** 错误类型 */
         private Type type;
-        /** 应用特定扩展 */
         private XmppExtension extension;
 
         /**
@@ -151,59 +140,34 @@ public class XmppError implements XmppExtension {
     }
 
     /**
-     * 错误条件枚举。
+     * 错误条件枚举，定义了 XMPP 协议中常用的错误条件。
      *
-     * @since 2026-02-09
      */
     public enum Condition {
-        /** 错误请求 */
         bad_request("bad-request", Type.MODIFY),
-        /** 冲突 */
         conflict("conflict", Type.CANCEL),
-        /** 功能未实现 */
         feature_not_implemented("feature-not-implemented", Type.CANCEL),
-        /** 禁止 */
         forbidden("forbidden", Type.AUTH),
-        /** 已离开 */
         gone("gone", Type.MODIFY),
-        /** 内部服务器错误 */
         internal_server_error("internal-server-error", Type.WAIT),
-        /** 项目未找到 */
         item_not_found("item-not-found", Type.CANCEL),
-        /** JID 格式错误 */
         jid_malformed("jid-malformed", Type.MODIFY),
-        /** 不可接受 */
         not_acceptable("not-acceptable", Type.MODIFY),
-        /** 不允许 */
         not_allowed("not-allowed", Type.CANCEL),
-        /** 未授权 */
         not_authorized("not-authorized", Type.AUTH),
-        /** 策略违规 */
         policy_violation("policy-violation", Type.MODIFY),
-        /** 接收者不可用 */
         recipient_unavailable("recipient-unavailable", Type.WAIT),
-        /** 重定向 */
         redirect("redirect", Type.MODIFY),
-        /** 需要注册 */
         registration_required("registration-required", Type.AUTH),
-        /** 远程服务器未找到 */
         remote_server_not_found("remote-server-not-found", Type.CANCEL),
-        /** 远程服务器超时 */
         remote_server_timeout("remote-server-timeout", Type.WAIT),
-        /** 资源限制 */
         resource_constraint("resource-constraint", Type.WAIT),
-        /** 服务不可用 */
         service_unavailable("service-unavailable", Type.CANCEL),
-        /** 需要订阅 */
         subscription_required("subscription-required", Type.AUTH),
-        /** 未定义条件 */
         undefined_condition("undefined-condition", Type.WAIT),
-        /** 意外请求 */
         unexpected_request("unexpected-request", Type.WAIT);
 
-        /** 元素名称 */
         private final String elementName;
-        /** 默认类型 */
         private final Type defaultType;
 
         Condition(String elementName, Type defaultType) {
@@ -249,20 +213,14 @@ public class XmppError implements XmppExtension {
     }
 
     /**
-     * 错误类型枚举。
+     * 错误类型枚举，表示错误的状态和性质。
      *
-     * @since 2026-02-09
      */
     public enum Type {
-        /** 认证错误 */
         AUTH,
-        /** 取消错误 */
         CANCEL,
-        /** 继续错误 */
         CONTINUE_,
-        /** 修改错误 */
         MODIFY,
-        /** 等待错误 */
         WAIT;
 
         @Override

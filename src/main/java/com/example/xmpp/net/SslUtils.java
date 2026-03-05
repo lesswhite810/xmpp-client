@@ -26,7 +26,6 @@ import java.util.Set;
 @UtilityClass
 public class SslUtils {
 
-    /** 默认 SSL 握手超时时间（毫秒） */
     private static final int DEFAULT_HANDSHAKE_TIMEOUT_MS = XmppConstants.SSL_HANDSHAKE_TIMEOUT_MS;
 
     /**
@@ -55,13 +54,11 @@ public class SslUtils {
         try {
             log.debug("Creating SslHandler for {}:{}", host, port);
 
-            /** 1. 创建 JDK SSLContext */
             SSLContext sslContext = SSLContext.getInstance("TLS");
 
             TrustManager[] trustManagers = config.getSecurity().getCustomTrustManager();
             KeyManager[] keyManagers = config.getSecurity().getKeyManagers();
 
-            /** 如果配置了自定义 SSLContext，使用它的 TrustManager 和 KeyManager */
             if (config.getSecurity().getCustomSslContext() != null) {
                 log.debug("Using custom SSLContext");
                 sslContext = config.getSecurity().getCustomSslContext();
@@ -69,7 +66,6 @@ public class SslUtils {
                 sslContext.init(keyManagers, trustManagers, new SecureRandom());
             }
 
-            /** 2. 创建 SSLEngine（支持 SNI） */
             SSLEngine sslEngine;
             if (host != null && !host.isEmpty()) {
                 sslEngine = sslContext.createSSLEngine(host, port);
@@ -77,19 +73,14 @@ public class SslUtils {
                 sslEngine = sslContext.createSSLEngine();
             }
 
-            /** 3. 设置为客户端模式 */
             sslEngine.setUseClientMode(true);
 
-            /** 4. 配置 SSL 协议 */
             configureProtocols(sslEngine, config.getSecurity().getEnabledSSLProtocols());
 
-            /** 5. 配置密码套件 */
             configureCipherSuites(sslEngine, config.getSecurity().getEnabledSSLCiphers());
 
-            /** 6. 创建 SslHandler */
             SslHandler sslHandler = new SslHandler(sslEngine);
 
-            /** 7. 设置握手超时 */
             int handshakeTimeout = config.getSecurity().getHandshakeTimeoutMs() > 0
                     ? config.getSecurity().getHandshakeTimeoutMs()
                     : DEFAULT_HANDSHAKE_TIMEOUT_MS;

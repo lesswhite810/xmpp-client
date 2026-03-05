@@ -67,7 +67,7 @@ public final class Message extends Stanza {
     /**
      * 判断是否为聊天类型。
      *
-     * @return 是聊天类型返回 true
+     * @return 当 Message 类型为 CHAT 时返回 true，否则返回 false
      */
     public boolean isChat() {
         return type == Type.CHAT;
@@ -76,7 +76,7 @@ public final class Message extends Stanza {
     /**
      * 判断是否为群聊类型。
      *
-     * @return 是群聊类型返回 true
+     * @return 当 Message 类型为 GROUPCHAT 时返回 true，否则返回 false
      */
     public boolean isGroupchat() {
         return type == Type.GROUPCHAT;
@@ -85,7 +85,7 @@ public final class Message extends Stanza {
     /**
      * 判断是否为头条类型。
      *
-     * @return 是头条类型返回 true
+     * @return 当 Message 类型为 HEADLINE 时返回 true，否则返回 false
      */
     public boolean isHeadline() {
         return type == Type.HEADLINE;
@@ -94,7 +94,7 @@ public final class Message extends Stanza {
     /**
      * 判断是否为普通类型。
      *
-     * @return 是普通类型返回 true
+     * @return 当 Message 类型为 NORMAL 时返回 true，否则返回 false
      */
     public boolean isNormal() {
         return type == Type.NORMAL;
@@ -103,7 +103,7 @@ public final class Message extends Stanza {
     /**
      * 判断是否为错误类型。
      *
-     * @return 是错误类型返回 true
+     * @return 当 Message 类型为 ERROR 时返回 true，否则返回 false
      */
     public boolean isError() {
         return type == Type.ERROR;
@@ -112,7 +112,7 @@ public final class Message extends Stanza {
     /**
      * 获取元素名称。
      *
-     * @return "message"
+     * @return 固定返回 "message"
      */
     @Override
     public String getElementName() {
@@ -123,6 +123,7 @@ public final class Message extends Stanza {
      * 追加属性到 XML 构建器。
      *
      * @param xml XML 构建器
+     * @throws NullPointerException 当 xml 参数为 null 时
      */
     @Override
     protected void appendAttributes(XmlStringBuilder xml) {
@@ -134,6 +135,7 @@ public final class Message extends Stanza {
      * 追加扩展元素到 XML 构建器。
      *
      * @param xml XML 构建器
+     * @throws NullPointerException 当 xml 参数为 null 时
      */
     @Override
     protected void appendExtensions(XmlStringBuilder xml) {
@@ -146,7 +148,6 @@ public final class Message extends Stanza {
     /**
      * Message Builder。
      *
-     * @since 2026-02-09
      */
     public static class Builder extends Stanza.Builder<Builder, Message> {
         /** Message 类型 */
@@ -257,7 +258,6 @@ public final class Message extends Stanza {
     /**
      * Message 类型枚举。
      *
-     * @since 2026-02-09
      */
     public enum Type {
         /** 单对单聊天 */

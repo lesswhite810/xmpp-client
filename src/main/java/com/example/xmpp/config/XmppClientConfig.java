@@ -13,11 +13,34 @@ import java.util.Set;
 /**
  * XMPP 客户端配置类（不可变）。
  *
- * 使用模块化配置类构建：
- * - ConnectionConfig：连接配置
- * - AuthConfig：认证配置
- * - SecurityConfig：安全配置
- * - KeepAliveConfig：心跳/重连配置
+ * <p>使用模块化配置类构建：
+ * <ul>
+ *   <li>{@link ConnectionConfig}：连接配置</li>
+ *   <li>{@link AuthConfig}：认证配置</li>
+ *   <li>{@link SecurityConfig}：安全配置</li>
+ *   <li>{@link KeepAliveConfig}：心跳/重连配置</li>
+ * </ul>
+ * </p>
+ *
+ * <p>使用示例：</p>
+ * <pre>{@code
+ * XmppClientConfig config = XmppClientConfig.builder()
+ *     .connection(ConnectionConfig.builder()
+ *         .xmppServiceDomain("example.com")
+ *         .build())
+ *     .auth(AuthConfig.builder()
+ *         .username("user")
+ *         .password("password".toCharArray())
+ *         .build())
+ *     .security(SecurityConfig.builder()
+ *         .securityMode(SecurityConfig.SecurityMode.REQUIRED)
+ *         .build())
+ *     .keepAlive(KeepAliveConfig.builder()
+ *         .pingEnabled(true)
+ *         .pingInterval(60)
+ *         .build())
+ *     .build();
+ * }</pre>
  *
  * @since 2026-02-09
  */

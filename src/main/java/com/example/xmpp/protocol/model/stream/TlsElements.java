@@ -4,7 +4,14 @@ import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.protocol.model.ExtensionElement;
 
 /**
- * TLS 相关元素（STARTTLS 和 PROCEED）。
+ * TLS 相关元素集合，用于 XMPP 连接 TLS 协商。
+ * <p>
+ * 包含 STARTTLS 扩展中的两个核心元素：
+ * <ul>
+ *     <li>StartTls - 客户端请求升级为 TLS 加密连接</li>
+ *     <li>TlsProceed - 服务端响应同意继续 TLS 协商</li>
+ * </ul>
+ * 实现 RFC 6120 §5 中的 STARTTLS 流程。
  *
  * @since 2026-02-09
  */
@@ -14,11 +21,10 @@ public final class TlsElements {
     }
 
     /**
-     * STARTTLS 扩展元素。
+     * STARTTLS 请求元素，表示客户端请求将连接升级为 TLS 加密。
      * <p>
-     * 表示升级连接为 TLS 的请求。
-     *
-     * @since 2026-02-09
+     * 客户端发送此元素到服务端，请求进行 TLS 握手。
+     * 服务端可返回 TlsProceed 元素继续协商，或返回 StreamError 拒绝。
      */
     public static final class StartTls implements ExtensionElement {
         public static final String NAMESPACE = XmppConstants.NS_XMPP_TLS;
@@ -59,11 +65,10 @@ public final class TlsElements {
     }
 
     /**
-     * TLS PROCEED 元素。
+     * TLS 继续元素，表示服务端同意继续进行 TLS 协商。
      * <p>
-     * 表示服务端响应继续进行 TLS 协商。
-     *
-     * @since 2026-02-09
+     * 服务端发送此元素响应客户端的 StartTls 请求，表示可以开始 TLS 握手。
+     * 客户端收到此元素后应立即开始 TLS 握手。
      */
     public static final class TlsProceed implements ExtensionElement {
         public static final String NAMESPACE = XmppConstants.NS_XMPP_TLS;

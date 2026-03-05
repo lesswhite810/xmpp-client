@@ -35,52 +35,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 public class ReconnectionManager {
 
-    /**
-     * 基础重连延迟（秒）
-     */
     private static final int BASE_DELAY_SECONDS = XmppConstants.RECONNECT_BASE_DELAY_SECONDS;
 
-    /**
-     * 最大重连延迟（秒）
-     */
     private static final int MAX_DELAY_SECONDS = XmppConstants.RECONNECT_MAX_DELAY_SECONDS;
 
-    /**
-     * 最大重连尝试次数
-     */
     private static final int MAX_RECONNECT_ATTEMPTS = XmppConstants.MAX_RECONNECT_ATTEMPTS;
 
-    /**
-     * 关联的 XMPP 连接
-     */
     private final XmppConnection connection;
 
-    /**
-     * 当前重连任务
-     */
     private volatile ScheduledFuture<?> currentTask;
 
-    /**
-     * 是否启用自动重连
-     */
     private volatile boolean enabled = true;
 
-    /**
-     * 随机数生成器（用于添加抖动）
-     */
     private final Random random = new Random();
 
-    /**
-     * 当前连续重连尝试次数（线程安全）
-     */
     private final AtomicInteger attemptCount = new AtomicInteger(0);
 
-    /**
-     * 是否因错误触发过重连（避免被正常关闭事件覆盖）
-     */
     private volatile boolean reconnectionScheduledDueToError = false;
 
-    /** 事件订阅取消回调 */
     private Runnable unsubscribe;
 
     /**
@@ -91,7 +63,6 @@ public class ReconnectionManager {
     public ReconnectionManager(XmppConnection connection) {
         this.connection = connection;
 
-        /** 通过 XmppEventBus 订阅连接事件（连接专属订阅，只响应本连接的事件） */
         XmppEventBus eventBus = XmppEventBus.getInstance();
 
         unsubscribe = eventBus.subscribeAll(connection, Map.of(
@@ -164,7 +135,6 @@ public class ReconnectionManager {
     }
 
     private void onConnectionClosed() {
-        /** 如果之前因错误触发了重连，不取消（避免事件顺序问题） */
         if (reconnectionScheduledDueToError) {
             log.debug("Connection closed but reconnection already scheduled due to previous error");
             return;
@@ -206,15 +176,10 @@ public class ReconnectionManager {
         synchronized (this) {
             log.debug("scheduleReconnect called with attempt={}, currentTask={}", attempt, currentTask);
 
-            /** 检查是否已有任务在运行 */
             if (currentTask != null && !currentTask.isDone()) {
                 log.debug("Reconnection task already scheduled, skipping");
                 return;
             }
-
-            /** 注意：这里不检查 isConnected()，因为调用 scheduleReconnect 时 */
-            /** 连接刚刚因错误关闭，channel 可能还处于过渡状态 */
-            /** 重连逻辑会在实际执行时检查连接状态 */
 
             int currentAttempt = attemptCount.updateAndGet(curr -> curr >= MAX_RECONNECT_ATTEMPTS ? curr : curr + 1);
             if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {

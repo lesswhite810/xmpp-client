@@ -12,6 +12,17 @@ import java.util.Optional;
 /**
  * XMPP 节（Stanza）抽象基类。
  *
+ * <p>所有 XMPP 节（IQ、Message、Presence）的公共基类。
+ * 使用密封类（sealed class）限制仅允许特定子类继承。</p>
+ *
+ * <p>此类提供以下公共功能：
+ * <ul>
+ *   <li>管理节的基本属性（id、from、to）</li>
+ *   <li>支持扩展元素（ExtensionElement）的添加和查询</li>
+ *   <li>提供 XML 序列化功能</li>
+ * </ul>
+ * </p>
+ *
  * @since 2026-02-09
  */
 @Getter

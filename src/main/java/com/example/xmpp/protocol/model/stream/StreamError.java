@@ -6,7 +6,11 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * XMPP 流错误 (RFC 6120)。
+ * XMPP 流错误元素，实现 RFC 6120 §4.9 Stream Errors。
+ * <p>
+ * 当 XMPP 流发生错误时，服务端发送 stream:error 元素报告错误。
+ * 包含预定义的条件代码 (如 bad-format、not-authorized、policy-violation 等)
+ * 以及可选的错误描述文本和涉及的主机信息。
  *
  * @since 2026-02-09
  */
@@ -102,8 +106,8 @@ public class StreamError implements ExtensionElement {
         /**
          * 从字符串解析 Condition。
          *
-         * @param name 条件名称
-         * @return 对应的 Condition 枚举值，如果无法解析则返回 UNDEFINED_CONDITION
+         * @param name 条件名称，如 "bad-format"、"not-authorized"
+         * @return 对应的 Condition 枚举值，如果无法解析则返回 UNDEFINED_CONDITION；如果 name 为 null 则返回 null
          */
         public static Condition fromString(String name) {
             if (name == null) {

@@ -18,85 +18,61 @@ public class SecurityConfig {
 
     /**
      * TLS 安全模式。
-     *
-     * @since 2026-02-09
      */
     @Builder.Default
     private SecurityMode securityMode = SecurityMode.REQUIRED;
 
     /**
      * 自定义信任管理器。
-     *
-     * @since 2026-02-09
      */
     private TrustManager[] customTrustManager;
 
     /**
      * 密钥管理器数组。
-     *
-     * @since 2026-02-09
      */
     private KeyManager[] keyManagers;
 
     /**
      * 自定义 SSL 上下文。
-     *
-     * @since 2026-02-09
      */
     private SSLContext customSslContext;
 
     /**
      * 启用的 SSL 协议列表。
-     *
-     * @since 2026-02-09
      */
     private String[] enabledSSLProtocols;
 
     /**
      * 启用的 SSL 密码套件列表。
-     *
-     * @since 2026-02-09
      */
     private String[] enabledSSLCiphers;
 
     /**
      * 是否使用 Direct TLS 模式。
-     *
-     * @since 2026-02-09
      */
     @Builder.Default
     private boolean usingDirectTLS = false;
 
     /**
      * SSL 握手超时时间（毫秒）。
-     *
-     * @since 2026-02-09
      */
     @Builder.Default
     private int handshakeTimeoutMs = 10000;
 
     /**
      * TLS 安全模式枚举。
-     *
-     * @since 2026-02-09
      */
     public enum SecurityMode {
         /**
          * 必须使用 TLS。
-         *
-         * @since 2026-02-09
          */
         REQUIRED,
         /**
          * 尽可能使用 TLS。
-         *
-         * @since 2026-02-09
          */
         IF_POSSIBLE,
         /**
          * 禁用 TLS。
-         *
-         * @since 2026-02-09
          */
         DISABLED
     }

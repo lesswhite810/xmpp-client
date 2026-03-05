@@ -5,7 +5,10 @@ import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmlStringBuilder;
 
 /**
- * XMPP Ping 扩展元素 (XEP-0199)。
+ * XMPP Ping 扩展元素，实现 XEP-0199 (Ping)。
+ * <p>
+ * 用于检测 XMPP 连接的活跃状态。客户端或服务器均可发送 ping 请求，
+ * 对方需返回 Iq 响应。该类提供空元素的序列化表示。
  *
  * @since 2026-02-09
  */

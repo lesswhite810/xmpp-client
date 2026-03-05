@@ -26,7 +26,6 @@ public class GenericExtensionProvider {
     public static final GenericExtensionProvider INSTANCE = new GenericExtensionProvider();
 
     private GenericExtensionProvider() {
-        /** 单例 */
     }
 
     /**
@@ -35,7 +34,7 @@ public class GenericExtensionProvider {
      * @param reader     XML 事件读取器，已定位到开始元素
      * @param startEvent 开始元素事件
      * @return 解析后的 GenericExtensionElement
-     * @throws XmppParseException 解析异常
+     * @throws XmppParseException 如果解析过程中发生错误，如 XML 格式错误
      */
     public GenericExtensionElement parse(XMLEventReader reader, StartElement startEvent)
             throws XmppParseException {
@@ -52,7 +51,7 @@ public class GenericExtensionProvider {
      * @param reader XML 事件读取器
      * @param start 开始元素
      * @return 解析后的 GenericExtensionElement
-     * @throws XMLStreamException XML 流异常
+     * @throws XMLStreamException 如果解析过程中发生 XML 错误
      */
     private GenericExtensionElement parseElement(XMLEventReader reader, StartElement start)
             throws XMLStreamException {
@@ -61,7 +60,6 @@ public class GenericExtensionProvider {
 
         GenericExtensionElement.Builder builder = GenericExtensionElement.builder(elementName, namespace);
 
-        /** 添加所有属性 */
         builder.addAttributes(XmlParserUtils.getAttributes(start));
 
         StringBuilder textBuilder = new StringBuilder();
@@ -75,16 +73,13 @@ public class GenericExtensionProvider {
                     break;
                 }
             } else if (event.isStartElement()) {
-                /** 递归解析子元素 */
                 GenericExtensionElement child = parseElement(reader, event.asStartElement());
                 builder.addChild(child);
             } else if (event.isCharacters()) {
-                /** 收集文本内容 */
                 textBuilder.append(event.asCharacters().getData());
             }
         }
 
-        /** 设置文本（去除首尾空白） */
         String text = textBuilder.toString().trim();
         if (!text.isEmpty()) {
             builder.text(text);
@@ -97,8 +92,8 @@ public class GenericExtensionProvider {
      * 从当前位置解析元素（reader 尚未调用 next）。
      *
      * @param reader XML 事件读取器
-     * @return 解析后的元素
-     * @throws XmppParseException 解析异常
+     * @return 解析后的 GenericExtensionElement
+     * @throws XmppParseException 如果 reader 未定位在开始元素，或解析失败
      */
     public GenericExtensionElement parseCurrentElement(XMLEventReader reader) throws XmppParseException {
         try {

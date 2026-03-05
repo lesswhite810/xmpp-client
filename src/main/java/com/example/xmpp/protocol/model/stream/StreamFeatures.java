@@ -10,9 +10,16 @@ import lombok.Singular;
 import java.util.List;
 
 /**
- * XMPP 流特性元素 (RFC 6120 §4.6)。
- *
- * 流特性（stream features）由服务端在流协商过程中发送，告知客户端支持的协议特性。
+ * XMPP 流特性元素，实现 RFC 6120 §4.6 Stream Features。
+ * <p>
+ * 流特性 (stream features) 由服务端在 XMPP 流建立后、认证前发送，
+ * 告知客户端当前连接支持的协议特性，包括：
+ * <ul>
+ *     <li>STARTTLS - 传输层安全升级</li>
+ *     <li>SASL Mechanisms - 可用的 SASL 认证机制列表</li>
+ *     <li>Resource Binding - 资源绑定</li>
+ * </ul>
+ * 客户端应根据收到的特性选择适当的流程进行协商。
  *
  * @since 2026-02-09
  */

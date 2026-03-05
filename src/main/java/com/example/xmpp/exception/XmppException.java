@@ -19,6 +19,16 @@ import java.io.Serial;
  *   <li>{@link XmppDnsException} - DNS 解析相关异常</li>
  * </ul>
  *
+ * <h3>构造器说明</h3>
+ * <p>本类使用 Lombok {@code @StandardException} 注解自动生成构造器，
+ * 支持以下构造器形式：</p>
+ * <ul>
+ *   <li>{@code XmppException()} - 无参构造器</li>
+ *   <li>{@code XmppException(String message)} - 带消息构造器</li>
+ *   <li>{@code XmppException(String message, Throwable cause)} - 带消息和原因构造器</li>
+ *   <li>{@code XmppException(Throwable cause)} - 带原因构造器</li>
+ * </ul>
+ *
  * @since 2026-02-09
  */
 @StandardException

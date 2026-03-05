@@ -12,6 +12,9 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 连接辅助工具类。
  *
+ * <p>提供 XMPP 连接相关的辅助方法，包括同步连接建立等操作。
+ * 此类主要用于封装 Netty Bootstrap 的连接操作，提供更便捷的 API。</p>
+ *
  * @since 2026-02-09
  */
 @Slf4j
@@ -21,10 +24,14 @@ public class ConnectionUtils {
     /**
      * 同步连接到指定地址。
      *
-     * @param bootstrap Netty Bootstrap 实例
-     * @param address   目标地址（可以是已解析或未解析的）
-     * @return 已连接的 Channel
-     * @throws InterruptedException 线程被中断时抛出
+     * <p>此方法会阻塞当前线程，直到连接成功建立或发生异常。
+     * 连接过程中如果线程被中断，将抛出 {@link InterruptedException}。</p>
+     *
+     * @param bootstrap Netty Bootstrap 实例，用于建立连接，不能为 null
+     * @param address   目标地址（可以是已解析或未解析的），不能为 null
+     * @return 已连接的 Channel 实例
+     * @throws InterruptedException 如果在连接过程中当前线程被中断
+     * @throws io.netty.channel.ChannelException 如果连接失败（如拒绝连接、超时等）
      */
     public static Channel connectSync(Bootstrap bootstrap, InetSocketAddress address)
             throws InterruptedException {

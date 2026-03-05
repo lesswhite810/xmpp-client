@@ -7,7 +7,10 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * SASL 成功元素。
+ * SASL 成功元素，表示 SASL 认证流程成功完成。
+ * <p>
+ * 服务端发送 Success 元素表示客户端提供的认证凭证有效，认证成功。
+ * 可能包含可选的额外响应数据 (Base64 编码)。
  *
  * @since 2026-02-09
  */

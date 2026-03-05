@@ -68,7 +68,8 @@ public final class Presence extends Stanza {
     /**
      * 获取状态显示枚举值。
      *
-     * @return Show 枚举值的 Optional
+     * @return Show 枚举值的 Optional，若 show 属性为 null 或无法解析则返回 Optional.empty()
+     * @throws NullPointerException 当继承自 Stanza 的 getExtension 方法被调用且 namespace 参数为 null 时
      */
     public Optional<Show> getPresenceShow() {
         return Show.fromString(show);
@@ -77,7 +78,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为可用状态。
      *
-     * @return 是可用状态返回 true
+     * @return 当 Presence 类型为 AVAILABLE 时返回 true，否则返回 false
      */
     public boolean isAvailable() {
         return type == Type.AVAILABLE;
@@ -86,7 +87,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为不可用状态。
      *
-     * @return 是不可用状态返回 true
+     * @return 当 Presence 类型为 UNAVAILABLE 时返回 true，否则返回 false
      */
     public boolean isUnavailable() {
         return type == Type.UNAVAILABLE;
@@ -95,7 +96,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为错误状态。
      *
-     * @return 是错误状态返回 true
+     * @return 当 Presence 类型为 ERROR 时返回 true，否则返回 false
      */
     public boolean isError() {
         return type == Type.ERROR;
@@ -104,7 +105,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为订阅请求。
      *
-     * @return 是订阅请求返回 true
+     * @return 当 Presence 类型为 SUBSCRIBE 时返回 true，否则返回 false
      */
     public boolean isSubscribe() {
         return type == Type.SUBSCRIBE;
@@ -113,7 +114,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为订阅确认。
      *
-     * @return 是订阅确认返回 true
+     * @return 当 Presence 类型为 SUBSCRIBED 时返回 true，否则返回 false
      */
     public boolean isSubscribed() {
         return type == Type.SUBSCRIBED;
@@ -122,7 +123,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为取消订阅请求。
      *
-     * @return 是取消订阅请求返回 true
+     * @return 当 Presence 类型为 UNSUBSCRIBE 时返回 true，否则返回 false
      */
     public boolean isUnsubscribe() {
         return type == Type.UNSUBSCRIBE;
@@ -131,7 +132,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为取消订阅确认。
      *
-     * @return 是取消订阅确认返回 true
+     * @return 当 Presence 类型为 UNSUBSCRIBED 时返回 true，否则返回 false
      */
     public boolean isUnsubscribed() {
         return type == Type.UNSUBSCRIBED;
@@ -140,7 +141,7 @@ public final class Presence extends Stanza {
     /**
      * 获取元素名称。
      *
-     * @return "presence"
+     * @return 固定返回 "presence"
      */
     @Override
     public String getElementName() {
@@ -151,6 +152,7 @@ public final class Presence extends Stanza {
      * 追加属性到 XML 构建器。
      *
      * @param xml XML 构建器
+     * @throws NullPointerException 当 xml 参数为 null 时
      */
     @Override
     protected void appendAttributes(XmlStringBuilder xml) {
@@ -164,6 +166,7 @@ public final class Presence extends Stanza {
      * 追加扩展元素到 XML 构建器。
      *
      * @param xml XML 构建器
+     * @throws NullPointerException 当 xml 参数为 null 时
      */
     @Override
     protected void appendExtensions(XmlStringBuilder xml) {
@@ -178,7 +181,6 @@ public final class Presence extends Stanza {
     /**
      * Presence Builder。
      *
-     * @since 2026-02-09
      */
     public static class Builder extends Stanza.Builder<Builder, Presence> {
         /** Presence 类型 */
@@ -289,7 +291,6 @@ public final class Presence extends Stanza {
     /**
      * Presence 类型枚举。
      *
-     * @since 2026-02-09
      */
     public enum Type {
         /** 可用状态 */
@@ -326,7 +327,6 @@ public final class Presence extends Stanza {
     /**
      * Presence 显示状态枚举。
      *
-     * @since 2026-02-09
      */
     public enum Show {
         /** 离开 */

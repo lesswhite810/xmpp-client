@@ -113,7 +113,6 @@ public abstract class ScramMechanism implements SaslMechanism {
      */
     protected ScramMechanism(String username, char[] password) {
         this.username = username;
-        /** 创建密码副本，原始密码由调用者负责清除 */
         this.password = password != null ? password.clone() : null;
         this.clientNonce = generateSecureNonce();
     }
@@ -172,9 +171,16 @@ public abstract class ScramMechanism implements SaslMechanism {
     /**
      * 处理服务器挑战并生成响应。
      *
+     * <p>SCRAM 认证流程包含三个阶段：</p>
+     * <ol>
+     *   <li>初始阶段：生成并发送 Client First Message</li>
+     *   <li>挑战阶段：处理 Server First Message，生成 Client Final Message</li>
+     *   <li>验证阶段：验证 Server Final Message</li>
+     * </ol>
+     *
      * @param challenge 服务器发送的挑战数据
-     * @return 响应数据
-     * @throws SaslException 如果处理失败
+     * @return 响应数据，认证最终完成后返回 null
+     * @throws SaslException 如果处理失败，包括：挑战数据格式无效、nonce 验证失败、迭代次数过低、服务器签名验证失败
      */
     @Override
     public byte[] processChallenge(byte[] challenge) throws SaslException {
@@ -233,13 +239,11 @@ public abstract class ScramMechanism implements SaslMechanism {
         byte[] salt = Base64.getDecoder().decode(saltBase64);
         int iterations = Integer.parseInt(iterationsStr);
 
-        /** 验证迭代次数最小值，防止降级攻击 */
         if (iterations < EFFECTIVE_MIN_ITERATIONS) {
             throw new SaslException(
                     "Iterations too low: " + iterations + ", minimum is " + EFFECTIVE_MIN_ITERATIONS);
         }
 
-        /** 警告低于 OWASP 建议值的迭代次数 */
         if (iterations < OWASP_RECOMMENDED_ITERATIONS) {
             log.warn("Server SCRAM iterations ({}) below OWASP 2023 recommendation ({}). " +
                     "Consider updating server configuration for better security.",
@@ -286,18 +290,14 @@ public abstract class ScramMechanism implements SaslMechanism {
         byte[] serverSignatureExpected = Base64.getDecoder().decode(verifierBase64);
 
         if (!MessageDigest.isEqual(serverSignature, serverSignatureExpected)) {
-            /** 验证失败也要清除敏感数据 */
             SecurityUtils.clear(saltedPassword);
             saltedPassword = null;
             throw new SaslException("Server signature verification failed");
         }
 
-        /** 验证成功，清除敏感密钥材料和密码副本 */
         SecurityUtils.clear(saltedPassword);
         saltedPassword = null;
 
-        /** 清除存储的密码副本，防止敏感数据在内存中驻留 */
-        /** 认证流程已结束，密码不再需要 */
         SecurityUtils.clear(password);
     }
 

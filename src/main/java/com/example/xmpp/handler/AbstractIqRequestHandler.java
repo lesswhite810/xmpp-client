@@ -12,16 +12,12 @@ import com.example.xmpp.protocol.model.Iq;
  */
 public abstract class AbstractIqRequestHandler implements IqRequestHandler {
 
-    /** 元素名称 */
     private final String element;
 
-    /** 命名空间 */
     private final String namespace;
 
-    /** IQ 类型 */
     private final Iq.Type iqType;
 
-    /** 处理模式 */
     private final Mode mode;
 
     /**

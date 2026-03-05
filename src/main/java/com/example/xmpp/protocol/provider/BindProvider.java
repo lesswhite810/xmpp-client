@@ -16,10 +16,8 @@ import javax.xml.stream.events.XMLEvent;
  */
 public final class BindProvider extends AbstractProvider<Bind> {
 
-    /** Bind 元素名称 */
     public static final String ELEMENT = "bind";
 
-    /** Bind 命名空间 */
     public static final String NAMESPACE = "urn:ietf:params:xml:ns:xmpp-bind";
 
     private static final String ELEMENT_JID = "jid";
@@ -48,9 +46,9 @@ public final class BindProvider extends AbstractProvider<Bind> {
     /**
      * 解析 Bind 元素，提取 jid 和 resource 子元素内容。
      *
-     * @param reader XMLEventReader
+     * @param reader XMLEventReader，用于读取 XML 事件流
      * @return 解析后的 Bind 对象
-     * @throws XMLStreamException 如果解析过程中发生错误
+     * @throws XMLStreamException 如果解析过程中发生 XML 错误
      */
     @Override
     protected Bind parseInstance(XMLEventReader reader) throws XMLStreamException {
@@ -88,8 +86,8 @@ public final class BindProvider extends AbstractProvider<Bind> {
     /**
      * 序列化 Bind 对象为 XML。
      *
-     * @param bind Bind 对象
-     * @param xml  XmlStringBuilder
+     * @param bind Bind 对象，要序列化的绑定信息
+     * @param xml  XmlStringBuilder，用于构建 XML 输出
      */
     @Override
     protected void serializeInstance(Bind bind, XmlStringBuilder xml) {

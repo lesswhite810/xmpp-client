@@ -45,10 +45,9 @@ public class SaslNegotiator {
      *
      * <p>发送 Auth 元素和初始响应（如果机制支持）。</p>
      *
-     * @throws XmppAuthException 如果认证启动失败
+     * @throws XmppAuthException 如果认证启动失败，包括：PLAIN 机制未使用 TLS 加密、生成初始响应失败或构造 Auth stanza 失败
      */
     public void start() throws XmppAuthException {
-        /** PLAIN 机制必须使用 TLS 加密通道 */
         if ("PLAIN".equals(mechanism.getMechanismName()) && !isTlsEncrypted()) {
             throw new XmppAuthException("PLAIN authentication requires TLS encryption. Please enable TLS before authenticating.");
         }
@@ -81,7 +80,7 @@ public class SaslNegotiator {
      * <p>解码 Challenge 数据，调用 SASL 机制处理，发送 Response。</p>
      *
      * @param contentB64 Base64 编码的 Challenge 内容
-     * @throws XmppAuthException 如果处理 Challenge 失败
+     * @throws XmppAuthException 如果处理 Challenge 失败，包括 Base64 解码失败、SASL 机制处理失败或构造 Response stanza 失败
      */
     public void handleChallenge(String contentB64) throws XmppAuthException {
         byte[] cContent = BASE64_DECODER.decode(contentB64 != null ? contentB64 : "");
@@ -106,7 +105,7 @@ public class SaslNegotiator {
      *
      * @param contentB64 Base64 编码的 Success 内容（可选）
      * @return 如果认证完成返回 true
-     * @throws XmppAuthException 如果验证失败
+     * @throws XmppAuthException 如果验证失败，包括 Base64 解码失败或服务器签名验证失败
      */
     public boolean handleSuccess(String contentB64) throws XmppAuthException {
         if (contentB64 != null && !contentB64.isEmpty()) {
@@ -144,7 +143,6 @@ public class SaslNegotiator {
                     log.info("SASL stanza sent successfully");
                 } else {
                     log.error("Failed to send SASL stanza", future.cause());
-                    /** 如果发送失败且 buf 还未被释放，确保释放 */
                     if (bufToWrite.refCnt() > 0) {
                         bufToWrite.release();
                     }
