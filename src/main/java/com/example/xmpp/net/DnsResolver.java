@@ -328,6 +328,7 @@ public class DnsResolver implements AutoCloseable {
                 try {
                     group.shutdownGracefully(0, XmppConstants.SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS).sync();
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.warn("Interrupted while shutting down DNS resolver EventLoopGroup");
                 }
             } else {
