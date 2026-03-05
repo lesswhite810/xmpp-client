@@ -3,12 +3,16 @@ package com.example.xmpp.logic;
 import com.example.xmpp.XmppConnection;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.Stanza;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.extension.*;
+import com.example.xmpp.protocol.StanzaFilter;
+import com.example.xmpp.protocol.AsyncStanzaCollector;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * XEP-0133: Service Administration 管理员管理器。
@@ -16,17 +20,63 @@ import java.util.concurrent.CompletableFuture;
  * <p>提供 XMPP 服务管理功能，包括用户管理、在线用户管理等。
  * 使用此管理器需要管理员权限。</p>
  *
- * <p>管理员命令通过 Ad-Hoc Commands (XEP-0050) 发送到服务管理员账户。</p>
+ * <p>管理员命令通过 Ad-Hoc Commands (XEP-0050) 发送到服务器。</p>
+ *
+ * <p>注意：此实现针对 Openfire 服务器进行了优化，使用 from 地址匹配响应。</p>
  */
 @Slf4j
 public class AdminManager {
 
+    private static final long DEFAULT_TIMEOUT_MS = 15000;
+
     private final XmppConnection connection;
     private final String serviceDomain;
+    private final String adminJid;
 
     public AdminManager(XmppConnection connection, XmppClientConfig config) {
         this.connection = connection;
         this.serviceDomain = config.getXmppServiceDomain();
+        this.adminJid = "admin@" + serviceDomain;
+    }
+
+    /**
+     * 发送管理命令并等待响应（使用 from 地址匹配，支持 Openfire）。
+     *
+     * @param iq 要发送的 IQ
+     * @return 响应 CompletableFuture
+     */
+    private CompletableFuture<XmppStanza> sendAdminCommand(Iq iq) {
+        // 创建一个过滤器，匹配从 admin JID 返回的 IQ 响应
+        // 这样可以兼容 Openfire 服务器（它会生成新的 IQ ID）
+        StanzaFilter filter = stanza -> {
+            if (!(stanza instanceof Iq responseIq)) {
+                return false;
+            }
+            // 匹配类型为 RESULT 或 ERROR 的响应
+            if (responseIq.getType() != Iq.Type.RESULT && responseIq.getType() != Iq.Type.ERROR) {
+                return false;
+            }
+            // 检查 from 地址是否来自 admin 用户
+            String from = responseIq.getFrom();
+            if (from != null && (from.startsWith("admin@") || from.contains("/admin'"))) {
+                log.debug("Matched admin response from: {}", from);
+                return true;
+            }
+            // 也接受来自服务器的响应
+            return from != null && from.equals(serviceDomain);
+        };
+
+        AsyncStanzaCollector collector = new AsyncStanzaCollector(filter);
+        connection.sendStanza(iq);
+        log.debug("Sent admin command: id={}, to={}", iq.getId(), iq.getTo());
+
+        return collector.getFuture()
+                .orTimeout(DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.warn("Admin command timed out or failed: {}", ex.getMessage());
+                    }
+                });
     }
 
     /**
@@ -52,11 +102,10 @@ public class AdminManager {
         AddUser request = new AddUser(username, password, email);
         Iq iq = new Iq.Builder(Iq.Type.SET)
                 .id("admin-add-" + System.currentTimeMillis())
-                .to("admin@" + serviceDomain)
+                .to(serviceDomain)
                 .childElement(request)
                 .build();
-        log.debug("Sending add-user IQ: {}", iq.toXml());
-        return connection.sendIqPacketAsync(iq);
+        return sendAdminCommand(iq);
     }
 
     /**
@@ -69,11 +118,10 @@ public class AdminManager {
         DeleteUser request = new DeleteUser(username);
         Iq iq = new Iq.Builder(Iq.Type.SET)
                 .id("admin-delete-" + System.currentTimeMillis())
-                .to("admin@" + serviceDomain)
+                .to(serviceDomain)
                 .childElement(request)
                 .build();
-        log.debug("Sending delete-user IQ: {}", iq.toXml());
-        return connection.sendIqPacketAsync(iq);
+        return sendAdminCommand(iq);
     }
 
     /**
@@ -99,11 +147,10 @@ public class AdminManager {
         EditUser request = new EditUser(username, newPassword, email);
         Iq iq = new Iq.Builder(Iq.Type.SET)
                 .id("admin-edit-" + System.currentTimeMillis())
-                .to("admin@" + serviceDomain)
+                .to(serviceDomain)
                 .childElement(request)
                 .build();
-        log.debug("Sending edit-user IQ: {}", iq.toXml());
-        return connection.sendIqPacketAsync(iq);
+        return sendAdminCommand(iq);
     }
 
     /**
@@ -116,11 +163,10 @@ public class AdminManager {
         GetUser request = new GetUser(username);
         Iq iq = new Iq.Builder(Iq.Type.GET)
                 .id("admin-get-" + System.currentTimeMillis())
-                .to("admin@" + serviceDomain)
+                .to(serviceDomain)
                 .childElement(request)
                 .build();
-        log.debug("Sending get-user IQ: {}", iq.toXml());
-        return connection.sendIqPacketAsync(iq);
+        return sendAdminCommand(iq);
     }
 
     /**
@@ -132,11 +178,10 @@ public class AdminManager {
         ListUsers request = new ListUsers();
         Iq iq = new Iq.Builder(Iq.Type.GET)
                 .id("admin-list-" + System.currentTimeMillis())
-                .to("admin@" + serviceDomain)
+                .to(serviceDomain)
                 .childElement(request)
                 .build();
-        log.debug("Sending list-users IQ: {}", iq.toXml());
-        return connection.sendIqPacketAsync(iq);
+        return sendAdminCommand(iq);
     }
 
     /**
@@ -149,11 +194,10 @@ public class AdminManager {
         ListUsers request = new ListUsers(domains);
         Iq iq = new Iq.Builder(Iq.Type.GET)
                 .id("admin-list-" + System.currentTimeMillis())
-                .to("admin@" + serviceDomain)
+                .to(serviceDomain)
                 .childElement(request)
                 .build();
-        log.debug("Sending list-users IQ: {}", iq.toXml());
-        return connection.sendIqPacketAsync(iq);
+        return sendAdminCommand(iq);
     }
 
     /**
@@ -165,11 +209,10 @@ public class AdminManager {
         GetOnlineUsers request = new GetOnlineUsers();
         Iq iq = new Iq.Builder(Iq.Type.GET)
                 .id("admin-online-" + System.currentTimeMillis())
-                .to("admin@" + serviceDomain)
+                .to(serviceDomain)
                 .childElement(request)
                 .build();
-        log.debug("Sending get-online-users IQ: {}", iq.toXml());
-        return connection.sendIqPacketAsync(iq);
+        return sendAdminCommand(iq);
     }
 
     /**
@@ -183,7 +226,6 @@ public class AdminManager {
                 .id("admin-kick-" + System.currentTimeMillis())
                 .to(jid)
                 .build();
-        log.debug("Sending kick-user IQ: {}", iq.toXml());
         return connection.sendIqPacketAsync(iq);
     }
 }

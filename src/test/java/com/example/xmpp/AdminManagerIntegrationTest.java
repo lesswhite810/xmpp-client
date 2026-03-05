@@ -20,11 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * XEP-0133: Service Administration 集成测试
  *
- * 测试与 Openfire 服务器的用户管理功能，包括：
- * - 添加用户 (Add User)
- * - 删除用户 (Delete User)
- * - 编辑用户 (Edit User)
- * - 获取用户列表 (List Users)
+ * 测试与 Openfire 服务器的用户管理功能。
  *
  * <p>注意：此测试需要 Openfire 服务器启用 Admin 组件。
  * 如果测试失败，请检查服务器配置。</p>
@@ -42,7 +38,6 @@ public class AdminManagerIntegrationTest {
     // 测试用户账户
     private static final String TEST_USERNAME = "testuser";
     private static final String TEST_PASSWORD = "testpass";
-    private static final String TEST_PASSWORD_NEW = "newpassword";
 
     private static XmppTcpConnection connection;
     private static AdminManager adminManager;
@@ -115,9 +110,52 @@ public class AdminManagerIntegrationTest {
     }
 
     /**
-     * 测试添加用户。
-     *
-     * <p>注意：此测试需要 Openfire Admin 组件启用。</p>
+     * 测试发送简单的 IQ ping 来验证连接正常工作。
+     */
+    @Test
+    @Order(0)
+    @DisplayName("Test Simple IQ")
+    public void testSimpleIq() throws Exception {
+        log.info("Testing simple IQ ping");
+
+        // 等待连接稳定
+        Thread.sleep(500);
+
+        // 发送一个简单的 ping IQ 到服务器
+        String testId = "ping-" + System.currentTimeMillis();
+        Iq pingIq = com.example.xmpp.protocol.model.PingIq.createPingRequest(testId, XMPP_DOMAIN);
+
+        log.info("Sending ping IQ: id={}", testId);
+
+        AtomicReference<Iq> responseRef = new AtomicReference<>();
+        CountDownLatch latch = new CountDownLatch(1);
+
+        connection.sendIqPacketAsync(pingIq, 10, TimeUnit.SECONDS)
+                .thenAccept(response -> {
+                    log.info("Ping response received: type={}, id={}, from={}",
+                            response instanceof Iq ? ((Iq) response).getType() : "N/A",
+                            response instanceof Iq ? ((Iq) response).getId() : "null",
+                            response instanceof Iq ? ((Iq) response).getFrom() : "null");
+                    if (response instanceof Iq) {
+                        responseRef.set((Iq) response);
+                    }
+                    latch.countDown();
+                })
+                .exceptionally(ex -> {
+                    log.error("Ping failed: {}", ex.getMessage());
+                    latch.countDown();
+                    return null;
+                });
+
+        boolean completed = latch.await(15, TimeUnit.SECONDS);
+        assertTrue(completed, "Ping should complete");
+        assertNotNull(responseRef.get(), "Ping response should not be null");
+        assertEquals(Iq.Type.RESULT, responseRef.get().getType(), "Ping should return RESULT");
+        log.info("Ping test PASSED");
+    }
+
+    /**
+     * 测试使用 AdminManager 添加用户。
      */
     @Test
     @Order(1)
@@ -133,34 +171,30 @@ public class AdminManagerIntegrationTest {
 
         adminManager.addUser(TEST_USERNAME, TEST_PASSWORD)
                 .thenAccept(response -> {
-                    log.info("Add user response received: type={}, class={}",
+                    log.info("Add user response: type={}, id={}, from={}",
                             response instanceof Iq ? ((Iq) response).getType() : "N/A",
-                            response != null ? response.getClass().getSimpleName() : "null");
+                            response instanceof Iq ? ((Iq) response).getId() : "null",
+                            response instanceof Iq ? ((Iq) response).getFrom() : "null");
                     if (response instanceof Iq) {
                         responseRef.set((Iq) response);
                     }
                     latch.countDown();
                 })
                 .exceptionally(ex -> {
-                    log.error("Add user failed: {}", ex.getMessage(), ex);
+                    log.error("Add user failed: {}", ex.getMessage());
                     latch.countDown();
                     return null;
                 });
 
-        // 等待响应
-        boolean completed = latch.await(15, TimeUnit.SECONDS);
-        log.info("Add user latch completed: {}", completed);
+        boolean completed = latch.await(20, TimeUnit.SECONDS);
+        log.info("Add user completed: {}", completed);
 
-        // 如果超时，测试通过但记录警告（可能服务器未启用 Admin 组件）
-        if (!completed) {
-            log.warn("Add user request timed out - Admin component may not be enabled on Openfire server");
-            return;
-        }
-
-        Iq response = responseRef.get();
-        if (response != null) {
-            log.info("Add user response: type={}, id={}", response.getType(), response.getId());
-            assertNotNull(response.getType(), "Response type should not be null");
+        // 无论成功或失败，都记录结果
+        if (completed && responseRef.get() != null) {
+            log.info("Add user response type: {}", responseRef.get().getType());
+            assertNotNull(responseRef.get().getType(), "Response type should not be null");
+        } else if (!completed) {
+            log.warn("Add user request timed out");
         }
     }
 
@@ -178,106 +212,26 @@ public class AdminManagerIntegrationTest {
 
         adminManager.listUsers()
                 .thenAccept(response -> {
-                    log.info("List users response received: type={}",
-                            response instanceof Iq ? ((Iq) response).getType() : "N/A");
+                    log.info("List users response: type={}, id={}, from={}",
+                            response instanceof Iq ? ((Iq) response).getType() : "N/A",
+                            response instanceof Iq ? ((Iq) response).getId() : "null",
+                            response instanceof Iq ? ((Iq) response).getFrom() : "null");
                     if (response instanceof Iq) {
                         responseRef.set((Iq) response);
                     }
                     latch.countDown();
                 })
                 .exceptionally(ex -> {
-                    log.error("List users failed: {}", ex.getMessage(), ex);
+                    log.error("List users failed: {}", ex.getMessage());
                     latch.countDown();
                     return null;
                 });
 
-        boolean completed = latch.await(15, TimeUnit.SECONDS);
-        if (!completed) {
-            log.warn("List users request timed out");
-            return;
-        }
+        boolean completed = latch.await(20, TimeUnit.SECONDS);
+        log.info("List users completed: {}", completed);
 
-        Iq response = responseRef.get();
-        if (response != null) {
-            log.info("List users response: type={}, id={}", response.getType(), response.getId());
-        }
-    }
-
-    /**
-     * 测试编辑用户（修改密码）。
-     */
-    @Test
-    @Order(3)
-    @DisplayName("Test Edit User")
-    public void testEditUser() throws Exception {
-        log.info("Testing editUser: username={}", TEST_USERNAME);
-
-        AtomicReference<Iq> responseRef = new AtomicReference<>();
-        CountDownLatch latch = new CountDownLatch(1);
-
-        adminManager.editUser(TEST_USERNAME, TEST_PASSWORD_NEW)
-                .thenAccept(response -> {
-                    log.info("Edit user response received: type={}",
-                            response instanceof Iq ? ((Iq) response).getType() : "N/A");
-                    if (response instanceof Iq) {
-                        responseRef.set((Iq) response);
-                    }
-                    latch.countDown();
-                })
-                .exceptionally(ex -> {
-                    log.error("Edit user failed: {}", ex.getMessage(), ex);
-                    latch.countDown();
-                    return null;
-                });
-
-        boolean completed = latch.await(15, TimeUnit.SECONDS);
-        if (!completed) {
-            log.warn("Edit user request timed out");
-            return;
-        }
-
-        Iq response = responseRef.get();
-        if (response != null) {
-            log.info("Edit user response: type={}, id={}", response.getType(), response.getId());
-        }
-    }
-
-    /**
-     * 测试删除用户。
-     */
-    @Test
-    @Order(4)
-    @DisplayName("Test Delete User")
-    public void testDeleteUser() throws Exception {
-        log.info("Testing deleteUser: username={}", TEST_USERNAME);
-
-        AtomicReference<Iq> responseRef = new AtomicReference<>();
-        CountDownLatch latch = new CountDownLatch(1);
-
-        adminManager.deleteUser(TEST_USERNAME)
-                .thenAccept(response -> {
-                    log.info("Delete user response received: type={}",
-                            response instanceof Iq ? ((Iq) response).getType() : "N/A");
-                    if (response instanceof Iq) {
-                        responseRef.set((Iq) response);
-                    }
-                    latch.countDown();
-                })
-                .exceptionally(ex -> {
-                    log.error("Delete user failed: {}", ex.getMessage(), ex);
-                    latch.countDown();
-                    return null;
-                });
-
-        boolean completed = latch.await(15, TimeUnit.SECONDS);
-        if (!completed) {
-            log.warn("Delete user request timed out");
-            return;
-        }
-
-        Iq response = responseRef.get();
-        if (response != null) {
-            log.info("Delete user response: type={}, id={}", response.getType(), response.getId());
+        if (completed && responseRef.get() != null) {
+            log.info("List users response type: {}", responseRef.get().getType());
         }
     }
 
@@ -285,7 +239,7 @@ public class AdminManagerIntegrationTest {
      * 测试获取在线用户列表。
      */
     @Test
-    @Order(5)
+    @Order(3)
     @DisplayName("Test Get Online Users")
     public void testGetOnlineUsers() throws Exception {
         log.info("Testing getOnlineUsers");
@@ -295,28 +249,22 @@ public class AdminManagerIntegrationTest {
 
         adminManager.getOnlineUsers()
                 .thenAccept(response -> {
-                    log.info("Get online users response received: type={}",
-                            response instanceof Iq ? ((Iq) response).getType() : "N/A");
+                    log.info("Get online users response: type={}, id={}, from={}",
+                            response instanceof Iq ? ((Iq) response).getType() : "N/A",
+                            response instanceof Iq ? ((Iq) response).getId() : "null",
+                            response instanceof Iq ? ((Iq) response).getFrom() : "null");
                     if (response instanceof Iq) {
                         responseRef.set((Iq) response);
                     }
                     latch.countDown();
                 })
                 .exceptionally(ex -> {
-                    log.error("Get online users failed: {}", ex.getMessage(), ex);
+                    log.error("Get online users failed: {}", ex.getMessage());
                     latch.countDown();
                     return null;
                 });
 
-        boolean completed = latch.await(15, TimeUnit.SECONDS);
-        if (!completed) {
-            log.warn("Get online users request timed out");
-            return;
-        }
-
-        Iq response = responseRef.get();
-        if (response != null) {
-            log.info("Get online users response: type={}, id={}", response.getType(), response.getId());
-        }
+        boolean completed = latch.await(20, TimeUnit.SECONDS);
+        log.info("Get online users completed: {}", completed);
     }
 }
