@@ -1,8 +1,5 @@
 package com.example.xmpp;
 
-import com.example.xmpp.config.AuthConfig;
-import com.example.xmpp.config.ConnectionConfig;
-import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.event.ConnectionEventType;
@@ -322,19 +319,13 @@ public class PingFunctionalityTest {
      */
     private boolean setupConnection() throws Exception {
         XmppClientConfig config = XmppClientConfig.builder()
-                .connection(ConnectionConfig.builder()
-                        .xmppServiceDomain(SERVER_DOMAIN)
-                        .host(HOST)
-                        .port(PORT)
-                        .sendPresence(false)
-                        .build())
-                .auth(AuthConfig.builder()
-                        .username(USERNAME)
-                        .password(PASSWORD.toCharArray())
-                        .build())
-                .security(SecurityConfig.builder()
-                        .securityMode(SecurityConfig.SecurityMode.DISABLED)
-                        .build())
+                .xmppServiceDomain(SERVER_DOMAIN)
+                .host(HOST)
+                .port(PORT)
+                .sendPresence(false)
+                .username(USERNAME)
+                .password(PASSWORD.toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
                 .build();
 
         connection = new XmppTcpConnection(config);

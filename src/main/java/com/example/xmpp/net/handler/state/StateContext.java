@@ -89,7 +89,7 @@ public class StateContext {
 
             currentState.validateTransition(newState);
 
-            String connectionId = config.getConnection().getXmppServiceDomain();
+            String connectionId = config.getXmppServiceDomain();
             log.debug("[{}] State transition: {} -> {}", connectionId, currentState.name(), newState.name());
 
             currentState.onExit(this, ctx);
@@ -169,7 +169,7 @@ public class StateContext {
         XmlStringBuilder xml = new XmlStringBuilder(XmppConstants.DEFAULT_XML_BUILDER_CAPACITY);
         xml.append("<?xml version='1.0'?>");
         xml.element("stream", "stream", null)
-           .attribute("to", config.getConnection().getXmppServiceDomain())
+           .attribute("to", config.getXmppServiceDomain())
            .attribute("xmlns", XmppConstants.NS_JABBER_CLIENT)
            .attribute("xmlns:stream", XmppConstants.NS_XMPP_STREAMS)
            .attribute("version", XmppConstants.XMPP_VERSION);

@@ -1,9 +1,5 @@
 package com.example.xmpp;
 
-import com.example.xmpp.config.AuthConfig;
-import com.example.xmpp.config.ConnectionConfig;
-import com.example.xmpp.config.KeepAliveConfig;
-import com.example.xmpp.config.SecurityConfig;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
 
@@ -18,8 +14,6 @@ import lombok.extern.slf4j.Slf4j;
  * <pre>
  * java -jar xmpp-client.jar &lt;domain&gt; &lt;username&gt; &lt;password&gt;
  * </pre>
- *
- * @since 2026-02-09
  */
 @Slf4j
 public class Main {
@@ -54,44 +48,32 @@ public class Main {
     /**
      * 运行 XMPP 客户端。
      *
-     * @param domain   XMPP 服务域名，不能为 {@code null} 或空
-     * @param username 用户名，不能为 {@code null}
-     * @param password 密码，不能为 {@code null}
+     * @param domain   XMPP 服务域名
+     * @param username 用户名
+     * @param password 密码
      * @throws InterruptedException 如果线程被中断
      * @throws XmppException        如果 XMPP 连接失败
      */
     private static void runClient(String domain, String username, String password)
             throws InterruptedException, XmppException {
 
-        /* 创建配置（使用模块化配置类） */
         XmppClientConfig config = XmppClientConfig.builder()
-                .connection(ConnectionConfig.builder()
-                        .xmppServiceDomain(domain)
-                        .build())
-                .auth(AuthConfig.builder()
-                        .username(username)
-                        .password(password.toCharArray())
-                        .build())
-                .security(SecurityConfig.builder()
-                        .securityMode(SecurityConfig.SecurityMode.DISABLED)
-                        .build())
-                .keepAlive(KeepAliveConfig.builder()
-                        .reconnectionEnabled(true)
-                        .build())
+                .xmppServiceDomain(domain)
+                .username(username)
+                .password(password.toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .reconnectionEnabled(true)
                 .build();
 
-        log.info("Security mode: {}", config.getSecurity().getSecurityMode());
-        log.info("Using Direct TLS: {}", config.getSecurity().isUsingDirectTLS());
+        log.info("Security mode: {}", config.getSecurityMode());
+        log.info("Using Direct TLS: {}", config.isUsingDirectTLS());
 
-        /* 创建连接（PingManager 和 ReconnectionManager 自动初始化） */
         XmppTcpConnection connection = new XmppTcpConnection(config);
 
-        /* 建立连接 */
         connection.connect();
 
         log.info("Connected to XMPP server: {}", domain);
 
-        /* 保持程序运行 */
         Thread.sleep(Long.MAX_VALUE);
     }
 }

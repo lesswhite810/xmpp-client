@@ -37,7 +37,7 @@ public class SslUtils {
      */
     public static SslHandler createSslHandler(XmppClientConfig config)
             throws XmppNetworkException {
-        return createSslHandler(config.getConnection().getHost(), config.getConnection().getPort(), config);
+        return createSslHandler(config.getHost(), config.getPort(), config);
     }
 
     /**
@@ -56,12 +56,12 @@ public class SslUtils {
 
             SSLContext sslContext = SSLContext.getInstance("TLS");
 
-            TrustManager[] trustManagers = config.getSecurity().getCustomTrustManager();
-            KeyManager[] keyManagers = config.getSecurity().getKeyManagers();
+            TrustManager[] trustManagers = config.getCustomTrustManager();
+            KeyManager[] keyManagers = config.getKeyManagers();
 
-            if (config.getSecurity().getCustomSslContext() != null) {
+            if (config.getCustomSslContext() != null) {
                 log.debug("Using custom SSLContext");
-                sslContext = config.getSecurity().getCustomSslContext();
+                sslContext = config.getCustomSslContext();
             } else {
                 sslContext.init(keyManagers, trustManagers, new SecureRandom());
             }
@@ -75,14 +75,14 @@ public class SslUtils {
 
             sslEngine.setUseClientMode(true);
 
-            configureProtocols(sslEngine, config.getSecurity().getEnabledSSLProtocols());
+            configureProtocols(sslEngine, config.getEnabledSSLProtocols());
 
-            configureCipherSuites(sslEngine, config.getSecurity().getEnabledSSLCiphers());
+            configureCipherSuites(sslEngine, config.getEnabledSSLCiphers());
 
             SslHandler sslHandler = new SslHandler(sslEngine);
 
-            int handshakeTimeout = config.getSecurity().getHandshakeTimeoutMs() > 0
-                    ? config.getSecurity().getHandshakeTimeoutMs()
+            int handshakeTimeout = config.getHandshakeTimeoutMs() > 0
+                    ? config.getHandshakeTimeoutMs()
                     : DEFAULT_HANDSHAKE_TIMEOUT_MS;
             sslHandler.setHandshakeTimeoutMillis(handshakeTimeout);
 

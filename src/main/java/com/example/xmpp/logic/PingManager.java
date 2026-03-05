@@ -174,7 +174,7 @@ public class PingManager {
         }
 
         String id = XmppConstants.generateStanzaId();
-        Iq pingIq = PingIq.createPingRequest(id, connection.getConfig().getConnection().getXmppServiceDomain());
+        Iq pingIq = PingIq.createPingRequest(id, connection.getConfig().getXmppServiceDomain());
 
         log.debug("Sending Keepalive Ping...");
         connection.sendIqPacketAsync(pingIq)
