@@ -45,6 +45,7 @@ import java.util.concurrent.TimeUnit;
  * @since 2026-02-09
  */
 @Slf4j
+@Getter
 public class XmppTcpConnection extends AbstractXmppConnection {
 
     /**
