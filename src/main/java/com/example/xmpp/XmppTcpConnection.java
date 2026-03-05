@@ -1,6 +1,7 @@
 package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
+import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppDnsException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
@@ -109,9 +110,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * </ol>
      * </p>
      *
-     * @throws com.example.xmpp.exception.XmppNetworkException 如果无法解析服务器地址或连接失败
-     * @throws com.example.xmpp.exception.XmppAuthException 如果 SASL 认证失败
-     * @throws com.example.xmpp.exception.XmppException 如果发生其他 XMPP 相关错误
+     * @throws XmppNetworkException 如果无法解析服务器地址或连接失败
+     * @throws XmppAuthException 如果 SASL 认证失败
+     * @throws XmppException 如果发生其他 XMPP 相关错误
      */
     @Override
     public void connect() throws XmppException {

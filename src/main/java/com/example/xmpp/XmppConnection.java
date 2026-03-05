@@ -2,7 +2,9 @@ package com.example.xmpp;
 
 import com.example.xmpp.handler.IqRequestHandler;
 import com.example.xmpp.config.XmppClientConfig;
+import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppException;
+import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.Iq;
 import java.util.concurrent.CompletableFuture;
@@ -24,9 +26,9 @@ public interface XmppConnection {
      * <p>根据配置解析服务器地址，建立 TCP 连接，完成 TLS 协商（如果需要），
      * 并进行 SASL 认证和资源绑定。</p>
      *
-     * @throws com.example.xmpp.exception.XmppNetworkException 如果网络连接失败
-     * @throws com.example.xmpp.exception.XmppAuthException 如果认证失败
-     * @throws com.example.xmpp.exception.XmppException 如果发生其他 XMPP 相关错误
+     * @throws XmppNetworkException 如果网络连接失败
+     * @throws XmppAuthException 如果认证失败
+     * @throws XmppException 如果发生其他 XMPP 相关错误
      */
     void connect() throws XmppException;
 
