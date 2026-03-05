@@ -137,7 +137,7 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> addUser(String username, String password, String email) {
         AddUser request = new AddUser(username, password, email);
         Iq iq = new Iq.Builder(Iq.Type.SET)
-                .id("admin-add-" + System.currentTimeMillis())
+                .id("add-" + System.currentTimeMillis())
                 .to(serviceDomain)
                 .childElement(request)
                 .build();
@@ -153,7 +153,7 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> deleteUser(String username) {
         DeleteUser request = new DeleteUser(username);
         Iq iq = new Iq.Builder(Iq.Type.SET)
-                .id("admin-delete-" + System.currentTimeMillis())
+                .id("delete-" + System.currentTimeMillis())
                 .to(serviceDomain)
                 .childElement(request)
                 .build();
@@ -182,7 +182,7 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> editUser(String username, String newPassword, String email) {
         EditUser request = new EditUser(username, newPassword, email);
         Iq iq = new Iq.Builder(Iq.Type.SET)
-                .id("admin-edit-" + System.currentTimeMillis())
+                .id("edit-" + System.currentTimeMillis())
                 .to(serviceDomain)
                 .childElement(request)
                 .build();
@@ -198,7 +198,7 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> getUser(String username) {
         GetUser request = new GetUser(username);
         Iq iq = new Iq.Builder(Iq.Type.GET)
-                .id("admin-get-" + System.currentTimeMillis())
+                .id("get-" + System.currentTimeMillis())
                 .to(serviceDomain)
                 .childElement(request)
                 .build();
@@ -213,7 +213,7 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> listUsers() {
         ListUsers request = new ListUsers();
         Iq iq = new Iq.Builder(Iq.Type.GET)
-                .id("admin-list-" + System.currentTimeMillis())
+                .id("list-" + System.currentTimeMillis())
                 .to(serviceDomain)
                 .childElement(request)
                 .build();
@@ -229,7 +229,7 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> listUsers(List<String> domains) {
         ListUsers request = new ListUsers(domains);
         Iq iq = new Iq.Builder(Iq.Type.GET)
-                .id("admin-list-" + System.currentTimeMillis())
+                .id("list-" + System.currentTimeMillis())
                 .to(serviceDomain)
                 .childElement(request)
                 .build();
@@ -244,7 +244,7 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> getOnlineUsers() {
         GetOnlineUsers request = new GetOnlineUsers();
         Iq iq = new Iq.Builder(Iq.Type.GET)
-                .id("admin-online-" + System.currentTimeMillis())
+                .id("online-" + System.currentTimeMillis())
                 .to(serviceDomain)
                 .childElement(request)
                 .build();
@@ -259,7 +259,7 @@ public class AdminManager {
      */
     public CompletableFuture<XmppStanza> kickUser(String jid) {
         Iq iq = new Iq.Builder(Iq.Type.SET)
-                .id("admin-kick-" + System.currentTimeMillis())
+                .id("kick-" + System.currentTimeMillis())
                 .to(jid)
                 .build();
         return connection.sendIqPacketAsync(iq);
