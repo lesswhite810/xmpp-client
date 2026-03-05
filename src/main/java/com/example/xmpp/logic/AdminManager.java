@@ -23,6 +23,21 @@ import java.util.concurrent.TimeUnit;
  * <p>管理员命令通过 Ad-Hoc Commands (XEP-0050) 发送到服务器。</p>
  *
  * <p>注意：此实现针对 Openfire 服务器进行了优化，使用 from 地址匹配响应。</p>
+ *
+ * <p>使用示例：</p>
+ * <pre>{@code
+ * XmppClientConfig config = XmppClientConfig.builder()
+ *     .xmppServiceDomain("example.com")
+ *     .username("admin")  // 管理员账户
+ *     .password("password".toCharArray())
+ *     .build();
+ *
+ * XmppTcpConnection connection = new XmppTcpConnection(config);
+ * connection.connect();
+ *
+ * AdminManager adminManager = new AdminManager(connection, config);
+ * adminManager.addUser("newuser", "password");
+ * }</pre>
  */
 @Slf4j
 public class AdminManager {
@@ -31,12 +46,40 @@ public class AdminManager {
 
     private final XmppConnection connection;
     private final String serviceDomain;
-    private final String adminJid;
+    private final String adminUsername;
 
+    /**
+     * 创建 AdminManager。
+     *
+     * @param connection XMPP 连接
+     * @param config 客户端配置，需要包含管理员账户的用户名
+     */
     public AdminManager(XmppConnection connection, XmppClientConfig config) {
         this.connection = connection;
         this.serviceDomain = config.getXmppServiceDomain();
-        this.adminJid = "admin@" + serviceDomain;
+        this.adminUsername = config.getUsername();
+    }
+
+    /**
+     * 创建 AdminManager（带自定义管理员用户名）。
+     *
+     * @param connection XMPP 连接
+     * @param adminUsername 管理员用户名
+     * @param serviceDomain XMPP 服务域名
+     */
+    public AdminManager(XmppConnection connection, String adminUsername, String serviceDomain) {
+        this.connection = connection;
+        this.serviceDomain = serviceDomain;
+        this.adminUsername = adminUsername;
+    }
+
+    /**
+     * 获取管理员用户名。
+     *
+     * @return 管理员用户名
+     */
+    public String getAdminUsername() {
+        return adminUsername;
     }
 
     /**
@@ -56,9 +99,9 @@ public class AdminManager {
             if (responseIq.getType() != Iq.Type.RESULT && responseIq.getType() != Iq.Type.ERROR) {
                 return false;
             }
-            // 检查 from 地址是否来自 admin 用户
+            // 检查 from 地址是否来自管理员用户
             String from = responseIq.getFrom();
-            if (from != null && (from.startsWith("admin@") || from.contains("/admin'"))) {
+            if (from != null && from.startsWith(adminUsername + "@")) {
                 log.debug("Matched admin response from: {}", from);
                 return true;
             }
