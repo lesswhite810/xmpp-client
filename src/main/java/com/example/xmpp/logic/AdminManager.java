@@ -8,6 +8,7 @@ import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.extension.*;
 import com.example.xmpp.protocol.StanzaFilter;
 import com.example.xmpp.protocol.AsyncStanzaCollector;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -40,6 +41,7 @@ import java.util.concurrent.TimeUnit;
  * }</pre>
  */
 @Slf4j
+@Getter
 public class AdminManager {
 
     private static final long DEFAULT_TIMEOUT_MS = 15000;
@@ -71,15 +73,6 @@ public class AdminManager {
         this.connection = connection;
         this.serviceDomain = serviceDomain;
         this.adminUsername = adminUsername;
-    }
-
-    /**
-     * 获取管理员用户名。
-     *
-     * @return 管理员用户名
-     */
-    public String getAdminUsername() {
-        return adminUsername;
     }
 
     /**
