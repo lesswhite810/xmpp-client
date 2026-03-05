@@ -8,7 +8,7 @@ import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.Message;
 import com.example.xmpp.protocol.model.Presence;
 import com.example.xmpp.protocol.model.extension.Ping;
-import com.example.xmpp.sasl.*;
+import com.example.xmpp.mechanism.*;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

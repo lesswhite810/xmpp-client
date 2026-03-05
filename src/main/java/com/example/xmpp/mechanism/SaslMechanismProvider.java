@@ -1,4 +1,4 @@
-package com.example.xmpp.sasl;
+package com.example.xmpp.mechanism;
 
 /**
  * SASL 机制提供者接口（SPI）。

@@ -1,4 +1,4 @@
-package com.example.xmpp.net.handler.state;
+package com.example.xmpp.net.state;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

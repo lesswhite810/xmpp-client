@@ -1,4 +1,4 @@
-package com.example.xmpp.sasl;
+package com.example.xmpp.mechanism;
 
 import com.example.xmpp.util.XmppConstants;
 

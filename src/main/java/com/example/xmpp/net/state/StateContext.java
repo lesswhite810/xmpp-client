@@ -1,4 +1,4 @@
-package com.example.xmpp.net.handler.state;
+package com.example.xmpp.net.state;
 
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.XmppTcpConnection;
@@ -6,7 +6,7 @@ import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.net.XmppStreamDecoder;
 import com.example.xmpp.protocol.model.XmlSerializable;
-import com.example.xmpp.sasl.SaslNegotiator;
+import com.example.xmpp.mechanism.SaslNegotiator;
 import com.example.xmpp.util.NettyUtils;
 import com.example.xmpp.util.XmlStringBuilder;
 import io.netty.channel.ChannelHandlerContext;

@@ -1,4 +1,4 @@
-package com.example.xmpp.logic;
+package com.example.xmpp.handler;
 
 import com.example.xmpp.handler.AbstractIqRequestHandler;
 import com.example.xmpp.protocol.model.Iq;

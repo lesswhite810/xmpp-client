@@ -3,6 +3,7 @@ package com.example.xmpp.logic;
 import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
+import com.example.xmpp.handler.PingIqRequestHandler;
 import com.example.xmpp.XmppConnection;
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmppScheduler;

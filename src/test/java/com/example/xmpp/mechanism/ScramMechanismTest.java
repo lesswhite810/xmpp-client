@@ -1,5 +1,6 @@
-package com.example.xmpp.sasl;
+package com.example.xmpp.mechanism;
 
+import com.example.xmpp.mechanism.ScramSha256SaslMechanism;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

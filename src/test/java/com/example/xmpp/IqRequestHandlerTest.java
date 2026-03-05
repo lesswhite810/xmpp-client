@@ -2,7 +2,7 @@ package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.handler.IqRequestHandler;
-import com.example.xmpp.logic.PingIqRequestHandler;
+import com.example.xmpp.handler.PingIqRequestHandler;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.extension.Ping;
 import org.junit.jupiter.api.BeforeEach;

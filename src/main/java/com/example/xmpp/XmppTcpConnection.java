@@ -5,7 +5,7 @@ import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppDnsException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
-import com.example.xmpp.logic.PingIqRequestHandler;
+import com.example.xmpp.handler.PingIqRequestHandler;
 import com.example.xmpp.logic.PingManager;
 import com.example.xmpp.logic.ReconnectionManager;
 import com.example.xmpp.net.DnsResolver;

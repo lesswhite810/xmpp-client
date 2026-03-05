@@ -1,4 +1,4 @@
-package com.example.xmpp.net.handler.state;
+package com.example.xmpp.net.state;
 
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppAuthException;
@@ -16,9 +16,9 @@ import com.example.xmpp.protocol.model.stream.TlsElements.StartTls;
 import com.example.xmpp.protocol.model.stream.TlsElements.TlsProceed;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.protocol.model.stream.StreamHeader;
-import com.example.xmpp.sasl.SaslMechanism;
-import com.example.xmpp.sasl.SaslMechanismFactory;
-import com.example.xmpp.sasl.SaslNegotiator;
+import com.example.xmpp.mechanism.SaslMechanism;
+import com.example.xmpp.mechanism.SaslMechanismFactory;
+import com.example.xmpp.mechanism.SaslNegotiator;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
 import lombok.extern.slf4j.Slf4j;
