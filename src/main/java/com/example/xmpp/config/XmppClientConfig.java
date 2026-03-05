@@ -69,8 +69,6 @@ public class XmppClientConfig {
     @Builder.Default
     private Locale language = Locale.getDefault();
 
-    /** 便捷方法 */
-
     /**
      * 安全获取密码（返回克隆副本）。
      *
@@ -101,8 +99,6 @@ public class XmppClientConfig {
         String tag = language.toLanguageTag();
         return "und".equals(tag) ? null : tag;
     }
-
-    /** Null 安全访问方法 */
 
     /**
      * 获取端口号，默认值 5222。
