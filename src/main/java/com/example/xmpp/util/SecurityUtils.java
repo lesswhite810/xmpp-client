@@ -56,7 +56,6 @@ public class SecurityUtils {
     public static void clear(char[] chars) {
         if (chars != null) {
             Arrays.fill(chars, '\0');
-            // Volatile 读防止 JVM 优化掉上面的 fill 操作
             dummyRead(chars);
         }
     }
@@ -71,7 +70,6 @@ public class SecurityUtils {
     public static void clear(byte[] bytes) {
         if (bytes != null) {
             Arrays.fill(bytes, (byte) 0);
-            // Volatile 读防止 JVM 优化掉上面的 fill 操作
             dummyRead(bytes);
         }
     }
@@ -82,7 +80,6 @@ public class SecurityUtils {
      * <p>volatile 读会创建内存屏障，确保 fill 操作不会被优化掉。</p>
      */
     private static void dummyRead(char[] arr) {
-        // 实际读取数组的长度和第一个元素，防止 JVM 优化掉内存清零操作
         if (arr.length > 0) {
             // 读取第一个元素（虽然值已被清零），确保内存可见性
             volatileBarrier(arr[0]);
@@ -98,7 +95,6 @@ public class SecurityUtils {
     private static volatile int barrier = 0;
 
     private static void volatileBarrier(char c) {
-        // volatile 读写会创建内存屏障，同时使用参数确保不会被优化掉
         barrier = barrier + c;
     }
 
@@ -156,7 +152,6 @@ public class SecurityUtils {
         if (xml == null || xml.isEmpty()) {
             return xml;
         }
-        // 使用预编译正则一次性替换所有敏感元素（性能优化）
         return SENSITIVE_ELEMENTS_PATTERN.matcher(xml)
                 .replaceAll("<$1$2>" + MASK + "</$1>");
     }
@@ -276,12 +271,10 @@ public class SecurityUtils {
             return a == b;
         }
 
-        // 即使长度不等也继续比较，保持常量时间
         int maxLen = Math.max(a.length, b.length);
         int result = a.length ^ b.length; // 长度差异记录在 result 中
 
         for (int i = 0; i < maxLen; i++) {
-            // 使用安全索引，超出范围时与自身比较
             char charA = i < a.length ? a[i] : 0;
             char charB = i < b.length ? b[i] : 0;
             result |= charA ^ charB;
@@ -303,12 +296,10 @@ public class SecurityUtils {
             return a == b;
         }
 
-        // 即使长度不等也继续比较，保持常量时间
         int maxLen = Math.max(a.length, b.length);
         int result = a.length ^ b.length; // 长度差异记录在 result 中
 
         for (int i = 0; i < maxLen; i++) {
-            // 使用安全索引，超出范围时与自身比较
             byte byteA = i < a.length ? a[i] : 0;
             byte byteB = i < b.length ? b[i] : 0;
             result |= byteA ^ byteB;

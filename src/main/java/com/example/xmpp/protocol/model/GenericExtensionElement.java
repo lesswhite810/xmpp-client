@@ -139,32 +139,26 @@ public class GenericExtensionElement implements ExtensionElement {
     public String toXml() {
         XmlStringBuilder xml = new XmlStringBuilder();
 
-        // 如果没有子元素和文本，使用自闭合标签
         if (children.isEmpty() && (text == null || text.isEmpty())) {
             return buildEmptyElementXml();
         }
 
-        // 有内容时使用完整标签
         xml.element(elementName);
 
-        // 添加命名空间
         if (!namespace.isEmpty()) {
             xml.attribute("xmlns", namespace);
         }
 
-        // 添加属性
         for (Map.Entry<String, String> attr : attributes.entrySet()) {
             xml.attribute(attr.getKey(), attr.getValue());
         }
 
         xml.rightAngleBracket();
 
-        // 添加文本内容
         if (text != null && !text.isEmpty()) {
             xml.escapedContent(text);
         }
 
-        // 添加子元素
         for (GenericExtensionElement child : children) {
             xml.append(child.toXml());
         }

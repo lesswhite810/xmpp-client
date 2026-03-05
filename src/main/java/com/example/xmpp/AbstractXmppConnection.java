@@ -186,7 +186,6 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         private final Iq.Type iqType;
 
         IqHandlerKey(String element, String namespace, Iq.Type iqType) {
-            // 校验 element 和 iqType 不能为 null
             if (element == null || iqType == null) {
                 throw new IllegalArgumentException("element and iqType must not be null");
             }
