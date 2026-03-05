@@ -268,9 +268,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
                 Channel channel = ConnectionUtils.connectSync(bootstrap, target.toSocketAddress());
                 log.info("Connected to {}", target);
                 return Optional.of(channel);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.warn("Connection interrupted to {}", target);
+            } catch (RuntimeException e) {
+                log.warn("Connection failed to {}: {}", target, e.getMessage());
             }
         }
         return Optional.empty();

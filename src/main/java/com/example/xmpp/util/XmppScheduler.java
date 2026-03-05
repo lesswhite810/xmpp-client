@@ -102,8 +102,6 @@ public final class XmppScheduler {
 
     /**
      * 优雅关闭调度器。
-     *
-     * @throws InterruptedException 如果关闭过程中线程被中断
      */
     public static void shutdown() {
         log.debug("Shutting down XmppScheduler...");
@@ -124,7 +122,6 @@ public final class XmppScheduler {
             log.warn("Shutdown interrupted, forcing shutdown...");
             SCHEDULER.shutdownNow();
             VIRTUAL_EXECUTOR.shutdownNow();
-            Thread.currentThread().interrupt();
         }
 
         log.debug("XmppScheduler shutdown complete");

@@ -24,17 +24,14 @@ public class ConnectionUtils {
     /**
      * 同步连接到指定地址。
      *
-     * <p>此方法会阻塞当前线程，直到连接成功建立或发生异常。
-     * 连接过程中如果线程被中断，将抛出 {@link InterruptedException}。</p>
+     * <p>此方法会阻塞当前线程，直到连接成功建立或发生异常。</p>
      *
      * @param bootstrap Netty Bootstrap 实例，用于建立连接，不能为 null
      * @param address   目标地址（可以是已解析或未解析的），不能为 null
      * @return 已连接的 Channel 实例
-     * @throws InterruptedException 如果在连接过程中当前线程被中断
      * @throws io.netty.channel.ChannelException 如果连接失败（如拒绝连接、超时等）
      */
-    public static Channel connectSync(Bootstrap bootstrap, InetSocketAddress address)
-            throws InterruptedException {
+    public static Channel connectSync(Bootstrap bootstrap, InetSocketAddress address) {
         String hostDesc = address.isUnresolved()
                 ? address.getHostString()
                 : address.getAddress().getHostAddress();
@@ -49,7 +46,7 @@ public class ConnectionUtils {
             return channel;
         } catch (InterruptedException e) {
             log.error("Connection interrupted for {}:{}", hostDesc, port);
-            throw e;
+            throw new RuntimeException("Connection interrupted", e);
         }
     }
 }

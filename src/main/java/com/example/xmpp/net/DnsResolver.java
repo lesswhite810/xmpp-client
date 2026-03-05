@@ -106,8 +106,6 @@ public class DnsResolver implements AutoCloseable {
             } finally {
                 envelope.release();
             }
-        } catch (InterruptedException e) {
-            throw new XmppDnsException("DNS resolution interrupted for domain: " + domain, e);
         } catch (TimeoutException e) {
             throw new XmppDnsException("DNS resolution timeout for domain: " + domain, e);
         } catch (ExecutionException e) {
@@ -151,14 +149,17 @@ public class DnsResolver implements AutoCloseable {
      *
      * @return DNS 响应信封
      *
-     * @throws InterruptedException 如果线程被中断
      * @throws TimeoutException     如果查询超时
      * @throws ExecutionException   如果查询失败
      */
     private AddressedEnvelope<DnsResponse, InetSocketAddress> executeDnsQuery(String serviceName)
-            throws InterruptedException, TimeoutException, ExecutionException {
+            throws TimeoutException, ExecutionException {
         DnsQuestion question = new DefaultDnsQuestion(serviceName, DnsRecordType.SRV);
-        return resolver.query(question).get(XmppConstants.DNS_QUERY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        try {
+            return resolver.query(question).get(XmppConstants.DNS_QUERY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            throw new RuntimeException("DNS query interrupted", e);
+        }
     }
 
     /**
@@ -328,7 +329,6 @@ public class DnsResolver implements AutoCloseable {
                 try {
                     group.shutdownGracefully(0, XmppConstants.SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS).sync();
                 } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
                     log.warn("Interrupted while shutting down DNS resolver EventLoopGroup");
                 }
             } else {

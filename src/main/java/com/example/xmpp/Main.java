@@ -36,9 +36,6 @@ public class Main {
 
         try {
             runClient(domain, username, password);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.info("Application interrupted");
         } catch (XmppException e) {
             log.error("XMPP error: {}", e.getMessage(), e);
             throw new RuntimeException("XMPP connection failed", e);
@@ -51,11 +48,10 @@ public class Main {
      * @param domain   XMPP 服务域名
      * @param username 用户名
      * @param password 密码
-     * @throws InterruptedException 如果线程被中断
      * @throws XmppException        如果 XMPP 连接失败
      */
     private static void runClient(String domain, String username, String password)
-            throws InterruptedException, XmppException {
+            throws XmppException {
 
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain(domain)
@@ -74,6 +70,10 @@ public class Main {
 
         log.info("Connected to XMPP server: {}", domain);
 
-        Thread.sleep(Long.MAX_VALUE);
+        try {
+            Thread.sleep(Long.MAX_VALUE);
+        } catch (InterruptedException e) {
+            log.info("Application interrupted");
+        }
     }
 }
