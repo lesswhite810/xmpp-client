@@ -6,7 +6,10 @@ import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
 /**
- * SASL 认证元素。
+ * SASL 认证元素，用于 XMPP SASL 握手流程。
+ * <p>
+ * 客户端通过发送 Auth 元素发起 SASL 认证，包含要使用的 SASL 机制名称
+ * (如 PLAIN, SCRAM-SHA-1, SCRAM-SHA-256) 以及可选的初始认证响应数据。
  *
  * @since 2026-02-09
  */
@@ -20,10 +23,10 @@ public final class Auth implements ExtensionElement {
     private final String content;
 
     /**
-     * 创建 Auth 实例。
+     * 构造 Auth 实例。
      *
-     * @param mechanism SASL 机制
-     * @param content 认证内容
+     * @param mechanism SASL 机制名称，如 "PLAIN"、"SCRAM-SHA-1"、"SCRAM-SHA-256"
+     * @param content 初始认证响应数据，可为 null（表示不带初始响应）
      */
     public Auth(String mechanism, String content) {
         this.mechanism = mechanism;

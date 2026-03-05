@@ -15,10 +15,8 @@ import javax.xml.stream.events.XMLEvent;
  */
 public final class PingProvider extends AbstractProvider<Ping> {
 
-    /** Ping 元素名称 */
     public static final String ELEMENT = "ping";
 
-    /** Ping 命名空间 */
     public static final String NAMESPACE = "urn:xmpp:ping";
 
     /**
@@ -44,9 +42,9 @@ public final class PingProvider extends AbstractProvider<Ping> {
     /**
      * 解析 Ping 元素，Ping 元素为空元素，不包含任何内容。
      *
-     * @param reader XMLEventReader
+     * @param reader XMLEventReader，用于读取 XML 事件流
      * @return Ping 单例实例
-     * @throws XMLStreamException 如果解析过程中发生错误
+     * @throws XMLStreamException 如果解析过程中发生 XML 错误
      */
     @Override
     protected Ping parseInstance(XMLEventReader reader) throws XMLStreamException {
@@ -62,8 +60,8 @@ public final class PingProvider extends AbstractProvider<Ping> {
     /**
      * 序列化 Ping 对象为 XML。
      *
-     * @param ping Ping 对象
-     * @param xml  XmlStringBuilder
+     * @param ping Ping 对象（此处未使用，因为 Ping 是单例）
+     * @param xml  XmlStringBuilder，用于构建 XML 输出
      */
     @Override
     protected void serializeInstance(Ping ping, XmlStringBuilder xml) {

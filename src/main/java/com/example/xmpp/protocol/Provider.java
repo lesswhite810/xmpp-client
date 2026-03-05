@@ -20,11 +20,9 @@ public interface Provider<T> {
     /**
      * 从 XML 解析对象。
      *
-     * @param reader XMLEventReader，不能为 null
-     *
-     * @return 解析后的对象，可能为 null（取决于具体实现）
-     *
-     * @throws XmppParseException 如果解析失败（如格式错误、验证失败等）
+     * @param reader XMLEventReader，指向 XML 流的当前位置，不能为 null
+     * @return 解析后的对象实例，可能为 null（取决于具体实现）
+     * @throws XmppParseException 如果 XML 格式错误、元素缺失、验证失败或 IO 错误
      */
     T parse(XMLEventReader reader) throws XmppParseException;
 
@@ -32,7 +30,8 @@ public interface Provider<T> {
      * 将对象序列化为 XML。
      *
      * @param object 要序列化的对象，可能为 null
-     * @param xml    XmlStringBuilder，不能为 null
+     * @param xml    XmlStringBuilder，用于构建 XML 输出，不能为 null
+     * @throws NullPointerException 如果 xml 参数为 null
      */
     void serialize(T object, XmlStringBuilder xml);
 

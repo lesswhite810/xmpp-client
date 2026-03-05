@@ -42,10 +42,10 @@ public interface IqProvider extends Provider<Iq> {
     /**
      * 解析 IQ 子元素并构建完整的 Iq 对象。
      *
-     * @param reader  XML 事件读取器，已定位到子元素的开始标签
-     * @param builder Iq 构建器，已设置 type, id, from, to 属性
+     * @param reader  XML 事件读取器，已定位到子元素的开始标签，不能为 null
+     * @param builder Iq 构建器，已设置 type, id, from, to 属性，不能为 null
      * @return 完整的 Iq 对象
-     * @throws Exception 解析异常
+     * @throws Exception 如果 XML 解析失败、IO 错误或元素验证失败
      */
     Iq parse(javax.xml.stream.XMLEventReader reader, Iq.Builder builder) throws Exception;
 }

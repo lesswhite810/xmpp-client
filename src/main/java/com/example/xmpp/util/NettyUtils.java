@@ -28,7 +28,6 @@ import java.nio.charset.StandardCharsets;
 @UtilityClass
 public class NettyUtils {
 
-    /** UTF-8 字符最大字节数 */
     private static final float UTF8_MAX_BYTES_PER_CHAR = 3.0f;
 
     /**

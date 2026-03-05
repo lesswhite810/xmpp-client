@@ -45,10 +45,8 @@ public class SaslMechanismFactory {
     private final ServiceLoader<SaslMechanismProvider> providerLoader;
 
     private SaslMechanismFactory() {
-        // 缓存 ServiceLoader 实例
         this.providerLoader = ServiceLoader.load(SaslMechanismProvider.class);
 
-        // 注册内置机制
         register(XmppConstants.SASL_MECH_SCRAM_SHA512, XmppConstants.PRIORITY_SCRAM_SHA512,
                 ScramSha512SaslMechanism::new);
         register(XmppConstants.SASL_MECH_SCRAM_SHA256, XmppConstants.PRIORITY_SCRAM_SHA256,
@@ -56,7 +54,6 @@ public class SaslMechanismFactory {
         register(XmppConstants.SASL_MECH_SCRAM_SHA1, XmppConstants.PRIORITY_SCRAM_SHA1, ScramSha1SaslMechanism::new);
         register(XmppConstants.SASL_MECH_PLAIN, XmppConstants.PRIORITY_PLAIN, PlainSaslMechanism::new);
 
-        // 注册 SPI 发现的扩展机制
         for (SaslMechanismProvider provider : this.providerLoader) {
             register(provider.getMechanismName(), provider.getPriority(), provider::create);
         }
@@ -91,13 +88,10 @@ public class SaslMechanismFactory {
     public void register(String name, int priority, BiFunction<String, char[], SaslMechanism> factory) {
         registrationLock.lock();
         try {
-            // 创建当前机制列表的副本进行修改
             List<MechanismEntry> updated = new ArrayList<>(registeredMechanisms);
             updated.add(new MechanismEntry(name, priority, factory));
-            // 按优先级降序排序（高优先级在前）
             updated.sort((a, b) -> Integer.compare(b.priority, a.priority));
 
-            // P1 修复：原子替换整个列表引用，消除清空和填充之间的并发空窗
             registeredMechanisms = List.copyOf(updated);
         } finally {
             registrationLock.unlock();
@@ -129,11 +123,9 @@ public class SaslMechanismFactory {
     public Optional<SaslMechanism> createBestMechanism(List<String> serverMechanisms, Set<String> enabledMechanisms,
             String username, char[] password) {
         for (MechanismEntry entry : registeredMechanisms) {
-            // 检查服务器是否支持该机制
             if (!serverMechanisms.contains(entry.name)) {
                 continue;
             }
-            // 如果客户端指定了启用的机制，检查该机制是否在启用列表中
             if (enabledMechanisms != null && !enabledMechanisms.isEmpty()) {
                 if (!enabledMechanisms.contains(entry.name)) {
                     continue;
@@ -147,7 +139,6 @@ public class SaslMechanismFactory {
     /**
      * SASL 机制条目，存储机制的名称、优先级和工厂函数。
      *
-     * @since 2026-02-09
      */
     @Getter
     @RequiredArgsConstructor

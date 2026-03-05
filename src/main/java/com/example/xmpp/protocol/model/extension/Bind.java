@@ -7,7 +7,10 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * Resource Binding 扩展元素 (XEP-0198)。
+ * XMPP Resource Binding 扩展元素，实现 XEP-0198 (Resource Binding)。
+ * <p>
+ * 用于在 SASL 认证成功后，将客户端绑定到一个资源标识符 (JID)。
+ * 服务器响应包含完整的 JID (包含节点、域名和资源)，客户端也可在请求中指定资源名。
  *
  * @since 2026-02-09
  */

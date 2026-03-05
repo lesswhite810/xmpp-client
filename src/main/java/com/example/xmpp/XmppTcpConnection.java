@@ -79,7 +79,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     /**
      * 构造 TCP 连接。
      *
-     * @param config 客户端配置
+     * <p>根据配置初始化连接，并可选地创建 PingManager 和 ReconnectionManager。</p>
+     *
+     * @param config 客户端配置，不能为 {@code null}
      * @throws IllegalArgumentException 如果 config 为 null
      */
     public XmppTcpConnection(XmppClientConfig config) {
@@ -102,7 +104,17 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     /**
      * 建立 TCP 连接。
      *
-     * @throws XmppException 如果连接过程中发生错误（如网络失败、认证失败等）
+     * <p>执行完整的 XMPP 连接流程：
+     * <ol>
+     *   <li>解析连接目标列表（DNS SRV 或配置）</li>
+     *   <li>创建并配置 Netty Bootstrap</li>
+     *   <li>尝试连接到目标服务器</li>
+     * </ol>
+     * </p>
+     *
+     * @throws com.example.xmpp.exception.XmppNetworkException 如果无法解析服务器地址或连接失败
+     * @throws com.example.xmpp.exception.XmppAuthException 如果 SASL 认证失败
+     * @throws com.example.xmpp.exception.XmppException 如果发生其他 XMPP 相关错误
      */
     @Override
     public void connect() throws XmppException {
@@ -129,7 +141,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      *
      * <p>封装连接目标的主机名、IP地址和端口信息。</p>
      *
-     * @since 2026-02-09
      */
     private record ConnectionTarget(String host, InetAddress address, int port) {
 
@@ -294,7 +305,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     /**
      * 断开连接。
      *
-     * <p>关闭 Netty 通道、停止 Ping 定时任务，并清理相关资源。</p>
+     * <p>关闭 Netty 通道、停止 Ping 定时任务，并清理相关资源。
+     * 此方法会阻塞等待资源释放完成。</p>
      */
     @Override
     public void disconnect() {
@@ -353,7 +365,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     /**
      * 发送节。
      *
-     * @param stanza 要发送的节
+     * <p>将 XMPP 节发送到服务器。如果连接未激活，方法会记录错误日志并静默返回。</p>
+     *
+     * @param stanza 要发送的节，可以为 {@code null}（将静默忽略）
      */
     @Override
     public void sendStanza(XmppStanza stanza) {
@@ -372,7 +386,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     /**
      * 获取客户端配置。
      *
-     * @return 客户端配置对象
+     * @return 客户端配置对象，永不为 {@code null}
      */
     @Override
     public XmppClientConfig getConfig() {
@@ -381,6 +395,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     /**
      * 重置处理器状态。
+     *
+     * <p>用于重连场景，清除内部状态以便重新开始连接流程。</p>
      */
     @Override
     public void resetHandlerState() {

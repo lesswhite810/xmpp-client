@@ -34,11 +34,12 @@ import java.util.HashMap;
 @UtilityClass
 public class XmlParserUtils {
 
-    /** 共享的 XMLInputFactory 实例（线程安全） */
     private static final XMLInputFactory SHARED_INPUT_FACTORY = createInputFactoryInternal();
 
     /**
      * 安全的 XML 解析器，拒绝所有外部实体引用。
+     *
+     * @return null，表示拒绝解析外部实体
      */
     private static final XMLResolver SECURE_XML_RESOLVER = (publicID, systemID, baseURI, namespace) -> {
         log.warn("Blocked external entity reference - publicID: {}, systemID: {}, baseURI: {}",
@@ -52,17 +53,17 @@ public class XmlParserUtils {
     private static XMLInputFactory createInputFactoryInternal() {
         XMLInputFactory factory = XMLInputFactory.newInstance();
 
-        /* 安全配置（XXE 防护） */
+        // 安全配置（XXE 防护）
         factory.setProperty(XMLInputFactory.IS_VALIDATING, Boolean.FALSE);
         factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, Boolean.FALSE);
         factory.setXMLResolver(SECURE_XML_RESOLVER);
 
-        /* Woodstox 特定属性 */
+        // Woodstox 特定属性
         setPropertyIfSupported(factory, "com.ctc.wstx.enableTDs", Boolean.FALSE);
         setPropertyIfSupported(factory, "javax.xml.stream.supportDTD", Boolean.FALSE);
 
-        /* 功能配置 */
+        // 功能配置
         factory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.TRUE);
         factory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
 

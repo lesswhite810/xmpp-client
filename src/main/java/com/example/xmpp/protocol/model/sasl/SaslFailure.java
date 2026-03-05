@@ -7,7 +7,10 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * SASL 失败元素。
+ * SASL 失败元素，表示 SASL 认证流程失败。
+ * <p>
+ * 服务端发送 Failure 元素表示认证失败，包含具体的失败条件
+ * (如 not-authorized、invalid-credentials 等)。可选包含错误描述文本。
  *
  * @since 2026-02-09
  */
@@ -54,9 +57,6 @@ public class SaslFailure implements ExtensionElement {
         return xml.optTextElement("text", text).closeElement("failure").toString();
     }
 
-    /**
-     * SASL 失败条件枚举。
-     */
     public enum Condition {
         ABORTED("aborted"),
         CREDENTIALS_EXPIRED("credentials-expired"),

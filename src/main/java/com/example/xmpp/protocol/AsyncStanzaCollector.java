@@ -16,10 +16,8 @@ import java.util.concurrent.CompletableFuture;
  */
 public class AsyncStanzaCollector {
 
-    /** 节过滤器 */
     private final StanzaFilter filter;
 
-    /** 异步结果 Future */
     @Getter
     private final CompletableFuture<XmppStanza> future;
 

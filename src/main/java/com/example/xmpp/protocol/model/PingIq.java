@@ -39,6 +39,7 @@ public class PingIq {
      *
      * @param request Ping 请求 IQ
      * @return 空结果 IQ（按 XEP-0199）
+     * @throws NullPointerException 如果 request 为 null
      */
     public static Iq createPingResponse(Iq request) {
         return new Iq.Builder("result")

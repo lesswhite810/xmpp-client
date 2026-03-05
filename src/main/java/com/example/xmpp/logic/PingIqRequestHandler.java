@@ -38,8 +38,6 @@ public class PingIqRequestHandler extends AbstractIqRequestHandler {
     @Override
     public Iq handleIqRequest(Iq iqRequest) {
         log.debug("Handling Ping request from server, id: {}", iqRequest.getId());
-
-        // 使用 Iq.createResultResponse 构建空响应
         return Iq.createResultResponse(iqRequest, null);
     }
 }

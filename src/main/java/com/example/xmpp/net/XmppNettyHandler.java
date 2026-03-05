@@ -49,20 +49,11 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
 
-    /**
-     * 状态上下文（状态模式），使用 volatile 保证多线程可见性
-     */
     private volatile StateContext stateContext;
 
-    /**
-     * 客户端配置，不可变
-     */
     @NonNull
     private final XmppClientConfig config;
 
-    /**
-     * 连接引用，用于回调
-     */
     @NonNull
     private final XmppTcpConnection connection;
 
@@ -72,7 +63,6 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
      * @param ctx Netty 通道上下文
      */
     private void initStateContext(ChannelHandlerContext ctx) {
-        // 构造函数中已初始化状态到 CONNECTING
         this.stateContext = new StateContext(config, connection, ctx);
     }
 
@@ -134,7 +124,6 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
             return;
         }
 
-        // 状态模式：委托给当前状态处理
         stateContext.handleMessage(ctx, msg);
     }
 

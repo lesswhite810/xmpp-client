@@ -33,12 +33,10 @@ public record SrvRecord(String target, int port, int priority, int weight) imple
      */
     @Override
     public int compareTo(SrvRecord o) {
-        /** 优先级：越小越优先 */
         int p = Integer.compare(this.priority, o.priority);
         if (p != 0) {
             return p;
         }
-        /** 权重：越大越优先 */
         return Integer.compare(o.weight, this.weight);
     }
 }

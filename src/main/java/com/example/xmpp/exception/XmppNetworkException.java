@@ -15,6 +15,10 @@ import java.io.Serial;
  *   <li>连接被拒绝</li>
  * </ul>
  *
+ * <h3>构造器说明</h3>
+ * <p>本类使用 Lombok {@code @StandardException} 注解自动生成构造器，
+ * 继承自 {@link XmppException} 的所有构造器形式。</p>
+ *
  * @see XmppException
  * @since 2026-02-13
  */

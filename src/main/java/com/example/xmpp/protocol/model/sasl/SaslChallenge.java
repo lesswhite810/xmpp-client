@@ -7,7 +7,10 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * SASL 挑战元素。
+ * SASL 挑战元素，用于 XMPP SASL 握手流程。
+ * <p>
+ * 服务端发送 Challenge 元素向客户端请求额外的认证数据。
+ * 客户端需响应 SaslResponse 元素。该元素通常包含 Base64 编码的挑战数据。
  *
  * @since 2026-02-09
  */
@@ -22,8 +25,8 @@ public class SaslChallenge implements ExtensionElement {
     /**
      * 创建 SaslChallenge 实例。
      *
-     * @param content 挑战数据
-     * @return SaslChallenge 实例
+     * @param content 挑战数据，通常为 Base64 编码的字符串，可为 null
+     * @return 新创建的 SaslChallenge 实例
      */
     public static SaslChallenge of(String content) {
         return new SaslChallenge(content);

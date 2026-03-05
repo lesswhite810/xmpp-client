@@ -182,12 +182,10 @@ public class GenericExtensionElement implements ExtensionElement {
         StringBuilder sb = new StringBuilder();
         sb.append('<').append(elementName);
 
-        // 添加命名空间
         if (!namespace.isEmpty()) {
             sb.append(" xmlns=\"").append(escapeXml(namespace)).append('"');
         }
 
-        // 添加属性
         for (Map.Entry<String, String> attr : attributes.entrySet()) {
             sb.append(' ').append(attr.getKey()).append("=\"")
               .append(escapeXml(attr.getValue())).append('"');
@@ -236,10 +234,7 @@ public class GenericExtensionElement implements ExtensionElement {
     }
 
     /**
-     * Builder 类。
-     */
-    /**
-     * Builder 类。
+     * Builder 类，用于构造 GenericExtensionElement 实例。
      */
     public static class Builder {
         private final String elementName;
