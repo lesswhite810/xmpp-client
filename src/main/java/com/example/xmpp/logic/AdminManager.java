@@ -1,6 +1,7 @@
 package com.example.xmpp.logic;
 
 import com.example.xmpp.XmppConnection;
+import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.extension.*;
@@ -14,14 +15,18 @@ import java.util.concurrent.CompletableFuture;
  *
  * <p>提供 XMPP 服务管理功能，包括用户管理、在线用户管理等。
  * 使用此管理器需要管理员权限。</p>
+ *
+ * <p>管理员命令通过 Ad-Hoc Commands (XEP-0050) 发送到服务管理员账户。</p>
  */
 @Slf4j
 public class AdminManager {
 
     private final XmppConnection connection;
+    private final String serviceDomain;
 
-    public AdminManager(XmppConnection connection) {
+    public AdminManager(XmppConnection connection, XmppClientConfig config) {
         this.connection = connection;
+        this.serviceDomain = config.getXmppServiceDomain();
     }
 
     /**
@@ -46,8 +51,11 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> addUser(String username, String password, String email) {
         AddUser request = new AddUser(username, password, email);
         Iq iq = new Iq.Builder(Iq.Type.SET)
+                .id("admin-add-" + System.currentTimeMillis())
+                .to("admin@" + serviceDomain)
                 .childElement(request)
                 .build();
+        log.debug("Sending add-user IQ: {}", iq.toXml());
         return connection.sendIqPacketAsync(iq);
     }
 
@@ -60,8 +68,11 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> deleteUser(String username) {
         DeleteUser request = new DeleteUser(username);
         Iq iq = new Iq.Builder(Iq.Type.SET)
+                .id("admin-delete-" + System.currentTimeMillis())
+                .to("admin@" + serviceDomain)
                 .childElement(request)
                 .build();
+        log.debug("Sending delete-user IQ: {}", iq.toXml());
         return connection.sendIqPacketAsync(iq);
     }
 
@@ -87,8 +98,11 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> editUser(String username, String newPassword, String email) {
         EditUser request = new EditUser(username, newPassword, email);
         Iq iq = new Iq.Builder(Iq.Type.SET)
+                .id("admin-edit-" + System.currentTimeMillis())
+                .to("admin@" + serviceDomain)
                 .childElement(request)
                 .build();
+        log.debug("Sending edit-user IQ: {}", iq.toXml());
         return connection.sendIqPacketAsync(iq);
     }
 
@@ -101,8 +115,11 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> getUser(String username) {
         GetUser request = new GetUser(username);
         Iq iq = new Iq.Builder(Iq.Type.GET)
+                .id("admin-get-" + System.currentTimeMillis())
+                .to("admin@" + serviceDomain)
                 .childElement(request)
                 .build();
+        log.debug("Sending get-user IQ: {}", iq.toXml());
         return connection.sendIqPacketAsync(iq);
     }
 
@@ -114,8 +131,11 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> listUsers() {
         ListUsers request = new ListUsers();
         Iq iq = new Iq.Builder(Iq.Type.GET)
+                .id("admin-list-" + System.currentTimeMillis())
+                .to("admin@" + serviceDomain)
                 .childElement(request)
                 .build();
+        log.debug("Sending list-users IQ: {}", iq.toXml());
         return connection.sendIqPacketAsync(iq);
     }
 
@@ -128,8 +148,11 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> listUsers(List<String> domains) {
         ListUsers request = new ListUsers(domains);
         Iq iq = new Iq.Builder(Iq.Type.GET)
+                .id("admin-list-" + System.currentTimeMillis())
+                .to("admin@" + serviceDomain)
                 .childElement(request)
                 .build();
+        log.debug("Sending list-users IQ: {}", iq.toXml());
         return connection.sendIqPacketAsync(iq);
     }
 
@@ -141,8 +164,11 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> getOnlineUsers() {
         GetOnlineUsers request = new GetOnlineUsers();
         Iq iq = new Iq.Builder(Iq.Type.GET)
+                .id("admin-online-" + System.currentTimeMillis())
+                .to("admin@" + serviceDomain)
                 .childElement(request)
                 .build();
+        log.debug("Sending get-online-users IQ: {}", iq.toXml());
         return connection.sendIqPacketAsync(iq);
     }
 
@@ -154,8 +180,10 @@ public class AdminManager {
      */
     public CompletableFuture<XmppStanza> kickUser(String jid) {
         Iq iq = new Iq.Builder(Iq.Type.SET)
+                .id("admin-kick-" + System.currentTimeMillis())
                 .to(jid)
                 .build();
+        log.debug("Sending kick-user IQ: {}", iq.toXml());
         return connection.sendIqPacketAsync(iq);
     }
 }
