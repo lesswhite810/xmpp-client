@@ -87,11 +87,11 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     public XmppTcpConnection(XmppClientConfig config) {
         this.config = Objects.requireNonNull(config, "XmppClientConfig must not be null");
 
-        if (config.getKeepAlive().isPingEnabled()) {
+        if (config.isPingEnabled()) {
             this.pingManager = new PingManager(this);
         }
 
-        if (config.getKeepAlive().isReconnectionEnabled()) {
+        if (config.isReconnectionEnabled()) {
             this.reconnectionManager = new ReconnectionManager(this);
         }
 
@@ -201,23 +201,23 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * @return 连接目标列表
      */
     private List<ConnectionTarget> resolveConnectionTargets() {
-        int basePort = config.getSecurity().isUsingDirectTLS()
+        int basePort = config.isUsingDirectTLS()
                 ? XmppConstants.DIRECT_TLS_PORT
                 : XmppConstants.DEFAULT_XMPP_PORT;
-        int port = config.getConnection().getPort() > 0 ? config.getConnection().getPort() : basePort;
+        int port = config.getPort() > 0 ? config.getPort() : basePort;
 
         Optional<ConnectionTarget> configTarget = ConnectionTarget.of(
-                config.getConnection().getHostAddress(), config.getConnection().getHost(), port);
+                config.getHostAddress(), config.getHost(), port);
         if (configTarget.isPresent()) {
             return List.of(configTarget.get());
         }
 
-        List<SrvRecord> srvRecords = resolveSrvRecords(config.getConnection().getXmppServiceDomain());
+        List<SrvRecord> srvRecords = resolveSrvRecords(config.getXmppServiceDomain());
         if (!srvRecords.isEmpty()) {
             return ConnectionTarget.fromSrvRecords(srvRecords);
         }
 
-        return ConnectionTarget.of(null, config.getConnection().getXmppServiceDomain(), port)
+        return ConnectionTarget.of(null, config.getXmppServiceDomain(), port)
                 .map(List::of)
                 .orElse(List.of());
     }
@@ -235,13 +235,13 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         bootstrap.option(ChannelOption.TCP_NODELAY, true); // 禁用 Nagle 算法，降低延迟
         bootstrap.option(ChannelOption.SO_RCVBUF, 64 * 1024); // 接收缓冲区 64KB
         bootstrap.option(ChannelOption.SO_SNDBUF, 64 * 1024); // 发送缓冲区 64KB
-        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnection().getConnectTimeout());
+        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeout());
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
-                if (config.getSecurity().isUsingDirectTLS()) {
-                    String host = config.getConnection().getHost() != null ? config.getConnection().getHost() : config.getConnection().getXmppServiceDomain();
-                    int port = config.getConnection().getPort() > 0 ? config.getConnection().getPort() : XmppConstants.DIRECT_TLS_PORT;
+                if (config.isUsingDirectTLS()) {
+                    String host = config.getHost() != null ? config.getHost() : config.getXmppServiceDomain();
+                    int port = config.getPort() > 0 ? config.getPort() : XmppConstants.DIRECT_TLS_PORT;
                     SslHandler sslHandler = SslUtils.createSslHandler(host, port, config);
                     ch.pipeline().addLast(sslHandler);
                 }
