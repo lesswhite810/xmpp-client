@@ -1,5 +1,6 @@
 package com.example.xmpp.util;
 
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -22,12 +23,12 @@ public final class XmppConstants {
     /**
      * 生成唯一的 Stanza ID。
      *
-     * <p>使用原子计数器确保线程安全和唯一性，格式为 "xmpp-{counter}"。</p>
+     * <p>使用 UUID v4 确保全局唯一性，不可预测。</p>
      *
-     * @return 唯一的 Stanza ID 字符串，格式为 "xmpp-{序号}"
+     * @return 唯一的 Stanza ID 字符串，格式为 "xmpp-{UUID}"
      */
     public static String generateStanzaId() {
-        return "xmpp-" + stanzaIdCounter.getAndIncrement();
+        return "xmpp-" + UUID.randomUUID().toString();
     }
 
     public static final int DEFAULT_XMPP_PORT = 5222;
