@@ -39,7 +39,7 @@ public class AdminManagerIntegrationTest {
     private static final String TEST_USERNAME = "testuser";
     private static final String TEST_PASSWORD = "testpass";
 
-    private static XmppTcpConnection connection;
+    private static AbstractXmppConnection connection;
     private static AdminManager adminManager;
 
     @BeforeAll

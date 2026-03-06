@@ -281,7 +281,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @param filter 节过滤器
      * @return 新创建的收集器
      */
-    private AsyncStanzaCollector createStanzaCollector(StanzaFilter filter) {
+    public AsyncStanzaCollector createStanzaCollector(StanzaFilter filter) {
         AsyncStanzaCollector collector = new AsyncStanzaCollector(filter);
         collectors.add(collector);
         return collector;

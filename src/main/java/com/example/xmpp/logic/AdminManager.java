@@ -1,6 +1,7 @@
 package com.example.xmpp.logic;
 
 import com.example.xmpp.XmppConnection;
+import com.example.xmpp.AbstractXmppConnection;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.Stanza;
@@ -46,7 +47,7 @@ public class AdminManager {
 
     private static final long DEFAULT_TIMEOUT_MS = 15000;
 
-    private final XmppConnection connection;
+    private final AbstractXmppConnection connection;
     private final String serviceDomain;
     private final String adminUsername;
 
@@ -56,7 +57,7 @@ public class AdminManager {
      * @param connection XMPP 连接
      * @param config 客户端配置，需要包含管理员账户的用户名
      */
-    public AdminManager(XmppConnection connection, XmppClientConfig config) {
+    public AdminManager(AbstractXmppConnection connection, XmppClientConfig config) {
         this.connection = connection;
         this.serviceDomain = config.getXmppServiceDomain();
         this.adminUsername = config.getUsername();
@@ -69,7 +70,7 @@ public class AdminManager {
      * @param adminUsername 管理员用户名
      * @param serviceDomain XMPP 服务域名
      */
-    public AdminManager(XmppConnection connection, String adminUsername, String serviceDomain) {
+    public AdminManager(AbstractXmppConnection connection, String adminUsername, String serviceDomain) {
         this.connection = connection;
         this.serviceDomain = serviceDomain;
         this.adminUsername = adminUsername;
@@ -102,7 +103,8 @@ public class AdminManager {
             return from != null && from.equals(serviceDomain);
         };
 
-        AsyncStanzaCollector collector = new AsyncStanzaCollector(filter);
+        // 使用连接创建 collector（会自动注册到连接中）
+        AsyncStanzaCollector collector = connection.createStanzaCollector(filter);
         connection.sendStanza(iq);
         log.debug("Sent admin command: id={}, to={}", iq.getId(), iq.getTo());
 
