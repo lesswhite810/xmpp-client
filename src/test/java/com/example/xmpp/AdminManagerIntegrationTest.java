@@ -359,7 +359,7 @@ public class AdminManagerIntegrationTest {
             testUserConnection.disconnect();
             return;
         }
-        log.info("✅ Successfully connected with new password");
+        log.info("Successfully connected with new password");
 
         // 第三步：使用管理员连接将密码改回原密码
         log.info("Restoring original password (by admin)...");
@@ -429,7 +429,7 @@ public class AdminManagerIntegrationTest {
         assertTrue(deleteCompleted, "Delete user should complete");
         assertNotNull(deleteResponseRef.get(), "Delete user response should not be null");
         assertEquals(Iq.Type.RESULT, deleteResponseRef.get().getType(), "Delete user should succeed");
-        log.info("✅ Successfully deleted user: {}", TEST_USERNAME);
+        log.info("Successfully deleted user: {}", TEST_USERNAME);
 
         // 等待删除生效
         Thread.sleep(1000);
@@ -474,7 +474,7 @@ public class AdminManagerIntegrationTest {
 
         assertTrue(verifyCompleted, "Verification should complete");
         assertFalse(authSucceeded.get(), "Deleted user should NOT be able to authenticate");
-        log.info("✅ Verified: deleted user cannot authenticate");
+        log.info("Verified: deleted user cannot authenticate");
 
         // 断开验证连接
         deletedUserConnection.disconnect();

@@ -7,7 +7,6 @@ import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.extension.*;
-import com.example.xmpp.protocol.model.extension.ChangeUserPassword;
 import com.example.xmpp.protocol.StanzaFilter;
 import com.example.xmpp.protocol.AsyncStanzaCollector;
 import com.example.xmpp.util.StanzaIdGenerator;
@@ -17,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * XEP-0133: Service Administration 管理员管理器。
@@ -78,6 +78,8 @@ public class AdminManager {
         this.adminUsername = adminUsername;
     }
 
+    // ==================== 核心方法 ====================
+
     /**
      * 发送管理命令并等待响应（使用 from 地址匹配，支持 Openfire）。
      *
@@ -85,27 +87,8 @@ public class AdminManager {
      * @return 响应 CompletableFuture
      */
     private CompletableFuture<XmppStanza> sendAdminCommand(Iq iq) {
-        // 创建一个过滤器，匹配从 admin JID 返回的 IQ 响应
-        // 这样可以兼容 Openfire 服务器（它会生成新的 IQ ID）
-        StanzaFilter filter = stanza -> {
-            if (!(stanza instanceof Iq responseIq)) {
-                return false;
-            }
-            // 匹配类型为 RESULT 或 ERROR 的响应
-            if (responseIq.getType() != Iq.Type.RESULT && responseIq.getType() != Iq.Type.ERROR) {
-                return false;
-            }
-            // 检查 from 地址是否来自管理员用户
-            String from = responseIq.getFrom();
-            if (from != null && from.startsWith(adminUsername + "@")) {
-                log.debug("Matched admin response from: {}", from);
-                return true;
-            }
-            // 也接受来自服务器的响应
-            return from != null && from.equals(serviceDomain);
-        };
+        StanzaFilter filter = createAdminResponseFilter();
 
-        // 使用连接的收集器注册机制，确保响应能被正确分发
         AsyncStanzaCollector collector = connection.createStanzaCollector(filter);
         connection.sendStanza(iq);
         log.debug("Sent admin command: id={}, to={}", iq.getId(), iq.getTo());
@@ -121,12 +104,51 @@ public class AdminManager {
     }
 
     /**
-     * 解析IQ响应中的会话ID。
+     * 创建管理命令响应过滤器。
+     *
+     * <p>匹配从管理员 JID 或服务域名返回的 RESULT/ERROR 类型响应。</p>
+     *
+     * @return StanzaFilter 实例
+     */
+    private StanzaFilter createAdminResponseFilter() {
+        return stanza -> {
+            if (!(stanza instanceof Iq responseIq)) {
+                return false;
+            }
+            if (responseIq.getType() != Iq.Type.RESULT && responseIq.getType() != Iq.Type.ERROR) {
+                return false;
+            }
+            String from = responseIq.getFrom();
+            if (from != null && from.startsWith(adminUsername + "@")) {
+                log.debug("Matched admin response from: {}", from);
+                return true;
+            }
+            return from != null && from.equals(serviceDomain);
+        };
+    }
+
+    /**
+     * 构建构建 IQ 请求。
+     *
+     * @param idPrefix ID 前缀
+     * @param childElement 子元素
+     * @return IQ 节
+     */
+    private Iq buildAdminIq(String idPrefix, ExtensionElement childElement) {
+        return new Iq.Builder(Iq.Type.SET)
+                .id(StanzaIdGenerator.newId(idPrefix))
+                .to(serviceDomain)
+                .childElement(childElement)
+                .build();
+    }
+
+    /**
+     * 解析 IQ 响应中的会话 ID。
      *
      * <p>从 GenericExtensionElement 或 command 扩展元素中提取 sessionid 属性。</p>
      *
      * @param response 响应节
-     * @return 会话ID，如果不存在返回 null
+     * @return 会话 ID，如果不存在返回 null
      */
     private String extractSessionId(XmppStanza response) {
         if (!(response instanceof Iq iq)) {
@@ -150,7 +172,13 @@ public class AdminManager {
         }
 
         // 回退到字符串解析
-        String xml = iq.toXml();
+        return extractSessionIdFromXml(iq.toXml());
+    }
+
+    /**
+     * 从 XML 字符串中解析 sessionid 属性。
+     */
+    private String extractSessionIdFromXml(String xml) {
         int sessionidIndex = xml.indexOf("sessionid=");
         if (sessionidIndex == -1) {
             log.debug("No sessionid found in response XML");
@@ -158,7 +186,6 @@ public class AdminManager {
         }
 
         int start = sessionidIndex + 10; // "sessionid=".length() = 10
-        // 跳过引号
         if (start < xml.length() && (xml.charAt(start) == '"' || xml.charAt(start) == '\'')) {
             start++;
         }
@@ -173,10 +200,130 @@ public class AdminManager {
         return sessionId;
     }
 
+    // ==================== 响应处理辅助方法 ====================
+
+    /**
+     * 检查响应是否为错误类型。
+     */
+    private boolean isErrorResponse(XmppStanza response) {
+        return response instanceof Iq iq && iq.getType() == Iq.Type.ERROR;
+    }
+
+    /**
+     * 检查响应是否已直接完成（status=completed）。
+     */
+    private boolean isCompletedResponse(XmppStanza response) {
+        if (!(response instanceof Iq iq) || iq.getType() != Iq.Type.RESULT) {
+            return false;
+        }
+        ExtensionElement child = iq.getChildElement();
+        if (child instanceof GenericExtensionElement genericElement) {
+            return "completed".equals(genericElement.getAttributeValue("status"));
+        }
+        return false;
+    }
+
+    /**
+     * 创建错误响应 IQ。
+     *
+     * @param errorId 错误 ID
+     * @return 错误 IQ
+     */
+    private Iq createErrorResponse(String errorId) {
+        return new Iq.Builder(Iq.Type.ERROR)
+                .id(errorId)
+                .build();
+    }
+
+    // ==================== 通用两阶段命令模板 ====================
+
+    /**
+     * 执行两阶段命令的通用模板。
+     *
+     * <p>两阶段流程：</p>
+     * <ol>
+     *   <li>发送 execute 命令获取表单</li>
+     *   <li>检查响应（错误、已完成、需要提交表单）</li>
+     *   <li>如果需要，提交表单完成命令</li>
+     * </ol>
+     *
+     * @param <T> 命令扩展元素类型
+     * @param commandName 命令名称（用于日志）
+     * @param idPrefix IQ ID 前缀
+     * @param executeCmdFactory 创建 execute 命令的工厂
+     * @param submitCmdFactory 创建 submit 命令的工厂（接收 sessionId）
+     * @param successLogger 成功时的日志回调
+     * @return 响应的 CompletableFuture
+     */
+    private <T extends ExtensionElement> CompletableFuture<XmppStanza> executeTwoPhaseCommand(
+            String commandName,
+            String idPrefix,
+            java.util.function.Supplier<T> executeCmdFactory,
+            Function<String, T> submitCmdFactory,
+            java.util.function.Consumer<XmppStanza> successLogger) {
+
+        log.debug("Step 1: Sending {} execute command", commandName);
+        T executeCmd = executeCmdFactory.get();
+        Iq executeIq = buildAdminIq(idPrefix + "-execute", executeCmd);
+
+        return sendAdminCommand(executeIq)
+                .thenCompose(executeResponse -> {
+                    // 检查错误响应
+                    if (isErrorResponse(executeResponse)) {
+                        log.debug("{} command returned error (command may not be supported)", commandName);
+                        return CompletableFuture.completedFuture(executeResponse);
+                    }
+
+                    // 检查是否直接完成
+                    if (isCompletedResponse(executeResponse)) {
+                        log.debug("{} completed in first step", commandName);
+                        successLogger.accept(executeResponse);
+                        return CompletableFuture.completedFuture(executeResponse);
+                    }
+
+                    // 提取 sessionId
+                    String sessionId = extractSessionId(executeResponse);
+                    if (sessionId == null) {
+                        log.debug("No session ID in {} execute response, returning raw response", commandName);
+                        return CompletableFuture.completedFuture(executeResponse);
+                    }
+
+                    // 第二步：提交表单
+                    log.debug("Step 2: Submitting {} form with session ID: {}", commandName, sessionId);
+                    T submitCmd = submitCmdFactory.apply(sessionId);
+                    Iq submitIq = buildAdminIq(idPrefix + "-submit", submitCmd);
+
+                    return sendAdminCommand(submitIq);
+                })
+                .thenApply(response -> {
+                    if (response instanceof Iq iq && iq.getType() == Iq.Type.RESULT) {
+                        successLogger.accept(response);
+                    }
+                    return response;
+                })
+                .exceptionally(ex -> {
+                    log.error("{} command failed: {}", commandName, ex.getMessage());
+                    return createErrorResponse(idPrefix + "-error-exception");
+                });
+    }
+
+    /**
+     * 执行两阶段命令（无成功日志回调的简化版本）。
+     */
+    private <T extends ExtensionElement> CompletableFuture<XmppStanza> executeTwoPhaseCommand(
+            String commandName,
+            String idPrefix,
+            java.util.function.Supplier<T> executeCmdFactory,
+            Function<String, T> submitCmdFactory) {
+        return executeTwoPhaseCommand(commandName, idPrefix, executeCmdFactory, submitCmdFactory, r -> {});
+    }
+
+    // ==================== 用户管理命令 ====================
+
     /**
      * 添加用户（分阶段流程）。
      *
-     * <p>按照XEP-0133标准，先发送execute命令获取表单，
+     * <p>按照 XEP-0133 标准，先发送 execute 命令获取表单，
      * 然后提交填好的表单数据。</p>
      *
      * @param username 用户名
@@ -185,60 +332,15 @@ public class AdminManager {
      * @return 执行结果的 CompletableFuture
      */
     public CompletableFuture<XmppStanza> addUser(String username, String password, String email) {
-        // 构建完整的 JID (user@domain)
-        String accountJid = username.contains("@") ? username : username + "@" + serviceDomain;
+        String accountJid = buildAccountJid(username);
 
-        // 第一步：发送execute命令获取表单
-        log.debug("Step 1: Sending execute command to get form");
-        AddUser executeCmd = AddUser.createExecuteCommand();
-        Iq executeIq = new Iq.Builder(Iq.Type.SET)
-                .id(StanzaIdGenerator.newId("add-execute"))
-                .to(serviceDomain)
-                .childElement(executeCmd)
-                .build();
-
-        return sendAdminCommand(executeIq)
-                .thenCompose(executeResponse -> {
-                    // 解析响应获取sessionid
-                    String sessionId = extractSessionId(executeResponse);
-
-                    if (sessionId == null) {
-                        log.error("No session ID in execute response");
-                        // 返回错误响应
-                        Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
-                                .id("add-error-no-session")
-                                .build();
-                        return CompletableFuture.completedFuture(errorIq);
-                    }
-                    // 第二步：提交填好的表单（使用完整JID）
-                    log.debug("Step 2: Submitting form with session ID: {}, accountJid: {}", sessionId, accountJid);
-                    AddUser submitCmd = AddUser.createSubmitForm(sessionId, accountJid, password, email);
-                    Iq submitIq = new Iq.Builder(Iq.Type.SET)
-                            .id(StanzaIdGenerator.newId("add-submit"))
-                            .to(serviceDomain)
-                            .childElement(submitCmd)
-                            .build();
-
-                    return sendAdminCommand(submitIq);
-                })
-                .thenApply(submitResponse -> {
-                    // 处理最终响应
-                    if (submitResponse instanceof Iq submitIq) {
-                        if (submitIq.getType() == Iq.Type.RESULT) {
-                            log.info("✅ Successfully added user: {}", accountJid);
-                        } else {
-                            log.error("❌ Failed to add user: {}", accountJid);
-                        }
-                    }
-                    return submitResponse;
-                })
-                .exceptionally(ex -> {
-                    log.error("Add user failed: {}", ex.getMessage());
-                    // 返回一个表示错误的 IQ
-                    return new Iq.Builder(Iq.Type.ERROR)
-                            .id("add-error-exception")
-                            .build();
-                });
+        return executeTwoPhaseCommand(
+                "add-user",
+                "add",
+                AddUser::createExecuteCommand,
+                sessionId -> AddUser.createSubmitForm(sessionId, accountJid, password, email),
+                r -> log.info("Successfully added user: {}", accountJid)
+        );
     }
 
     /**
@@ -259,58 +361,15 @@ public class AdminManager {
      * @return 执行结果的 CompletableFuture
      */
     public CompletableFuture<XmppStanza> deleteUser(String username) {
-        // 构建完整的 JID (user@domain)
-        String accountJid = username.contains("@") ? username : username + "@" + serviceDomain;
+        String accountJid = buildAccountJid(username);
 
-        // 第一步：发送execute命令获取表单
-        log.debug("Step 1: Sending delete execute command to get form");
-        DeleteUser executeCmd = DeleteUser.createExecuteCommand();
-        Iq executeIq = new Iq.Builder(Iq.Type.SET)
-                .id(StanzaIdGenerator.newId("delete-execute"))
-                .to(serviceDomain)
-                .childElement(executeCmd)
-                .build();
-
-        return sendAdminCommand(executeIq)
-                .thenCompose(executeResponse -> {
-                    // 解析响应获取sessionid
-                    String sessionId = extractSessionId(executeResponse);
-
-                    if (sessionId == null) {
-                        log.error("No session ID in delete execute response");
-                        Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
-                                .id("delete-error-no-session")
-                                .build();
-                        return CompletableFuture.completedFuture(errorIq);
-                    }
-
-                    // 第二步：提交填好的表单（使用完整JID）
-                    log.debug("Step 2: Submitting delete form with session ID: {}, accountJid: {}", sessionId, accountJid);
-                    DeleteUser submitCmd = DeleteUser.createSubmitForm(sessionId, accountJid);
-                    Iq submitIq = new Iq.Builder(Iq.Type.SET)
-                            .id(StanzaIdGenerator.newId("delete-submit"))
-                            .to(serviceDomain)
-                            .childElement(submitCmd)
-                            .build();
-
-                    return sendAdminCommand(submitIq);
-                })
-                .thenApply(submitResponse -> {
-                    if (submitResponse instanceof Iq submitIq) {
-                        if (submitIq.getType() == Iq.Type.RESULT) {
-                            log.info("✅ Successfully deleted user: {}", accountJid);
-                        } else {
-                            log.error("❌ Failed to delete user: {}", accountJid);
-                        }
-                    }
-                    return submitResponse;
-                })
-                .exceptionally(ex -> {
-                    log.error("Delete user failed: {}", ex.getMessage());
-                    return new Iq.Builder(Iq.Type.ERROR)
-                            .id("delete-error-exception")
-                            .build();
-                });
+        return executeTwoPhaseCommand(
+                "delete-user",
+                "delete",
+                DeleteUser::createExecuteCommand,
+                sessionId -> DeleteUser.createSubmitForm(sessionId, accountJid),
+                r -> log.info("Successfully deleted user: {}", accountJid)
+        );
     }
 
     /**
@@ -333,71 +392,13 @@ public class AdminManager {
      * @return 执行结果的 CompletableFuture
      */
     public CompletableFuture<XmppStanza> editUser(String username, String newPassword, String email) {
-        // 第一步：发送execute命令获取表单
-        log.debug("Step 1: Sending edit execute command to get form");
-        EditUser executeCmd = EditUser.createExecuteCommand();
-        Iq executeIq = new Iq.Builder(Iq.Type.SET)
-                .id(StanzaIdGenerator.newId("edit-execute"))
-                .to(serviceDomain)
-                .childElement(executeCmd)
-                .build();
-
-        return sendAdminCommand(executeIq)
-                .thenCompose(executeResponse -> {
-                    // 检查响应是否是错误（服务器可能不支持此命令）
-                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.ERROR) {
-                        log.debug("Edit user command returned error (command may not be supported by server)");
-                        return CompletableFuture.completedFuture(executeResponse);
-                    }
-
-                    // 检查响应是否直接完成（某些服务器配置可能跳过表单步骤）
-                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.RESULT) {
-                        ExtensionElement child = iq.getChildElement();
-                        if (child instanceof GenericExtensionElement genericElement) {
-                            String status = genericElement.getAttributeValue("status");
-                            if ("completed".equals(status)) {
-                                log.debug("Edit user completed in first step (no form required)");
-                                log.info("✅ Successfully edited user: {}", username);
-                                return CompletableFuture.completedFuture(executeResponse);
-                            }
-                        }
-                    }
-
-                    // 解析响应获取sessionid
-                    String sessionId = extractSessionId(executeResponse);
-
-                    if (sessionId == null) {
-                        log.debug("No session ID in edit execute response, returning raw response");
-                        return CompletableFuture.completedFuture(executeResponse);
-                    }
-
-                    // 第二步：提交填好的表单
-                    log.debug("Step 2: Submitting edit form with session ID: {}", sessionId);
-                    EditUser submitCmd = EditUser.createSubmitForm(sessionId, username, newPassword, email);
-                    Iq submitIq = new Iq.Builder(Iq.Type.SET)
-                            .id(StanzaIdGenerator.newId("edit-submit"))
-                            .to(serviceDomain)
-                            .childElement(submitCmd)
-                            .build();
-
-                    return sendAdminCommand(submitIq);
-                })
-                .thenApply(submitResponse -> {
-                    if (submitResponse instanceof Iq submitIq) {
-                        if (submitIq.getType() == Iq.Type.RESULT) {
-                            log.info("✅ Successfully edited user: {}", username);
-                        } else {
-                            log.debug("Edit user response: type={}, from={}", submitIq.getType(), submitIq.getFrom());
-                        }
-                    }
-                    return submitResponse;
-                })
-                .exceptionally(ex -> {
-                    log.error("Edit user failed: {}", ex.getMessage());
-                    return new Iq.Builder(Iq.Type.ERROR)
-                            .id("edit-error-exception")
-                            .build();
-                });
+        return executeTwoPhaseCommand(
+                "edit-user",
+                "edit",
+                EditUser::createExecuteCommand,
+                sessionId -> EditUser.createSubmitForm(sessionId, username, newPassword, email),
+                r -> log.info("Successfully edited user: {}", username)
+        );
     }
 
     /**
@@ -412,72 +413,15 @@ public class AdminManager {
      * @return 执行结果的 CompletableFuture
      */
     public CompletableFuture<XmppStanza> changePassword(String username, String newPassword) {
-        String accountJid = username.contains("@") ? username : username + "@" + serviceDomain;
+        String accountJid = buildAccountJid(username);
 
-        // 第一步：发送 execute 命令获取表单
-        log.debug("Step 1: Sending change-password execute command");
-        ChangeUserPassword executeCmd = ChangeUserPassword.createExecuteCommand();
-        Iq executeIq = new Iq.Builder(Iq.Type.SET)
-                .id(StanzaIdGenerator.newId("chgpwd-execute"))
-                .to(serviceDomain)
-                .childElement(executeCmd)
-                .build();
-
-        return sendAdminCommand(executeIq)
-                .thenCompose(executeResponse -> {
-                    // 检查响应是否是错误
-                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.ERROR) {
-                        log.debug("Change password command returned error (command may not be supported by server)");
-                        return CompletableFuture.completedFuture(executeResponse);
-                    }
-
-                    // 检查响应是否直接完成
-                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.RESULT) {
-                        ExtensionElement child = iq.getChildElement();
-                        if (child instanceof GenericExtensionElement genericElement) {
-                            String status = genericElement.getAttributeValue("status");
-                            if ("completed".equals(status)) {
-                                log.debug("Change password completed in first step");
-                                log.info("✅ Successfully changed password for user: {}", username);
-                                return CompletableFuture.completedFuture(executeResponse);
-                            }
-                        }
-                    }
-
-                    // 解析 sessionid
-                    String sessionId = extractSessionId(executeResponse);
-                    if (sessionId == null) {
-                        log.debug("No session ID in change-password execute response, returning raw response");
-                        return CompletableFuture.completedFuture(executeResponse);
-                    }
-
-                    // 第二步：提交表单
-                    log.debug("Step 2: Submitting change-password form with session ID: {}, accountJid: {}", sessionId, accountJid);
-                    ChangeUserPassword submitCmd = ChangeUserPassword.createSubmitForm(sessionId, accountJid, newPassword);
-                    Iq submitIq = new Iq.Builder(Iq.Type.SET)
-                            .id(StanzaIdGenerator.newId("chgpwd-submit"))
-                            .to(serviceDomain)
-                            .childElement(submitCmd)
-                            .build();
-
-                    return sendAdminCommand(submitIq);
-                })
-                .thenApply(submitResponse -> {
-                    if (submitResponse instanceof Iq submitIq) {
-                        if (submitIq.getType() == Iq.Type.RESULT) {
-                            log.info("✅ Successfully changed password for user: {}", username);
-                        } else {
-                            log.debug("Change password response: type={}, from={}", submitIq.getType(), submitIq.getFrom());
-                        }
-                    }
-                    return submitResponse;
-                })
-                .exceptionally(ex -> {
-                    log.error("Change password failed: {}", ex.getMessage());
-                    return new Iq.Builder(Iq.Type.ERROR)
-                            .id("chgpwd-error-exception")
-                            .build();
-                });
+        return executeTwoPhaseCommand(
+                "change-password",
+                "chgpwd",
+                ChangeUserPassword::createExecuteCommand,
+                sessionId -> ChangeUserPassword.createSubmitForm(sessionId, accountJid, newPassword),
+                r -> log.info("Successfully changed password for user: {}", username)
+        );
     }
 
     /**
@@ -490,61 +434,27 @@ public class AdminManager {
      * @return 包含用户信息的 CompletableFuture
      */
     public CompletableFuture<XmppStanza> getUser(String username) {
-        String accountJid = username.contains("@") ? username : username + "@" + serviceDomain;
+        String accountJid = buildAccountJid(username);
 
-        // 第一步：发送 execute 命令
-        log.debug("Step 1: Sending get-user execute command");
-        GetUser executeCmd = GetUser.createExecuteCommand();
-        Iq executeIq = new Iq.Builder(Iq.Type.SET)
-                .id(StanzaIdGenerator.newId("getuser-execute"))
-                .to(serviceDomain)
-                .childElement(executeCmd)
-                .build();
-
-        return sendAdminCommand(executeIq)
-                .thenCompose(executeResponse -> {
-                    // 检查响应是否是错误（服务器可能不支持此命令）
-                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.ERROR) {
-                        log.debug("Get user command returned error (command may not be supported by server)");
-                        return CompletableFuture.completedFuture(executeResponse);
-                    }
-
-                    // 检查响应是否直接完成
-                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.RESULT) {
-                        ExtensionElement child = iq.getChildElement();
-                        if (child instanceof GenericExtensionElement genericElement) {
-                            String status = genericElement.getAttributeValue("status");
-                            if ("completed".equals(status)) {
-                                log.debug("Get user completed in first step");
-                                return CompletableFuture.completedFuture(executeResponse);
-                            }
-                        }
-                    }
-
-                    String sessionId = extractSessionId(executeResponse);
-                    if (sessionId == null) {
-                        log.debug("No session ID in get-user execute response, returning raw response");
-                        return CompletableFuture.completedFuture(executeResponse);
-                    }
-
-                    // 第二步：提交表单
-                    log.debug("Step 2: Submitting get-user form with session ID: {}, accountJid: {}", sessionId, accountJid);
-                    GetUser submitCmd = GetUser.createSubmitForm(sessionId, accountJid);
-                    Iq submitIq = new Iq.Builder(Iq.Type.SET)
-                            .id(StanzaIdGenerator.newId("getuser-submit"))
-                            .to(serviceDomain)
-                            .childElement(submitCmd)
-                            .build();
-
-                    return sendAdminCommand(submitIq);
-                })
-                .exceptionally(ex -> {
-                    log.error("Get user failed: {}", ex.getMessage());
-                    return new Iq.Builder(Iq.Type.ERROR)
-                            .id("getuser-error-exception")
-                            .build();
-                });
+        return executeTwoPhaseCommand(
+                "get-user",
+                "getuser",
+                GetUser::createExecuteCommand,
+                sessionId -> GetUser.createSubmitForm(sessionId, accountJid)
+        );
     }
+
+    /**
+     * 构建完整的账户 JID。
+     *
+     * @param username 用户名（可能已包含 @domain）
+     * @return 完整的 JID (user@domain)
+     */
+    private String buildAccountJid(String username) {
+        return username.contains("@") ? username : username + "@" + serviceDomain;
+    }
+
+    // ==================== 列表查询命令 ====================
 
     /**
      * 列出所有用户（两阶段流程）。
@@ -552,53 +462,12 @@ public class AdminManager {
      * @return 包含用户列表的 CompletableFuture
      */
     public CompletableFuture<XmppStanza> listUsers() {
-        // 第一步：发送 execute 命令
-        log.debug("Step 1: Sending list-users execute command");
-        ListUsers executeCmd = ListUsers.createExecuteCommand();
-        Iq executeIq = new Iq.Builder(Iq.Type.SET)
-                .id(StanzaIdGenerator.newId("list-execute"))
-                .to(serviceDomain)
-                .childElement(executeCmd)
-                .build();
-
-        return sendAdminCommand(executeIq)
-                .thenCompose(executeResponse -> {
-                    // 检查响应是否包含用户列表数据（可能直接返回结果）
-                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.RESULT) {
-                        ExtensionElement child = iq.getChildElement();
-                        if (child instanceof GenericExtensionElement genericElement) {
-                            // 检查是否包含 note 或其他完成标志
-                            String status = genericElement.getAttributeValue("status");
-                            if ("completed".equals(status)) {
-                                log.debug("List users completed in first step");
-                                return CompletableFuture.completedFuture(executeResponse);
-                            }
-                        }
-                    }
-
-                    String sessionId = extractSessionId(executeResponse);
-                    if (sessionId == null) {
-                        log.warn("No session ID in list-users execute response, returning raw response");
-                        return CompletableFuture.completedFuture(executeResponse);
-                    }
-
-                    // 第二步：提交表单
-                    log.debug("Step 2: Submitting list-users form with session ID: {}", sessionId);
-                    ListUsers submitCmd = ListUsers.createSubmitForm(sessionId, null);
-                    Iq submitIq = new Iq.Builder(Iq.Type.SET)
-                            .id(StanzaIdGenerator.newId("list-submit"))
-                            .to(serviceDomain)
-                            .childElement(submitCmd)
-                            .build();
-
-                    return sendAdminCommand(submitIq);
-                })
-                .exceptionally(ex -> {
-                    log.error("List users failed: {}", ex.getMessage());
-                    return new Iq.Builder(Iq.Type.ERROR)
-                            .id("list-error-exception")
-                            .build();
-                });
+        return executeTwoPhaseCommand(
+                "list-users",
+                "list",
+                ListUsers::createExecuteCommand,
+                sessionId -> ListUsers.createSubmitForm(sessionId, null)
+        );
     }
 
     /**
@@ -623,59 +492,15 @@ public class AdminManager {
      * @return 包含在线用户列表的 CompletableFuture
      */
     public CompletableFuture<XmppStanza> getOnlineUsers() {
-        // 第一步：发送 execute 命令
-        log.debug("Step 1: Sending get-online-users execute command");
-        GetOnlineUsers executeCmd = GetOnlineUsers.createExecuteCommand();
-        Iq executeIq = new Iq.Builder(Iq.Type.SET)
-                .id(StanzaIdGenerator.newId("online-execute"))
-                .to(serviceDomain)
-                .childElement(executeCmd)
-                .build();
-
-        return sendAdminCommand(executeIq)
-                .thenCompose(executeResponse -> {
-                    // 检查响应是否是错误（服务器可能不支持此命令）
-                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.ERROR) {
-                        log.debug("Get online users command returned error (command may not be supported by server)");
-                        return CompletableFuture.completedFuture(executeResponse);
-                    }
-
-                    // 检查响应是否直接完成（某些服务器配置可能跳过表单步骤）
-                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.RESULT) {
-                        ExtensionElement child = iq.getChildElement();
-                        if (child instanceof GenericExtensionElement genericElement) {
-                            String status = genericElement.getAttributeValue("status");
-                            if ("completed".equals(status)) {
-                                log.debug("Get online users completed in first step");
-                                return CompletableFuture.completedFuture(executeResponse);
-                            }
-                        }
-                    }
-
-                    String sessionId = extractSessionId(executeResponse);
-                    if (sessionId == null) {
-                        log.debug("No session ID in get-online-users execute response, returning raw response");
-                        return CompletableFuture.completedFuture(executeResponse);
-                    }
-
-                    // 第二步：提交表单（如果需要）
-                    log.debug("Step 2: Submitting get-online-users form with session ID: {}", sessionId);
-                    GetOnlineUsers submitCmd = GetOnlineUsers.createSubmitForm(sessionId);
-                    Iq submitIq = new Iq.Builder(Iq.Type.SET)
-                            .id(StanzaIdGenerator.newId("online-submit"))
-                            .to(serviceDomain)
-                            .childElement(submitCmd)
-                            .build();
-
-                    return sendAdminCommand(submitIq);
-                })
-                .exceptionally(ex -> {
-                    log.error("Get online users failed: {}", ex.getMessage());
-                    return new Iq.Builder(Iq.Type.ERROR)
-                            .id("online-error-exception")
-                            .build();
-                });
+        return executeTwoPhaseCommand(
+                "get-online-users",
+                "online",
+                GetOnlineUsers::createExecuteCommand,
+                GetOnlineUsers::createSubmitForm
+        );
     }
+
+    // ==================== 其他管理命令 ====================
 
     /**
      * 踢出用户。

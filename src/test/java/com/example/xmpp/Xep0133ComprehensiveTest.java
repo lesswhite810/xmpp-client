@@ -66,7 +66,7 @@ public class Xep0133ComprehensiveTest {
         assertTrue(response instanceof Iq);
         Iq iq = (Iq) response;
         assertEquals(Iq.Type.RESULT, iq.getType(), "Add user should succeed");
-        log.info("✅ Add user test passed");
+        log.info("Add user test passed");
     }
 
     @Test
@@ -88,7 +88,7 @@ public class Xep0133ComprehensiveTest {
         assertTrue(response instanceof Iq);
         Iq iq = (Iq) response;
         assertEquals(Iq.Type.RESULT, iq.getType(), "Delete user should succeed");
-        log.info("✅ Delete user test passed");
+        log.info("Delete user test passed");
     }
 
     @Test
@@ -116,7 +116,7 @@ public class Xep0133ComprehensiveTest {
             }
         }
 
-        log.info("✅ List users test passed");
+        log.info("List users test passed");
     }
 
     @Test
@@ -137,7 +137,7 @@ public class Xep0133ComprehensiveTest {
 
         assertEquals(Iq.Type.RESULT, iq.getType(), "Get online users should succeed");
 
-        log.info("✅ Get online users test passed");
+        log.info("Get online users test passed");
     }
 
     @Test
@@ -170,7 +170,7 @@ public class Xep0133ComprehensiveTest {
         }
 
         assertEquals(Iq.Type.RESULT, iq.getType(), "Edit user should succeed");
-        log.info("✅ Edit user test passed");
+        log.info("Edit user test passed");
 
         // 清理：删除测试用户
         adminManager.deleteUser(username).get(20, TimeUnit.SECONDS);
@@ -196,7 +196,7 @@ public class Xep0133ComprehensiveTest {
         // 注意：getUser 可能返回 RESULT 或 ERROR，取决于服务器实现
         log.info("Get user response type: {}", iq.getType());
 
-        log.info("✅ Get user test passed");
+        log.info("Get user test passed");
 
         // 清理
         adminManager.deleteUser(username).get(20, TimeUnit.SECONDS);

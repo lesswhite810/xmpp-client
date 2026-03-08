@@ -2,6 +2,7 @@ package com.example.xmpp.logic;
 
 import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -9,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * 测试 extractSessionId 方法是否能正确从 GenericExtensionElement 中提取 sessionid。
  */
+@Slf4j
 class AdminManagerSessionIdTest {
 
     @Test
@@ -36,7 +38,7 @@ class AdminManagerSessionIdTest {
         String sessionId = child.getAttributeValue("sessionid");
 
         assertEquals("XZdTcQXoGcRG5GI", sessionId);
-        System.out.println("✅ Successfully extracted sessionId: " + sessionId);
+        log.info("Successfully extracted sessionId: {}", sessionId);
     }
 
     @Test
@@ -53,7 +55,7 @@ class AdminManagerSessionIdTest {
 
         // 验证 toXml 包含 sessionid
         String xml = responseIq.toXml();
-        System.out.println("Generated XML: " + xml);
+        log.info("Generated XML: {}", xml);
         assertTrue(xml.contains("sessionid=\"test-session-123\""));
     }
 }
