@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class AdminManagerIntegrationTest {
 
     private static final String XMPP_DOMAIN = "lesswhite";
-    private static final String ADMIN_USERNAME = "admin";
+    private static final String ADMIN_USERNAME = "admin1";
     private static final String ADMIN_PASSWORD = "admin";
     private static final String HOST = "localhost";
     private static final int PORT = 5222;

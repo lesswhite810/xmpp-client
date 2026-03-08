@@ -9,6 +9,7 @@ import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.extension.*;
 import com.example.xmpp.protocol.StanzaFilter;
 import com.example.xmpp.protocol.AsyncStanzaCollector;
+import com.example.xmpp.util.StanzaIdGenerator;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -204,7 +205,7 @@ public class AdminManager {
         log.debug("Step 1: Sending execute command to get form");
         AddUser executeCmd = AddUser.createExecuteCommand();
         Iq executeIq = new Iq.Builder(Iq.Type.SET)
-                .id("add-execute-" + System.currentTimeMillis())
+                .id(StanzaIdGenerator.newId("add-execute"))
                 .to(serviceDomain)
                 .childElement(executeCmd)
                 .build();
@@ -226,7 +227,7 @@ public class AdminManager {
                     log.debug("Step 2: Submitting form with session ID: {}, accountJid: {}", sessionId, accountJid);
                     AddUser submitCmd = AddUser.createSubmitForm(sessionId, accountJid, password, email);
                     Iq submitIq = new Iq.Builder(Iq.Type.SET)
-                            .id("add-submit-" + System.currentTimeMillis())
+                            .id(StanzaIdGenerator.newId("add-submit"))
                             .to(serviceDomain)
                             .childElement(submitCmd)
                             .build();
@@ -279,7 +280,7 @@ public class AdminManager {
         log.debug("Step 1: Sending delete execute command to get form");
         DeleteUser executeCmd = DeleteUser.createExecuteCommand();
         Iq executeIq = new Iq.Builder(Iq.Type.SET)
-                .id("delete-execute-" + System.currentTimeMillis())
+                .id(StanzaIdGenerator.newId("delete-execute"))
                 .to(serviceDomain)
                 .childElement(executeCmd)
                 .build();
@@ -301,7 +302,7 @@ public class AdminManager {
                     log.debug("Step 2: Submitting delete form with session ID: {}, accountJid: {}", sessionId, accountJid);
                     DeleteUser submitCmd = DeleteUser.createSubmitForm(sessionId, accountJid);
                     Iq submitIq = new Iq.Builder(Iq.Type.SET)
-                            .id("delete-submit-" + System.currentTimeMillis())
+                            .id(StanzaIdGenerator.newId("delete-submit"))
                             .to(serviceDomain)
                             .childElement(submitCmd)
                             .build();
@@ -351,7 +352,7 @@ public class AdminManager {
         log.debug("Step 1: Sending edit execute command to get form");
         EditUser executeCmd = EditUser.createExecuteCommand();
         Iq executeIq = new Iq.Builder(Iq.Type.SET)
-                .id("edit-execute-" + System.currentTimeMillis())
+                .id(StanzaIdGenerator.newId("edit-execute"))
                 .to(serviceDomain)
                 .childElement(executeCmd)
                 .build();
@@ -373,7 +374,7 @@ public class AdminManager {
                     log.debug("Step 2: Submitting edit form with session ID: {}", sessionId);
                     EditUser submitCmd = EditUser.createSubmitForm(sessionId, username, newPassword, email);
                     Iq submitIq = new Iq.Builder(Iq.Type.SET)
-                            .id("edit-submit-" + System.currentTimeMillis())
+                            .id(StanzaIdGenerator.newId("edit-submit"))
                             .to(serviceDomain)
                             .childElement(submitCmd)
                             .build();
@@ -415,7 +416,7 @@ public class AdminManager {
         log.debug("Step 1: Sending get-user execute command");
         GetUser executeCmd = GetUser.createExecuteCommand();
         Iq executeIq = new Iq.Builder(Iq.Type.SET)
-                .id("getuser-execute-" + System.currentTimeMillis())
+                .id(StanzaIdGenerator.newId("getuser-execute"))
                 .to(serviceDomain)
                 .childElement(executeCmd)
                 .build();
@@ -435,7 +436,7 @@ public class AdminManager {
                     log.debug("Step 2: Submitting get-user form with session ID: {}, accountJid: {}", sessionId, accountJid);
                     GetUser submitCmd = GetUser.createSubmitForm(sessionId, accountJid);
                     Iq submitIq = new Iq.Builder(Iq.Type.SET)
-                            .id("getuser-submit-" + System.currentTimeMillis())
+                            .id(StanzaIdGenerator.newId("getuser-submit"))
                             .to(serviceDomain)
                             .childElement(submitCmd)
                             .build();
@@ -461,7 +462,7 @@ public class AdminManager {
         log.debug("Step 1: Sending list-users execute command");
         ListUsers executeCmd = ListUsers.createExecuteCommand();
         Iq executeIq = new Iq.Builder(Iq.Type.SET)
-                .id("list-execute-" + System.currentTimeMillis())
+                .id(StanzaIdGenerator.newId("list-execute"))
                 .to(serviceDomain)
                 .childElement(executeCmd)
                 .build();
@@ -491,7 +492,7 @@ public class AdminManager {
                     log.debug("Step 2: Submitting list-users form with session ID: {}", sessionId);
                     ListUsers submitCmd = ListUsers.createSubmitForm(sessionId, null);
                     Iq submitIq = new Iq.Builder(Iq.Type.SET)
-                            .id("list-submit-" + System.currentTimeMillis())
+                            .id(StanzaIdGenerator.newId("list-submit"))
                             .to(serviceDomain)
                             .childElement(submitCmd)
                             .build();
@@ -516,7 +517,7 @@ public class AdminManager {
     public CompletableFuture<XmppStanza> listUsers(List<String> domains) {
         ListUsers request = new ListUsers(domains);
         Iq iq = new Iq.Builder(Iq.Type.GET)
-                .id("list-" + System.currentTimeMillis())
+                .id(StanzaIdGenerator.newId("list"))
                 .to(serviceDomain)
                 .childElement(request)
                 .build();
@@ -533,7 +534,7 @@ public class AdminManager {
         log.debug("Step 1: Sending get-online-users execute command");
         GetOnlineUsers executeCmd = GetOnlineUsers.createExecuteCommand();
         Iq executeIq = new Iq.Builder(Iq.Type.SET)
-                .id("online-execute-" + System.currentTimeMillis())
+                .id(StanzaIdGenerator.newId("online-execute"))
                 .to(serviceDomain)
                 .childElement(executeCmd)
                 .build();
@@ -553,7 +554,7 @@ public class AdminManager {
                     log.debug("Step 2: Submitting get-online-users form with session ID: {}", sessionId);
                     GetOnlineUsers submitCmd = GetOnlineUsers.createSubmitForm(sessionId);
                     Iq submitIq = new Iq.Builder(Iq.Type.SET)
-                            .id("online-submit-" + System.currentTimeMillis())
+                            .id(StanzaIdGenerator.newId("online-submit"))
                             .to(serviceDomain)
                             .childElement(submitCmd)
                             .build();
@@ -577,7 +578,7 @@ public class AdminManager {
      */
     public CompletableFuture<XmppStanza> kickUser(String jid) {
         Iq iq = new Iq.Builder(Iq.Type.SET)
-                .id("kick-" + System.currentTimeMillis())
+                .id(StanzaIdGenerator.newId("kick"))
                 .to(jid)
                 .build();
         return connection.sendIqPacketAsync(iq);
