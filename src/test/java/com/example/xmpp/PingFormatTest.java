@@ -17,7 +17,7 @@ class PingFormatTest {
 
     @Test
     void testPingIqSerialization() {
-        // 使用新的 PingIq 类（参考 Smack 设计）
+        // 使用新的 PingIq 类
         String id = "ping_123456";
         String to = "example.com";
         Iq pingIq = PingIq.createPingRequest(id, to);

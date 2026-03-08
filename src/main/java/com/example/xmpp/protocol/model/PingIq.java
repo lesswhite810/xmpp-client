@@ -6,7 +6,7 @@ import com.example.xmpp.util.XmlStringBuilder;
 /**
  * XEP-0199: XMPP Ping IQ 帮助类。
  *
- * 参考 Smack 的 Ping 设计，提供创建 Ping 相关 IQ 节的工具方法。
+ * <p>提供创建 Ping 相关 IQ 节的工具方法。</p>
  *
  * @since 2026-02-09
  * @see <a href="https://xmpp.org/extensions/xep-0199.html">XEP-0199: XMPP Ping</a>

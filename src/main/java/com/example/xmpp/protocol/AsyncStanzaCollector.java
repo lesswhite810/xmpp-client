@@ -9,8 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * 异步节收集器，用于发送请求并等待响应。
  *
- * <p>典型用例包括发送 IQ 请求并等待响应、实现请求-响应关联、支持同步和异步等待。
- * 参考 Smack 的 StanzaCollector / IQReplyFilter 设计。</p>
+ * <p>典型用例包括发送 IQ 请求并等待响应、实现请求-响应关联、支持同步和异步等待。</p>
  *
  * <p><strong>线程安全性：</strong>此类是线程安全的。
  * 使用 {@link AtomicBoolean} 确保在多线程环境下只有一个节被成功收集。</p>

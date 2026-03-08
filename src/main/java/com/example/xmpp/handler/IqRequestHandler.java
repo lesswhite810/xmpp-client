@@ -8,8 +8,6 @@ import com.example.xmpp.protocol.model.Iq;
  * <p>用于处理从 XMPP 服务器接收的 IQ 请求（get/set 类型）。
  * 实现此接口可自定义处理特定类型的 IQ 请求，如 Ping、Disco 等。</p>
  *
- * <p>参考 Smack 的 IQRequestHandler 设计模式。</p>
- *
  * @since 2026-02-26
  */
 public interface IqRequestHandler {
