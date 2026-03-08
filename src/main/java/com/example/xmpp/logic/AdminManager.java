@@ -16,7 +16,9 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * XEP-0133: Service Administration 管理员管理器。
@@ -258,9 +260,9 @@ public class AdminManager {
     private <T extends ExtensionElement> CompletableFuture<XmppStanza> executeTwoPhaseCommand(
             String commandName,
             String idPrefix,
-            java.util.function.Supplier<T> executeCmdFactory,
+            Supplier<T> executeCmdFactory,
             Function<String, T> submitCmdFactory,
-            java.util.function.Consumer<XmppStanza> successLogger) {
+            Consumer<XmppStanza> successLogger) {
 
         log.debug("Step 1: Sending {} execute command", commandName);
         T executeCmd = executeCmdFactory.get();
@@ -313,7 +315,7 @@ public class AdminManager {
     private <T extends ExtensionElement> CompletableFuture<XmppStanza> executeTwoPhaseCommand(
             String commandName,
             String idPrefix,
-            java.util.function.Supplier<T> executeCmdFactory,
+            Supplier<T> executeCmdFactory,
             Function<String, T> submitCmdFactory) {
         return executeTwoPhaseCommand(commandName, idPrefix, executeCmdFactory, submitCmdFactory, r -> {});
     }

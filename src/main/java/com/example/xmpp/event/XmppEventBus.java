@@ -3,6 +3,8 @@ package com.example.xmpp.event;
 import com.example.xmpp.XmppConnection;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -132,7 +134,7 @@ public final class XmppEventBus {
             return () -> {};
         }
 
-        List<Subscription> subscriptions = new java.util.ArrayList<>(handlers.size());
+        List<Subscription> subscriptions = new ArrayList<>(handlers.size());
 
         for (Map.Entry<ConnectionEventType, Consumer<ConnectionEvent>> entry : handlers.entrySet()) {
             ConnectionEventType eventType = entry.getKey();
@@ -174,7 +176,7 @@ public final class XmppEventBus {
             return () -> {};
         }
 
-        Map<ConnectionEventType, Consumer<ConnectionEvent>> asyncHandlers = new java.util.HashMap<>(handlers.size());
+        Map<ConnectionEventType, Consumer<ConnectionEvent>> asyncHandlers = new HashMap<>(handlers.size());
         for (Map.Entry<ConnectionEventType, Consumer<ConnectionEvent>> entry : handlers.entrySet()) {
             Consumer<ConnectionEvent> asyncHandler = event -> executor.execute(() -> {
                 try {
