@@ -17,6 +17,7 @@ import java.io.Serial;
  *   <li>{@link XmppNetworkException} - 网络连接相关异常</li>
  *   <li>{@link XmppParseException} - XML 解析相关异常</li>
  *   <li>{@link XmppDnsException} - DNS 解析相关异常</li>
+ *   <li>{@link AdminCommandException} - 管理命令执行异常</li>
  * </ul>
  *
  * <h3>构造器说明</h3>
