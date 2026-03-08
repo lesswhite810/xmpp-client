@@ -174,20 +174,6 @@ public class AdminManager {
     }
 
     /**
-     * 检查响应是否包含命令元素。
-     */
-    private boolean hasCommandElement(XmppStanza response) {
-        if (!(response instanceof Iq iq)) {
-            return false;
-        }
-        // 检查子元素是否为 command 元素
-        ExtensionElement child = iq.getChildElement();
-        return child != null && 
-               "command".equals(child.getElementName()) &&
-               "http://jabber.org/protocol/commands".equals(child.getNamespace());
-    }
-
-    /**
      * 添加用户（分阶段流程）。
      *
      * <p>按照XEP-0133标准，先发送execute命令获取表单，
@@ -249,10 +235,9 @@ public class AdminManager {
                 .exceptionally(ex -> {
                     log.error("Add user failed: {}", ex.getMessage());
                     // 返回一个表示错误的 IQ
-                    Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
+                    return new Iq.Builder(Iq.Type.ERROR)
                             .id("add-error-exception")
                             .build();
-                    return errorIq;
                 });
     }
 
@@ -322,10 +307,9 @@ public class AdminManager {
                 })
                 .exceptionally(ex -> {
                     log.error("Delete user failed: {}", ex.getMessage());
-                    Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
+                    return new Iq.Builder(Iq.Type.ERROR)
                             .id("delete-error-exception")
                             .build();
-                    return errorIq;
                 });
     }
 
@@ -410,10 +394,9 @@ public class AdminManager {
                 })
                 .exceptionally(ex -> {
                     log.error("Edit user failed: {}", ex.getMessage());
-                    Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
+                    return new Iq.Builder(Iq.Type.ERROR)
                             .id("edit-error-exception")
                             .build();
-                    return errorIq;
                 });
     }
 
@@ -491,10 +474,9 @@ public class AdminManager {
                 })
                 .exceptionally(ex -> {
                     log.error("Change password failed: {}", ex.getMessage());
-                    Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
+                    return new Iq.Builder(Iq.Type.ERROR)
                             .id("chgpwd-error-exception")
                             .build();
-                    return errorIq;
                 });
     }
 
@@ -558,10 +540,9 @@ public class AdminManager {
                 })
                 .exceptionally(ex -> {
                     log.error("Get user failed: {}", ex.getMessage());
-                    Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
+                    return new Iq.Builder(Iq.Type.ERROR)
                             .id("getuser-error-exception")
                             .build();
-                    return errorIq;
                 });
     }
 
@@ -614,10 +595,9 @@ public class AdminManager {
                 })
                 .exceptionally(ex -> {
                     log.error("List users failed: {}", ex.getMessage());
-                    Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
+                    return new Iq.Builder(Iq.Type.ERROR)
                             .id("list-error-exception")
                             .build();
-                    return errorIq;
                 });
     }
 
@@ -691,10 +671,9 @@ public class AdminManager {
                 })
                 .exceptionally(ex -> {
                     log.error("Get online users failed: {}", ex.getMessage());
-                    Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
+                    return new Iq.Builder(Iq.Type.ERROR)
                             .id("online-error-exception")
                             .build();
-                    return errorIq;
                 });
     }
 
