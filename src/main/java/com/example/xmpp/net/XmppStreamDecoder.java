@@ -33,6 +33,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,6 +50,12 @@ import java.util.function.Consumer;
 public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     private static final XMLInputFactory INPUT_FACTORY = XMLInputFactory.newFactory();
+
+    /**
+     * 最大缓冲区大小 (1MB).
+     * 超过此大小时,认为解析错误,清空缓冲区防止内存泄漏.
+     */
+    private static final int MAX_BUFFER_SIZE = 1024 * 1024;
 
     /**
      * Stanza 公共属性（id、from、to）及类型。
@@ -82,26 +89,46 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         if (!in.isReadable()) {
             return;
         }
-        parseFromByteBuf(in).ifPresent(out::add);
+
+        // 标记当前读取位置,以便在解析失败时回退
+        in.markReaderIndex();
+
+        List<Object> elements = parseFromByteBuf(in);
+
+        if (elements.isEmpty()) {
+            // 解析失败,重置读取索引,等待更多数据
+            in.resetReaderIndex();
+            int bufferSize = in.readableBytes();
+            if (bufferSize > MAX_BUFFER_SIZE) {
+                // 缓冲区过大,可能是解析错误,清空缓冲区
+                log.warn("Buffer size {} exceeded max {}, clearing buffer to prevent memory leak",
+                        bufferSize, MAX_BUFFER_SIZE);
+                in.skipBytes(bufferSize);
+            } else {
+                log.debug("Parsing returned no elements, waiting for more data (buffer size: {})", bufferSize);
+            }
+        } else {
+            out.addAll(elements);
+        }
     }
 
     /**
-     * 从 ByteBuf 解析 XML。
+     * 从 ByteBuf 解析 XML，收集所有顶级元素。
      *
      * @param buf 字节缓冲区
-     * @return 解析结果的可选对象
+     * @return 解析结果列表（可能包含多个 stanza）
      */
-    protected Optional<Object> parseFromByteBuf(ByteBuf buf) {
+    protected List<Object> parseFromByteBuf(ByteBuf buf) {
         XMLEventReader reader = null;
         try (ByteBufInputStream in = new ByteBufInputStream(buf)) {
             reader = INPUT_FACTORY.createXMLEventReader(in);
-            return parseRootElement(reader);
+            return parseAllRootElements(reader);
         } catch (XMLStreamException e) {
             log.warn("XML parsing error: {}", e.getMessage());
-            return Optional.empty();
+            return Collections.emptyList();
         } catch (IOException e) {
             log.warn("Error closing ByteBuf stream: {}", e.getMessage());
-            return Optional.empty();
+            return Collections.emptyList();
         } finally {
             if (reader != null) {
                 try {
@@ -114,29 +141,50 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     }
 
     /**
-     * 解析根元素。
+     * 解析根元素，收集所有顶级元素。
+     *
+     * <p>修复: 原实现只返回第一个元素,导致同一 TCP 包中的多个 stanza 丢失。
+     * 现在改为收集所有顶级元素并返回列表。</p>
+     *
+     * <p>注意: XMPP 流是开放的 XML 文档,可能会遇到 EOF 异常。
+     * 我们捕获此类异常并返回已解析的元素。</p>
      *
      * @param reader XML 事件读取器
-     * @return 解析结果的可选对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
+     * @return 解析结果列表
      */
-    private Optional<Object> parseRootElement(XMLEventReader reader) throws XMLStreamException {
-        while (reader.hasNext()) {
-            XMLEvent event = reader.nextEvent();
-            if (!event.isStartElement()) {
-                continue;
+    private List<Object> parseAllRootElements(XMLEventReader reader) {
+        List<Object> results = new ArrayList<>();
+        try {
+            while (reader.hasNext()) {
+                XMLEvent event = reader.nextEvent();
+                if (!event.isStartElement()) {
+                    continue;
+                }
+
+                StartElement start = event.asStartElement();
+                String localName = start.getName().getLocalPart();
+
+                if ("stream".equals(localName)) {
+                    continue;
+                }
+
+                try {
+                    Optional<Object> element = parseElement(reader, start, localName, start.getName().getNamespaceURI());
+                    element.ifPresent(results::add);
+                } catch (XMLStreamException e) {
+                    // 单个元素解析失败,记录日志但继续处理
+                    log.warn("Error parsing element <{}>: {}", localName, e.getMessage());
+                }
             }
-
-            StartElement start = event.asStartElement();
-            String localName = start.getName().getLocalPart();
-
-            if ("stream".equals(localName)) {
-                continue;
+        } catch (XMLStreamException e) {
+            // XMPP 流是开放的,EOF 是正常的
+            if (e.getMessage() != null && e.getMessage().contains("EOF")) {
+                log.debug("Reached end of XML stream chunk, parsed {} elements", results.size());
+            } else {
+                log.warn("XML stream error after parsing {} elements: {}", results.size(), e.getMessage());
             }
-
-            return parseElement(reader, start, localName, start.getName().getNamespaceURI());
         }
-        return Optional.empty();
+        return results;
     }
 
     /**

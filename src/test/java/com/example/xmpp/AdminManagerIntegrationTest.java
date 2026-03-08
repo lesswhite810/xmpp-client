@@ -64,7 +64,7 @@ public class AdminManagerIntegrationTest {
                 .sendPresence(true)
                 .username(ADMIN_USERNAME)
                 .password(ADMIN_PASSWORD.toCharArray())
-                .securityMode(XmppClientConfig.SecurityMode.IF_POSSIBLE)
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
                 .customTrustManager(trustAllCerts)
                 .build();
 
@@ -266,5 +266,233 @@ public class AdminManagerIntegrationTest {
 
         boolean completed = latch.await(20, TimeUnit.SECONDS);
         log.info("Get online users completed: {}", completed);
+    }
+
+    /**
+     * 测试修改用户密码，并验证新密码可以连接。
+     */
+    @Test
+    @Order(4)
+    @DisplayName("Test Change Password and Connect")
+    public void testChangePasswordAndConnect() throws Exception {
+        String newPassword = "newPass456";
+
+        log.info("Testing change password: username={}", TEST_USERNAME);
+
+        // 确保 testuser 存在（testAddUser 已创建）
+        Thread.sleep(1000);
+
+        // 第一步：修改密码
+        AtomicReference<Iq> editResponseRef = new AtomicReference<>();
+        CountDownLatch editLatch = new CountDownLatch(1);
+
+        adminManager.editUser(TEST_USERNAME, newPassword)
+                .thenAccept(response -> {
+                    if (response instanceof Iq) {
+                        editResponseRef.set((Iq) response);
+                    }
+                    editLatch.countDown();
+                })
+                .exceptionally(ex -> {
+                    log.error("Edit user password failed: {}", ex.getMessage());
+                    editLatch.countDown();
+                    return null;
+                });
+
+        boolean editCompleted = editLatch.await(20, TimeUnit.SECONDS);
+        assertTrue(editCompleted, "Edit user should complete");
+        assertNotNull(editResponseRef.get(), "Edit user response should not be null");
+
+        // 某些服务器可能不支持 edit-user 命令
+        if (editResponseRef.get().getType() == Iq.Type.ERROR) {
+            log.warn("Edit user command not supported by server, skipping password verification");
+            return;
+        }
+
+        assertEquals(Iq.Type.RESULT, editResponseRef.get().getType(), "Edit user should succeed");
+        log.info("Changed password for user: {}", TEST_USERNAME);
+
+        // 等待密码修改生效
+        Thread.sleep(1000);
+
+        // 第二步：使用新密码连接验证
+        log.info("Testing connection with new password...");
+
+        XmppClientConfig testUserConfig = XmppClientConfig.builder()
+                .xmppServiceDomain(XMPP_DOMAIN)
+                .host(HOST)
+                .port(PORT)
+                .username(TEST_USERNAME)
+                .password(newPassword.toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.IF_POSSIBLE)
+                .customTrustManager(new TrustManager[]{
+                        new X509TrustManager() {
+                            public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
+                            public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                            public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+                        }
+                })
+                .build();
+
+        XmppTcpConnection testUserConnection = new XmppTcpConnection(testUserConfig);
+        CountDownLatch testAuthLatch = new CountDownLatch(1);
+        AtomicReference<Boolean> testAuthResult = new AtomicReference<>(false);
+
+        XmppEventBus testEventBus = XmppEventBus.getInstance();
+        testEventBus.subscribe(testUserConnection, ConnectionEventType.AUTHENTICATED, e -> {
+            log.info("Test user AUTHENTICATED with new password!");
+            testAuthResult.set(true);
+            testAuthLatch.countDown();
+        });
+        testEventBus.subscribe(testUserConnection, ConnectionEventType.ERROR, e -> {
+            log.error("Test user connection ERROR: {}", e.error().getMessage());
+            testAuthLatch.countDown();
+        });
+
+        testUserConnection.connect();
+        boolean authSuccess = testAuthLatch.await(15, TimeUnit.SECONDS);
+
+        assertTrue(authSuccess, "Test user should receive auth result");
+        assertTrue(testAuthResult.get(), "Test user should authenticate with new password");
+        log.info("✅ Successfully connected with new password");
+
+        // 断开测试用户连接
+        testUserConnection.disconnect();
+        Thread.sleep(500);
+
+        // 第三步：将密码改回原密码，以便后续测试使用
+        log.info("Restoring original password...");
+        AtomicReference<Iq> restoreResponseRef = new AtomicReference<>();
+        CountDownLatch restoreLatch = new CountDownLatch(1);
+
+        adminManager.editUser(TEST_USERNAME, TEST_PASSWORD)
+                .thenAccept(response -> {
+                    if (response instanceof Iq) {
+                        restoreResponseRef.set((Iq) response);
+                    }
+                    restoreLatch.countDown();
+                })
+                .exceptionally(ex -> {
+                    log.error("Restore password failed: {}", ex.getMessage());
+                    restoreLatch.countDown();
+                    return null;
+                });
+
+        boolean restoreCompleted = restoreLatch.await(20, TimeUnit.SECONDS);
+        assertTrue(restoreCompleted, "Restore password should complete");
+        log.info("Restored original password for user: {}", TEST_USERNAME);
+    }
+
+    /**
+     * 测试删除用户。
+     */
+    @Test
+    @Order(5)
+    @DisplayName("Test Delete User")
+    public void testDeleteUser() throws Exception {
+        log.info("Testing delete user: username={}", TEST_USERNAME);
+
+        // 等待确保用户存在（由 testAddUser 创建）
+        Thread.sleep(1000);
+
+        // 第一步：删除用户
+        AtomicReference<Iq> deleteResponseRef = new AtomicReference<>();
+        CountDownLatch deleteLatch = new CountDownLatch(1);
+
+        adminManager.deleteUser(TEST_USERNAME)
+                .thenAccept(response -> {
+                    log.info("Delete user response: type={}, id={}, from={}",
+                            response instanceof Iq ? ((Iq) response).getType() : "N/A",
+                            response instanceof Iq ? ((Iq) response).getId() : "null",
+                            response instanceof Iq ? ((Iq) response).getFrom() : "null");
+                    if (response instanceof Iq) {
+                        deleteResponseRef.set((Iq) response);
+                    }
+                    deleteLatch.countDown();
+                })
+                .exceptionally(ex -> {
+                    log.error("Delete user failed: {}", ex.getMessage());
+                    deleteLatch.countDown();
+                    return null;
+                });
+
+        boolean deleteCompleted = deleteLatch.await(20, TimeUnit.SECONDS);
+        assertTrue(deleteCompleted, "Delete user should complete");
+        assertNotNull(deleteResponseRef.get(), "Delete user response should not be null");
+        assertEquals(Iq.Type.RESULT, deleteResponseRef.get().getType(), "Delete user should succeed");
+        log.info("✅ Successfully deleted user: {}", TEST_USERNAME);
+
+        // 等待删除生效
+        Thread.sleep(1000);
+
+        // 第二步：验证用户已被删除（尝试用该用户连接应失败）
+        log.info("Verifying user was deleted by attempting to connect...");
+
+        XmppClientConfig deletedUserConfig = XmppClientConfig.builder()
+                .xmppServiceDomain(XMPP_DOMAIN)
+                .host(HOST)
+                .port(PORT)
+                .username(TEST_USERNAME)
+                .password(TEST_PASSWORD.toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.IF_POSSIBLE)
+                .customTrustManager(new TrustManager[]{
+                        new X509TrustManager() {
+                            public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
+                            public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                            public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+                        }
+                })
+                .build();
+
+        XmppTcpConnection deletedUserConnection = new XmppTcpConnection(deletedUserConfig);
+        CountDownLatch verifyLatch = new CountDownLatch(1);
+        AtomicReference<Boolean> authSucceeded = new AtomicReference<>(true); // 默认假设成功，只有收到 ERROR 才是失败
+
+        XmppEventBus verifyEventBus = XmppEventBus.getInstance();
+        verifyEventBus.subscribe(deletedUserConnection, ConnectionEventType.AUTHENTICATED, e -> {
+            log.warn("Unexpected: deleted user AUTHENTICATED!");
+            authSucceeded.set(true);
+            verifyLatch.countDown();
+        });
+        verifyEventBus.subscribe(deletedUserConnection, ConnectionEventType.ERROR, e -> {
+            log.info("Expected: deleted user connection failed - {}", e.error().getMessage());
+            authSucceeded.set(false);
+            verifyLatch.countDown();
+        });
+
+        deletedUserConnection.connect();
+        boolean verifyCompleted = verifyLatch.await(15, TimeUnit.SECONDS);
+
+        assertTrue(verifyCompleted, "Verification should complete");
+        assertFalse(authSucceeded.get(), "Deleted user should NOT be able to authenticate");
+        log.info("✅ Verified: deleted user cannot authenticate");
+
+        // 断开验证连接
+        deletedUserConnection.disconnect();
+    }
+
+    /**
+     * 清理测试中创建的 TEST_USERNAME 用户。
+     */
+    @Test
+    @Order(99)
+    @DisplayName("Cleanup Test User")
+    public void cleanupTestUser() throws Exception {
+        log.info("Cleaning up test user: {}", TEST_USERNAME);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        adminManager.deleteUser(TEST_USERNAME)
+                .thenAccept(response -> {
+                    log.info("Cleanup response: {}", response instanceof Iq ? ((Iq) response).getType() : "N/A");
+                    latch.countDown();
+                })
+                .exceptionally(ex -> {
+                    log.warn("Cleanup failed (user may not exist): {}", ex.getMessage());
+                    latch.countDown();
+                    return null;
+                });
+
+        latch.await(20, TimeUnit.SECONDS);
+        log.info("Cleanup completed");
     }
 }

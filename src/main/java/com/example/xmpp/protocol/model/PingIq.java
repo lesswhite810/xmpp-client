@@ -45,7 +45,6 @@ public class PingIq {
         return new Iq.Builder("result")
                 .id(request.getId())
                 .to(request.getFrom())
-                .from(request.getTo())
                 .build();
     }
 

@@ -10,6 +10,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -39,7 +40,8 @@ public final class XmlParser {
             return Optional.of(parseStreamHeader(xml));
         }
         ByteBuf buf = Unpooled.copiedBuffer(xml, StandardCharsets.UTF_8);
-        return new TestDecoder().parseFromByteBuf(buf);
+        List<Object> results = new TestDecoder().parseFromByteBuf(buf);
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
     }
 
     /**
@@ -124,7 +126,7 @@ public final class XmlParser {
      */
     private static class TestDecoder extends XmppStreamDecoder {
         @Override
-        protected Optional<Object> parseFromByteBuf(ByteBuf buf) {
+        protected List<Object> parseFromByteBuf(ByteBuf buf) {
             return super.parseFromByteBuf(buf);
         }
     }

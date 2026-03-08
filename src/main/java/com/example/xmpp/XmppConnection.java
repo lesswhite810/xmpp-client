@@ -5,6 +5,8 @@ import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
+import com.example.xmpp.protocol.AsyncStanzaCollector;
+import com.example.xmpp.protocol.StanzaFilter;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.Iq;
 import java.util.concurrent.CompletableFuture;
@@ -117,4 +119,25 @@ public interface XmppConnection {
      * <p>用于重连场景，清除内部状态以便重新开始连接流程。</p>
      */
     void resetHandlerState();
+
+    /**
+     * 创建节收集器。
+     *
+     * <p>创建一个带有指定过滤器的异步节收集器，用于等待匹配的响应节。
+     * 收集器会被自动注册到连接的收集器队列中，以便接收传入的节。</p>
+     *
+     * @param filter 节过滤器，不能为 {@code null}
+     * @return 新创建的收集器
+     */
+    AsyncStanzaCollector createStanzaCollector(StanzaFilter filter);
+
+    /**
+     * 移除节收集器。
+     *
+     * <p>从连接的收集器队列中移除指定的收集器。</p>
+     *
+     * @param collector 要移除的收集器，不能为 {@code null}
+     * @return 如果收集器存在并被移除返回 {@code true}
+     */
+    boolean removeStanzaCollector(AsyncStanzaCollector collector);
 }

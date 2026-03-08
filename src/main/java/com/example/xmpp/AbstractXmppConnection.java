@@ -278,13 +278,30 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     /**
      * 创建节收集器。
      *
-     * @param filter 节过滤器
+     * <p>创建一个带有指定过滤器的异步节收集器，用于等待匹配的响应节。
+     * 收集器会被自动注册到连接的收集器队列中，以便接收传入的节。</p>
+     *
+     * @param filter 节过滤器，不能为 {@code null}
      * @return 新创建的收集器
      */
-    private AsyncStanzaCollector createStanzaCollector(StanzaFilter filter) {
+    @Override
+    public AsyncStanzaCollector createStanzaCollector(StanzaFilter filter) {
         AsyncStanzaCollector collector = new AsyncStanzaCollector(filter);
         collectors.add(collector);
         return collector;
+    }
+
+    /**
+     * 移除节收集器。
+     *
+     * <p>从连接的收集器队列中移除指定的收集器。</p>
+     *
+     * @param collector 要移除的收集器，不能为 {@code null}
+     * @return 如果收集器存在并被移除返回 {@code true}
+     */
+    @Override
+    public boolean removeStanzaCollector(AsyncStanzaCollector collector) {
+        return collectors.remove(collector);
     }
 
     /**
