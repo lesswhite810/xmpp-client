@@ -7,6 +7,7 @@ import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.extension.*;
+import com.example.xmpp.protocol.model.extension.ChangeUserPassword;
 import com.example.xmpp.protocol.StanzaFilter;
 import com.example.xmpp.protocol.AsyncStanzaCollector;
 import com.example.xmpp.util.StanzaIdGenerator;
@@ -152,7 +153,7 @@ public class AdminManager {
         String xml = iq.toXml();
         int sessionidIndex = xml.indexOf("sessionid=");
         if (sessionidIndex == -1) {
-            log.warn("No sessionid found in response XML");
+            log.debug("No sessionid found in response XML");
             return null;
         }
 
@@ -356,20 +357,36 @@ public class AdminManager {
                 .to(serviceDomain)
                 .childElement(executeCmd)
                 .build();
-        
+
         return sendAdminCommand(executeIq)
                 .thenCompose(executeResponse -> {
+                    // 检查响应是否是错误（服务器可能不支持此命令）
+                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.ERROR) {
+                        log.debug("Edit user command returned error (command may not be supported by server)");
+                        return CompletableFuture.completedFuture(executeResponse);
+                    }
+
+                    // 检查响应是否直接完成（某些服务器配置可能跳过表单步骤）
+                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.RESULT) {
+                        ExtensionElement child = iq.getChildElement();
+                        if (child instanceof GenericExtensionElement genericElement) {
+                            String status = genericElement.getAttributeValue("status");
+                            if ("completed".equals(status)) {
+                                log.debug("Edit user completed in first step (no form required)");
+                                log.info("✅ Successfully edited user: {}", username);
+                                return CompletableFuture.completedFuture(executeResponse);
+                            }
+                        }
+                    }
+
                     // 解析响应获取sessionid
                     String sessionId = extractSessionId(executeResponse);
-                    
+
                     if (sessionId == null) {
-                        log.error("No session ID in edit execute response");
-                        Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
-                                .id("edit-error-no-session")
-                                .build();
-                        return CompletableFuture.completedFuture(errorIq);
+                        log.debug("No session ID in edit execute response, returning raw response");
+                        return CompletableFuture.completedFuture(executeResponse);
                     }
-                    
+
                     // 第二步：提交填好的表单
                     log.debug("Step 2: Submitting edit form with session ID: {}", sessionId);
                     EditUser submitCmd = EditUser.createSubmitForm(sessionId, username, newPassword, email);
@@ -378,7 +395,7 @@ public class AdminManager {
                             .to(serviceDomain)
                             .childElement(submitCmd)
                             .build();
-                    
+
                     return sendAdminCommand(submitIq);
                 })
                 .thenApply(submitResponse -> {
@@ -386,7 +403,7 @@ public class AdminManager {
                         if (submitIq.getType() == Iq.Type.RESULT) {
                             log.info("✅ Successfully edited user: {}", username);
                         } else {
-                            log.error("❌ Failed to edit user: {}", username);
+                            log.debug("Edit user response: type={}, from={}", submitIq.getType(), submitIq.getFrom());
                         }
                     }
                     return submitResponse;
@@ -395,6 +412,87 @@ public class AdminManager {
                     log.error("Edit user failed: {}", ex.getMessage());
                     Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
                             .id("edit-error-exception")
+                            .build();
+                    return errorIq;
+                });
+    }
+
+    /**
+     * 修改用户密码（使用 XEP-0133 Service Administration）。
+     *
+     * <p>按照 XEP-0133 标准，使用两阶段流程：
+     * 1. 发送 execute 命令获取表单
+     * 2. 提交带有新密码的表单</p>
+     *
+     * @param username 用户名
+     * @param newPassword 新密码
+     * @return 执行结果的 CompletableFuture
+     */
+    public CompletableFuture<XmppStanza> changePassword(String username, String newPassword) {
+        String accountJid = username.contains("@") ? username : username + "@" + serviceDomain;
+
+        // 第一步：发送 execute 命令获取表单
+        log.debug("Step 1: Sending change-password execute command");
+        ChangeUserPassword executeCmd = ChangeUserPassword.createExecuteCommand();
+        Iq executeIq = new Iq.Builder(Iq.Type.SET)
+                .id(StanzaIdGenerator.newId("chgpwd-execute"))
+                .to(serviceDomain)
+                .childElement(executeCmd)
+                .build();
+
+        return sendAdminCommand(executeIq)
+                .thenCompose(executeResponse -> {
+                    // 检查响应是否是错误
+                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.ERROR) {
+                        log.debug("Change password command returned error (command may not be supported by server)");
+                        return CompletableFuture.completedFuture(executeResponse);
+                    }
+
+                    // 检查响应是否直接完成
+                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.RESULT) {
+                        ExtensionElement child = iq.getChildElement();
+                        if (child instanceof GenericExtensionElement genericElement) {
+                            String status = genericElement.getAttributeValue("status");
+                            if ("completed".equals(status)) {
+                                log.debug("Change password completed in first step");
+                                log.info("✅ Successfully changed password for user: {}", username);
+                                return CompletableFuture.completedFuture(executeResponse);
+                            }
+                        }
+                    }
+
+                    // 解析 sessionid
+                    String sessionId = extractSessionId(executeResponse);
+                    if (sessionId == null) {
+                        log.debug("No session ID in change-password execute response, returning raw response");
+                        return CompletableFuture.completedFuture(executeResponse);
+                    }
+
+                    // 第二步：提交表单
+                    log.debug("Step 2: Submitting change-password form with session ID: {}, accountJid: {}", sessionId, accountJid);
+                    ChangeUserPassword submitCmd = ChangeUserPassword.createSubmitForm(sessionId, accountJid, newPassword);
+                    Iq submitIq = new Iq.Builder(Iq.Type.SET)
+                            .id(StanzaIdGenerator.newId("chgpwd-submit"))
+                            .to(serviceDomain)
+                            .childElement(submitCmd)
+                            .build();
+
+                    return sendAdminCommand(submitIq);
+                })
+                .thenApply(submitResponse -> {
+                    if (submitResponse instanceof Iq submitIq) {
+                        if (submitIq.getType() == Iq.Type.RESULT) {
+                            log.info("✅ Successfully changed password for user: {}", username);
+                        } else {
+                            log.debug("Change password response: type={}, from={}", submitIq.getType(), submitIq.getFrom());
+                        }
+                    }
+                    return submitResponse;
+                })
+                .exceptionally(ex -> {
+                    log.error("Change password failed: {}", ex.getMessage());
+                    Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
+                            .id("chgpwd-error-exception")
                             .build();
                     return errorIq;
                 });
@@ -423,13 +521,28 @@ public class AdminManager {
 
         return sendAdminCommand(executeIq)
                 .thenCompose(executeResponse -> {
+                    // 检查响应是否是错误（服务器可能不支持此命令）
+                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.ERROR) {
+                        log.debug("Get user command returned error (command may not be supported by server)");
+                        return CompletableFuture.completedFuture(executeResponse);
+                    }
+
+                    // 检查响应是否直接完成
+                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.RESULT) {
+                        ExtensionElement child = iq.getChildElement();
+                        if (child instanceof GenericExtensionElement genericElement) {
+                            String status = genericElement.getAttributeValue("status");
+                            if ("completed".equals(status)) {
+                                log.debug("Get user completed in first step");
+                                return CompletableFuture.completedFuture(executeResponse);
+                            }
+                        }
+                    }
+
                     String sessionId = extractSessionId(executeResponse);
                     if (sessionId == null) {
-                        log.error("No session ID in get-user execute response");
-                        Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
-                                .id("getuser-error-no-session")
-                                .build();
-                        return CompletableFuture.completedFuture(errorIq);
+                        log.debug("No session ID in get-user execute response, returning raw response");
+                        return CompletableFuture.completedFuture(executeResponse);
                     }
 
                     // 第二步：提交表单
@@ -541,13 +654,28 @@ public class AdminManager {
 
         return sendAdminCommand(executeIq)
                 .thenCompose(executeResponse -> {
+                    // 检查响应是否是错误（服务器可能不支持此命令）
+                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.ERROR) {
+                        log.debug("Get online users command returned error (command may not be supported by server)");
+                        return CompletableFuture.completedFuture(executeResponse);
+                    }
+
+                    // 检查响应是否直接完成（某些服务器配置可能跳过表单步骤）
+                    if (executeResponse instanceof Iq iq && iq.getType() == Iq.Type.RESULT) {
+                        ExtensionElement child = iq.getChildElement();
+                        if (child instanceof GenericExtensionElement genericElement) {
+                            String status = genericElement.getAttributeValue("status");
+                            if ("completed".equals(status)) {
+                                log.debug("Get online users completed in first step");
+                                return CompletableFuture.completedFuture(executeResponse);
+                            }
+                        }
+                    }
+
                     String sessionId = extractSessionId(executeResponse);
                     if (sessionId == null) {
-                        log.error("No session ID in get-online-users execute response");
-                        Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
-                                .id("online-error-no-session")
-                                .build();
-                        return CompletableFuture.completedFuture(errorIq);
+                        log.debug("No session ID in get-online-users execute response, returning raw response");
+                        return CompletableFuture.completedFuture(executeResponse);
                     }
 
                     // 第二步：提交表单（如果需要）
