@@ -278,10 +278,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     /**
      * 创建节收集器。
      *
-     * <p>创建一个带有指定过滤器的异步节收集器，用于等待匹配的响应节。
-     * 收集器会被自动注册到连接的收集器队列中，以便接收传入的节。</p>
-     *
-     * @param filter 节过滤器，不能为 {@code null}
+     * @param filter 节过滤器
      * @return 新创建的收集器
      */
     @Override

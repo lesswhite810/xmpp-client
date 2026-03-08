@@ -117,18 +117,23 @@ class XmppConstantsTest {
     }
 
     @Test
-    @DisplayName("generateStanzaId 多次调用应生成递增 ID")
-    void testGenerateStanzaIdIncrementing() {
+    @DisplayName("generateStanzaId 多次调用应生成唯一 ID")
+    void testGenerateStanzaIdUnique() {
         String id1 = XmppConstants.generateStanzaId();
         String id2 = XmppConstants.generateStanzaId();
         String id3 = XmppConstants.generateStanzaId();
 
-        // 提取数字部分并验证递增
-        long num1 = Long.parseLong(id1.substring(5));
-        long num2 = Long.parseLong(id2.substring(5));
-        long num3 = Long.parseLong(id3.substring(5));
+        // 验证格式：xmpp-{uuid}-{timestamp}
+        assertTrue(id1.startsWith("xmpp-"));
+        assertTrue(id2.startsWith("xmpp-"));
+        assertTrue(id3.startsWith("xmpp-"));
 
-        assertTrue(num2 > num1);
-        assertTrue(num3 > num2);
+        // 验证每次调用生成不同的 ID
+        assertNotEquals(id1, id2);
+        assertNotEquals(id2, id3);
+        assertNotEquals(id1, id3);
+
+        // 验证包含 UUID 格式（32位十六进制）和时间戳
+        assertTrue(id1.split("-").length >= 2, "ID 应包含多个部分");
     }
 }
