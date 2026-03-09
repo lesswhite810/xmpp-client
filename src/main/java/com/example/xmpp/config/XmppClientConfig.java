@@ -170,9 +170,7 @@ public class XmppClientConfig {
      * <p>安全地清除认证密码的内存副本，防止密码泄露。</p>
      */
     public void clearPassword() {
-        if (password != null) {
-            SecurityUtils.clear(password);
-        }
+        SecurityUtils.clear(password);
     }
 
     /**
