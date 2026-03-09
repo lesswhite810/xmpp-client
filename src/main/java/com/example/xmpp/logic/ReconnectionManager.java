@@ -194,23 +194,25 @@ public class ReconnectionManager {
             log.info("Reconnecting in {} seconds (Attempt {}/{})...", delay, currentAttempt, MAX_RECONNECT_ATTEMPTS);
 
             currentTask = XmppScheduler.getScheduler().schedule(() -> {
-                try {
-                    if (connection.isConnected()) {
-                        attemptCount.set(0);
-                        log.debug("Already connected, skipping reconnection");
-                        return;
+                XmppScheduler.executeVirtual(() -> {
+                    try {
+                        if (connection.isConnected()) {
+                            attemptCount.set(0);
+                            log.debug("Already connected, skipping reconnection");
+                            return;
+                        }
+                        log.info("Retrying connection...");
+                        connection.resetHandlerState();
+                        connection.connect();
+                        log.info("Reconnection successful");
+                    } catch (XmppException e) {
+                        log.error("Reconnection failed: {}", e.getMessage());
+                        scheduleReconnect(attempt + 1);
+                    } catch (RuntimeException e) {
+                        log.error("Unexpected runtime error during reconnection: {}", e.getMessage(), e);
+                        scheduleReconnect(attempt + 1);
                     }
-                    log.info("Retrying connection...");
-                    connection.resetHandlerState();
-                    connection.connect();
-                    log.info("Reconnection successful");
-                } catch (XmppException e) {
-                    log.error("Reconnection failed: {}", e.getMessage());
-                    scheduleReconnect(attempt + 1);
-                } catch (RuntimeException e) {
-                    log.error("Unexpected runtime error during reconnection: {}", e.getMessage(), e);
-                    scheduleReconnect(attempt + 1);
-                }
+                });
             }, delay, TimeUnit.SECONDS);
         }
     }
