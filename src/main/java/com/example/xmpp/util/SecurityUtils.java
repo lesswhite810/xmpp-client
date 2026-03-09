@@ -129,7 +129,7 @@ public class SecurityUtils {
             return input;
         }
 
-        StringBuilder sb = new StringBuilder(input.length() + 16);
+        StringBuilder sb = new StringBuilder(input.length());
         for (int i = 0; i < input.length(); i++) {
             char c = input.charAt(i);
             switch (c) {
