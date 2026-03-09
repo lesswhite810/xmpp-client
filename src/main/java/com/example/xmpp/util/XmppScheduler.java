@@ -2,19 +2,17 @@ package com.example.xmpp.util;
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.SynchronousQueue;
 
 /**
  * XMPP 全局调度器。
  *
- * <p>提供全局共享的调度线程池和虚拟线程执行器。</p>
+ * <p>提供全局共享的调度线程池。</p>
  *
  * @since 2026-02-26
  */
@@ -26,8 +24,6 @@ public final class XmppScheduler {
     private static final int SHUTDOWN_TIMEOUT_SECONDS = 5;
 
     private static final ScheduledThreadPoolExecutor SCHEDULER = createScheduler();
-
-    private static final ExecutorService VIRTUAL_EXECUTOR = createVirtualExecutor();
 
     private XmppScheduler() {
     }
@@ -56,24 +52,6 @@ public final class XmppScheduler {
     }
 
     /**
-     * 创建虚拟线程执行器。
-     *
-     * @return 虚拟线程执行器实例
-     */
-    private static ExecutorService createVirtualExecutor() {
-        ThreadFactory factory = Thread.ofVirtual()
-                .name("xmpp-virtual-", 0)
-                .factory();
-
-        return new ThreadPoolExecutor(
-                0, Integer.MAX_VALUE,
-                60L, TimeUnit.SECONDS,
-                new SynchronousQueue<>(),
-                factory,
-                new ThreadPoolExecutor.CallerRunsPolicy());
-    }
-
-    /**
      * 获取全局调度器。
      *
      * @return 调度线程池
@@ -83,30 +61,11 @@ public final class XmppScheduler {
     }
 
     /**
-     * 获取虚拟线程执行器。
-     *
-     * @return 虚拟线程执行器
-     */
-    public static ExecutorService getVirtualExecutor() {
-        return VIRTUAL_EXECUTOR;
-    }
-
-    /**
-     * 在虚拟线程中执行任务。
-     *
-     * @param task 要执行的任务，不能为 null
-     */
-    public static void executeVirtual(Runnable task) {
-        VIRTUAL_EXECUTOR.execute(task);
-    }
-
-    /**
      * 优雅关闭调度器。
      */
     public static void shutdown() {
         log.debug("Shutting down XmppScheduler...");
 
-        VIRTUAL_EXECUTOR.shutdown();
         SCHEDULER.shutdown();
 
         try {
@@ -114,14 +73,9 @@ public final class XmppScheduler {
                 log.warn("Scheduler did not terminate in time, forcing shutdown...");
                 SCHEDULER.shutdownNow();
             }
-            if (!VIRTUAL_EXECUTOR.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                log.warn("Virtual executor did not terminate in time, forcing shutdown...");
-                VIRTUAL_EXECUTOR.shutdownNow();
-            }
         } catch (InterruptedException e) {
             log.warn("Shutdown interrupted, forcing shutdown...");
             SCHEDULER.shutdownNow();
-            VIRTUAL_EXECUTOR.shutdownNow();
         }
 
         log.debug("XmppScheduler shutdown complete");
