@@ -16,6 +16,7 @@ public interface IqRequestHandler {
      * 处理 IQ 请求并返回响应。
      *
      * @param iqRequest 收到的 IQ 请求节
+     *
      * @return 响应 IQ 节，如果不需要响应则返回 null
      */
     Iq handleIqRequest(Iq iqRequest);

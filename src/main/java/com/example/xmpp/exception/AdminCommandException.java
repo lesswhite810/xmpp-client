@@ -38,15 +38,11 @@ public class AdminCommandException extends XmppException {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    /**
-     * 服务器返回的错误 IQ 响应，可能为 null（如缺少 session ID 场景）
-     */
+    /** 服务器返回的错误 IQ 响应，可能为 null（如缺少 session ID 场景） */
     @Getter
     private final Iq errorResponse;
 
-    /**
-     * 命令名称
-     */
+    /** 命令名称 */
     @Getter
     private final String commandName;
 

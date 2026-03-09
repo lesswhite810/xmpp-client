@@ -20,21 +20,13 @@ import java.util.Optional;
 @Getter
 public final class Presence extends Stanza {
 
-    /**
-     * Presence 类型
-     */
+    /** Presence 类型 */
     private final Type type;
-    /**
-     * 状态显示
-     */
+    /** 状态显示 */
     private final String show;
-    /**
-     * 状态描述
-     */
+    /** 状态描述 */
     private final String status;
-    /**
-     * 优先级
-     */
+    /** 优先级 */
     private final Integer priority;
 
     private Presence(Builder builder) {
@@ -191,21 +183,13 @@ public final class Presence extends Stanza {
      *
      */
     public static class Builder extends Stanza.Builder<Builder, Presence> {
-        /**
-         * Presence 类型
-         */
+        /** Presence 类型 */
         private Type type;
-        /**
-         * 状态显示
-         */
+        /** 状态显示 */
         private String show;
-        /**
-         * 状态描述
-         */
+        /** 状态描述 */
         private String status;
-        /**
-         * 优先级
-         */
+        /** 优先级 */
         private Integer priority;
 
         /**
@@ -309,33 +293,19 @@ public final class Presence extends Stanza {
      *
      */
     public enum Type {
-        /**
-         * 可用状态
-         */
+        /** 可用状态 */
         AVAILABLE,
-        /**
-         * 不可用状态
-         */
+        /** 不可用状态 */
         UNAVAILABLE,
-        /**
-         * 错误状态
-         */
+        /** 错误状态 */
         ERROR,
-        /**
-         * 订阅请求
-         */
+        /** 订阅请求 */
         SUBSCRIBE,
-        /**
-         * 订阅确认
-         */
+        /** 订阅确认 */
         SUBSCRIBED,
-        /**
-         * 取消订阅请求
-         */
+        /** 取消订阅请求 */
         UNSUBSCRIBE,
-        /**
-         * 取消订阅确认
-         */
+        /** 取消订阅确认 */
         UNSUBSCRIBED;
 
         @Override
@@ -359,21 +329,13 @@ public final class Presence extends Stanza {
      *
      */
     public enum Show {
-        /**
-         * 离开
-         */
+        /** 离开 */
         AWAY,
-        /**
-         * 聊天
-         */
+        /** 聊天 */
         CHAT,
-        /**
-         * 请勿打扰
-         */
+        /** 请勿打扰 */
         DND,
-        /**
-         * 长时间离开
-         */
+        /** 长时间离开 */
         XA;
 
         @Override

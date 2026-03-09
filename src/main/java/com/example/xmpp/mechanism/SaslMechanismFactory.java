@@ -35,19 +35,13 @@ public class SaslMechanismFactory {
 
     private static final SaslMechanismFactory INSTANCE = new SaslMechanismFactory();
 
-    /**
-     * 已注册的机制列表，使用 volatile 保证可见性，通过原子替换实现无锁读取
-     */
+    /** 已注册的机制列表，使用 volatile 保证可见性，通过原子替换实现无锁读取 */
     private volatile List<MechanismEntry> registeredMechanisms = Collections.emptyList();
 
-    /**
-     * 注册锁，保护机制注册操作的原子性
-     */
+    /** 注册锁，保护机制注册操作的原子性 */
     private final Lock registrationLock = new ReentrantLock();
 
-    /**
-     * 缓存的 ServiceLoader 实例，避免重复加载 SPI 提供者
-     */
+    /** 缓存的 ServiceLoader 实例，避免重复加载 SPI 提供者 */
     private final ServiceLoader<SaslMechanismProvider> providerLoader;
 
     private SaslMechanismFactory() {
@@ -150,19 +144,13 @@ public class SaslMechanismFactory {
     @RequiredArgsConstructor
     private static class MechanismEntry {
 
-        /**
-         * 机制名称，如 "SCRAM-SHA-256"
-         */
+        /** 机制名称，如 "SCRAM-SHA-256" */
         private final String name;
 
-        /**
-         * 优先级，数值越大优先级越高
-         */
+        /** 优先级，数值越大优先级越高 */
         private final int priority;
 
-        /**
-         * 机制工厂函数，接收用户名和密码，返回 SaslMechanism 实例
-         */
+        /** 机制工厂函数，接收用户名和密码，返回 SaslMechanism 实例 */
         private final BiFunction<String, char[], SaslMechanism> factory;
     }
 }

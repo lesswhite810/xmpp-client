@@ -42,20 +42,14 @@ import java.util.concurrent.TimeoutException;
 @Slf4j
 public class DnsResolver implements AutoCloseable {
 
-    /**
-     * Netty 事件循环组
-     */
+    /** Netty 事件循环组 */
     @NonNull
     private final EventLoopGroup group;
 
-    /**
-     * DNS 名称解析器
-     */
+    /** DNS 名称解析器 */
     private final DnsNameResolver resolver;
 
-    /**
-     * 是否拥有 EventLoopGroup 所有权
-     */
+    /** 是否拥有 EventLoopGroup 所有权 */
     private final boolean ownsGroup;
 
     /**
@@ -94,7 +88,9 @@ public class DnsResolver implements AutoCloseable {
      * 解析 XMPP 服务的 SRV 记录。
      *
      * @param domain XMPP 域名
+     *
      * @return 按优先级和权重排序的 SRV 记录列表
+     *
      * @throws XmppDnsException DNS 查询失败
      */
     public List<SrvRecord> resolveXmppService(String domain) throws XmppDnsException {
@@ -124,6 +120,7 @@ public class DnsResolver implements AutoCloseable {
      * 验证域名参数。
      *
      * @param domain 域名
+     *
      * @throws NullPointerException     如果域名为 null
      * @throws IllegalArgumentException 如果域名为空
      */
@@ -138,6 +135,7 @@ public class DnsResolver implements AutoCloseable {
      * 构建 SRV 服务名称。
      *
      * @param domain 域名
+     *
      * @return SRV 服务名称
      */
     private String buildServiceName(String domain) {
@@ -148,7 +146,9 @@ public class DnsResolver implements AutoCloseable {
      * 执行 DNS 查询。
      *
      * @param serviceName SRV 服务名称
+     *
      * @return DNS 响应信封
+     *
      * @throws TimeoutException     如果查询超时
      * @throws ExecutionException   如果查询失败
      */
@@ -167,7 +167,9 @@ public class DnsResolver implements AutoCloseable {
      *
      * @param response DNS 响应
      * @param domain   域名
+     *
      * @return SRV 记录列表
+     *
      * @throws ExecutionException 如果 DNS 响应码表示错误
      */
     private List<SrvRecord> parseSrvRecords(DnsResponse response, String domain)
@@ -198,6 +200,7 @@ public class DnsResolver implements AutoCloseable {
      * 解析单个 SRV 记录。
      *
      * @param record DNS 记录
+     *
      * @return 解析后的 SRV 记录（可选）
      */
     private Optional<SrvRecord> parseSrvRecord(DnsRecord record) {
@@ -224,6 +227,7 @@ public class DnsResolver implements AutoCloseable {
      *
      * @param e      执行异常
      * @param domain 域名
+     *
      * @return XmppDnsException 异常
      */
     private XmppDnsException handleDnsException(ExecutionException e, String domain) {
@@ -247,6 +251,7 @@ public class DnsResolver implements AutoCloseable {
      *
      * @param buf        当前缓冲区
      * @param fullPacket 完整数据包缓冲区
+     *
      * @return 解码后的域名
      */
     private String decodeDomainName(ByteBuf buf, ByteBuf fullPacket) {
@@ -292,6 +297,7 @@ public class DnsResolver implements AutoCloseable {
      * 解码 DNS 域名（使用自身作为完整报文）。
      *
      * @param buf 缓冲区
+     *
      * @return 解码后的域名
      */
     private String decodeDomainName(ByteBuf buf) {

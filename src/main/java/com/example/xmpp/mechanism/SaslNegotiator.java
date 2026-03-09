@@ -28,19 +28,13 @@ import java.util.Base64;
 @RequiredArgsConstructor
 public class SaslNegotiator {
 
-    /**
-     * UTF-8 编码的最大字节/字符比率（安全余量）
-     */
+    /** UTF-8 编码的最大字节/字符比率（安全余量） */
     private static final int UTF8_MAX_BYTES_PER_CHAR = XmppConstants.UTF8_MAX_BYTES_PER_CHAR;
 
-    /**
-     * Base64 编码器实例
-     */
+    /** Base64 编码器实例 */
     private static final Base64.Encoder BASE64_ENCODER = Base64.getEncoder();
 
-    /**
-     * Base64 解码器实例
-     */
+    /** Base64 解码器实例 */
     private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
 
     private final SaslMechanism mechanism;

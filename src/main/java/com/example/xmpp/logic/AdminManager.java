@@ -51,21 +51,15 @@ public class AdminManager {
 
     // ==================== 常量定义 ====================
 
-    /**
-     * 默认命令超时时间（毫秒）
-     */
+    /** 默认命令超时时间（毫秒） */
     private static final long DEFAULT_TIMEOUT_MS = 15000;
 
-    /**
-     * XEP-0050 命令属性名
-     */
+    /** XEP-0050 命令属性名 */
     private static final String ATTR_SESSION_ID = "sessionid";
     private static final String ATTR_STATUS = "status";
     private static final String STATUS_COMPLETED = "completed";
 
-    /**
-     * JID 分隔符
-     */
+    /** JID 分隔符 */
     private static final String JID_SEPARATOR = "@";
 
     // ==================== 成员变量 ====================
@@ -73,13 +67,9 @@ public class AdminManager {
     private final XmppConnection connection;
     private final String serviceDomain;
     private final String adminUsername;
-    /**
-     * 预计算的管理员 JID 前缀，避免重复拼接
-     */
+    /** 预计算的管理员 JID 前缀，避免重复拼接 */
     private final String adminJidPrefix;
-    /**
-     * 命令超时时间
-     */
+    /** 命令超时时间 */
     private final long timeoutMs;
 
     /**

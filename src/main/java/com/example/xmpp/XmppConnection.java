@@ -79,7 +79,6 @@ public interface XmppConnection {
      * @param iq 要发送的 IQ 节，不能为 {@code null}，必须包含非空 ID
      * @return {@link CompletableFuture}，完成时包含响应节；
      *         如果超时或出错则 exceptionally 完成
-     *
      * @throws IllegalArgumentException 如果 iq 为 null 或 ID 为空
      */
     CompletableFuture<XmppStanza> sendIqPacketAsync(Iq iq);

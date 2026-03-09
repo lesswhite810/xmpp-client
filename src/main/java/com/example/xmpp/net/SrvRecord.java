@@ -16,6 +16,7 @@ package com.example.xmpp.net;
  * @param port     服务端口
  * @param priority 优先级（越小越优先）
  * @param weight   权重（相同优先级时，越大越可能被选中）
+ *
  * @see DnsResolver
  * @since 2026-02-09
  */
@@ -27,6 +28,7 @@ public record SrvRecord(String target, int port, int priority, int weight) imple
      * <p>首先按优先级升序排列，优先级相同时按权重降序排列。</p>
      *
      * @param o 另一个 SRV 记录
+     *
      * @return 比较结果
      */
     @Override

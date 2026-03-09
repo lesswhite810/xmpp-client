@@ -4,10 +4,12 @@ import com.example.xmpp.XmppConnection;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 /**
@@ -37,24 +39,16 @@ import java.util.function.Consumer;
 @Slf4j
 public final class XmppEventBus {
 
-    /**
-     * 订阅记录，用于取消订阅
-     */
+    /** 订阅记录，用于取消订阅 */
     private record Subscription(ConnectionEventType eventType, Consumer<ConnectionEvent> handler) {}
 
-    /**
-     * 单例实例
-     */
+    /** 单例实例 */
     private static final XmppEventBus INSTANCE = new XmppEventBus();
 
-    /**
-     * 连接专属订阅者：connection -> (eventType -> handlers)
-     */
+    /** 连接专属订阅者：connection -> (eventType -> handlers) */
     private final Map<XmppConnection, Map<ConnectionEventType, List<Consumer<ConnectionEvent>>>> listeners = new ConcurrentHashMap<>();
 
-    /**
-     * 私有构造函数
-     */
+    /** 私有构造函数 */
     private XmppEventBus() {
     }
 
@@ -86,6 +80,27 @@ public final class XmppEventBus {
         log.debug("Subscribed handler for connection {} event: {}", connection, eventType);
 
         return () -> unsubscribe(connection, eventType, handler);
+    }
+
+    /**
+     * 订阅特定连接的事件，使用指定线程池异步执行。
+     *
+     * @param connection 连接实例
+     * @param eventType  事件类型
+     * @param handler    事件处理器
+     * @param executor   执行器
+     * @return 取消订阅的 Runnable
+     */
+    public Runnable subscribeAsync(XmppConnection connection, ConnectionEventType eventType,
+                                   Consumer<ConnectionEvent> handler, ExecutorService executor) {
+        return subscribe(connection, eventType, event -> executor.execute(() -> {
+            try {
+                handler.accept(event);
+            } catch (Exception e) {
+                log.error("Async event handler error for {}@{}: {}",
+                        eventType, connection, e.getMessage(), e);
+            }
+        }));
     }
 
     /**
@@ -141,6 +156,40 @@ public final class XmppEventBus {
             }
             log.debug("Batch unsubscribed {} handlers for connection {}", handlers.size(), connection);
         };
+    }
+
+    /**
+     * 批量订阅多个事件类型，使用指定线程池异步执行。
+     *
+     * @param connection 连接实例
+     * @param handlers   事件类型到处理器的映射
+     * @param executor   执行器
+     * @return 取消所有订阅的 Runnable
+     */
+    public Runnable subscribeAllAsync(XmppConnection connection,
+                                      Map<ConnectionEventType, Consumer<ConnectionEvent>> handlers,
+                                      ExecutorService executor) {
+        if (connection == null) {
+            throw new IllegalArgumentException("Connection must not be null");
+        }
+        if (handlers == null || handlers.isEmpty()) {
+            return () -> {};
+        }
+
+        Map<ConnectionEventType, Consumer<ConnectionEvent>> asyncHandlers = new HashMap<>(handlers.size());
+        for (Map.Entry<ConnectionEventType, Consumer<ConnectionEvent>> entry : handlers.entrySet()) {
+            Consumer<ConnectionEvent> asyncHandler = event -> executor.execute(() -> {
+                try {
+                    entry.getValue().accept(event);
+                } catch (Exception e) {
+                    log.error("Async event handler error for {}@{}: {}",
+                            entry.getKey(), connection, e.getMessage(), e);
+                }
+            });
+            asyncHandlers.put(entry.getKey(), asyncHandler);
+        }
+
+        return subscribeAll(connection, asyncHandlers);
     }
 
     /**
@@ -226,6 +275,15 @@ public final class XmppEventBus {
         publishEvent(event);
     }
 
+    /**
+     * 发布事件对象。
+     *
+     * @param event 事件对象
+     */
+    private void publish(ConnectionEvent event) {
+        publishEvent(event);
+    }
+
     private void publishEvent(ConnectionEvent event) {
         XmppConnection connection = event.connection();
         Map<ConnectionEventType, List<Consumer<ConnectionEvent>>> connectionHandlers = listeners.get(connection);
@@ -295,5 +353,13 @@ public final class XmppEventBus {
         return connectionHandlers.values().stream()
                 .mapToInt(List::size)
                 .sum();
+    }
+
+    /**
+     * 清除所有订阅者。
+     */
+    public void clear() {
+        listeners.clear();
+        log.debug("All event subscribers cleared");
     }
 }
