@@ -129,29 +129,19 @@ public class SecurityUtils {
             return input;
         }
 
-        StringBuilder sb = null;
+        StringBuilder sb = new StringBuilder(input.length() + 16);
         for (int i = 0; i < input.length(); i++) {
             char c = input.charAt(i);
-            String replacement = switch (c) {
-                case '&' -> "&amp;";
-                case '<' -> "&lt;";
-                case '>' -> "&gt;";
-                case '"' -> "&quot;";
-                case '\'' -> "&apos;";
-                default -> null;
-            };
-
-            if (replacement != null) {
-                if (sb == null) {
-                    sb = new StringBuilder(input.length() + 16);
-                    sb.append(input, 0, i);
-                }
-                sb.append(replacement);
-            } else if (sb != null) {
-                sb.append(c);
+            switch (c) {
+                case '&' -> sb.append("&amp;");
+                case '<' -> sb.append("&lt;");
+                case '>' -> sb.append("&gt;");
+                case '"' -> sb.append("&quot;");
+                case '\'' -> sb.append("&apos;");
+                default -> sb.append(c);
             }
         }
 
-        return sb != null ? sb.toString() : input;
+        return sb.toString();
     }
 }
