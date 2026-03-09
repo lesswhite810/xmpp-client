@@ -47,59 +47,25 @@ public class SecurityUtils {
     );
 
     /**
-     * 安全清理字符数组（防止 JVM 优化）。
-     *
-     * <p>使用 volatile 读来防止 JVM 优化掉内存清零操作。</p>
+     * 安全清理字符数组。
      *
      * @param chars 要清理的字符数组
      */
     public static void clear(char[] chars) {
         if (chars != null) {
             Arrays.fill(chars, '\0');
-            dummyRead(chars);
         }
     }
 
     /**
-     * 安全清理字节数组（防止 JVM 优化）。
-     *
-     * <p>使用 volatile 读来防止 JVM 优化掉内存清零操作。</p>
+     * 安全清理字节数组。
      *
      * @param bytes 要清理的字节数组
      */
     public static void clear(byte[] bytes) {
         if (bytes != null) {
             Arrays.fill(bytes, (byte) 0);
-            dummyRead(bytes);
         }
-    }
-
-    /**
-     * 防止 JVM 优化掉内存清零操作的虚拟读取操作。
-     *
-     * <p>volatile 读会创建内存屏障，确保 fill 操作不会被优化掉。</p>
-     */
-    private static void dummyRead(char[] arr) {
-        if (arr.length > 0) {
-            // 读取第一个元素（虽然值已被清零），确保内存可见性
-            volatileBarrier(arr[0]);
-        }
-    }
-
-    private static void dummyRead(byte[] arr) {
-        if (arr.length > 0) {
-            volatileBarrier(arr[0]);
-        }
-    }
-
-    private static volatile int barrier = 0;
-
-    private static void volatileBarrier(char c) {
-        barrier = barrier + c;
-    }
-
-    private static void volatileBarrier(byte b) {
-        barrier = barrier + b;
     }
 
     /**
