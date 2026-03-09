@@ -46,10 +46,14 @@ public abstract class AbstractXmppConnection implements XmppConnection {
 
     private static final long DEFAULT_IQ_TIMEOUT_MS = XmppConstants.DEFAULT_IQ_TIMEOUT_MS;
 
-    /** 节收集器队列 */
+    /**
+     * 节收集器队列
+     */
     protected final Queue<AsyncStanzaCollector> collectors = new ConcurrentLinkedQueue<>();
 
-    /** IQ 请求处理器映射表，键为 (element, namespace, iqType) 组合 */
+    /**
+     * IQ 请求处理器映射表，键为 (element, namespace, iqType) 组合
+     */
     private final Map<IqHandlerKey, IqRequestHandler> iqRequestHandlers = new ConcurrentHashMap<>();
 
     /**

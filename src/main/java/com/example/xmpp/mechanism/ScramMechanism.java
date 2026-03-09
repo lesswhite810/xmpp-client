@@ -47,7 +47,9 @@ import java.util.function.Supplier;
 @Slf4j
 public abstract class ScramMechanism implements SaslMechanism {
 
-    /** SCRAM nonce 字节数（推荐至少与哈希输出长度相同） */
+    /**
+     * SCRAM nonce 字节数（推荐至少与哈希输出长度相同）
+     */
     private static final int NONCE_SIZE_BYTES = 32;
 
     /**
@@ -85,13 +87,21 @@ public abstract class ScramMechanism implements SaslMechanism {
      */
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-    /** SCRAM 认证状态枚举 */
+    /**
+     * SCRAM 认证状态枚举
+     */
     protected enum State {
-        /** 初始状态 */
+        /**
+         * 初始状态
+         */
         INITIAL,
-        /** 已接收挑战 */
+        /**
+         * 已接收挑战
+         */
         CHALLENGE_RECEIVED,
-        /** 最终成功 */
+        /**
+         * 最终成功
+         */
         FINAL_SUCCESS
     }
 

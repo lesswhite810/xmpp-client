@@ -19,13 +19,21 @@ import java.util.Optional;
 @Getter
 public final class Message extends Stanza {
 
-    /** Message 类型 */
+    /**
+     * Message 类型
+     */
     private final Type type;
-    /** 消息主体 */
+    /**
+     * 消息主体
+     */
     private final String body;
-    /** 消息主题 */
+    /**
+     * 消息主题
+     */
     private final String subject;
-    /** 会话线程标识 */
+    /**
+     * 会话线程标识
+     */
     private final String thread;
 
     private Message(Builder builder) {
@@ -150,13 +158,21 @@ public final class Message extends Stanza {
      *
      */
     public static class Builder extends Stanza.Builder<Builder, Message> {
-        /** Message 类型 */
+        /**
+         * Message 类型
+         */
         private Type type;
-        /** 消息主体 */
+        /**
+         * 消息主体
+         */
         private String body;
-        /** 消息主题 */
+        /**
+         * 消息主题
+         */
         private String subject;
-        /** 会话线程标识 */
+        /**
+         * 会话线程标识
+         */
         private String thread;
 
         /**
@@ -260,15 +276,25 @@ public final class Message extends Stanza {
      *
      */
     public enum Type {
-        /** 单对单聊天 */
+        /**
+         * 单对单聊天
+         */
         CHAT,
-        /** 多用户聊天室 */
+        /**
+         * 多用户聊天室
+         */
         GROUPCHAT,
-        /** 头条/通知 */
+        /**
+         * 头条/通知
+         */
         HEADLINE,
-        /** 普通消息 */
+        /**
+         * 普通消息
+         */
         NORMAL,
-        /** 错误消息 */
+        /**
+         * 错误消息
+         */
         ERROR;
 
         @Override

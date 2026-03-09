@@ -32,7 +32,6 @@ public class PingIqRequestHandler extends AbstractIqRequestHandler {
      * 处理 Ping 请求并返回 Pong 响应。
      *
      * @param iqRequest Ping 请求节
-     *
      * @return Pong 响应节
      */
     @Override

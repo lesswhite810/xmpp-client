@@ -43,11 +43,17 @@ import java.util.List;
 @Getter
 public final class Iq extends Stanza {
 
-    /** IQ 类型 */
+    /**
+     * IQ 类型
+     */
     private final Type type;
-    /** IQ 子元素 */
+    /**
+     * IQ 子元素
+     */
     private final ExtensionElement childElement;
-    /** 错误元素 */
+    /**
+     * 错误元素
+     */
     private final XmppError error;
 
     private Iq(Builder builder) {
@@ -242,11 +248,17 @@ public final class Iq extends Stanza {
      *
      */
     public static class Builder extends Stanza.Builder<Builder, Iq> {
-        /** IQ 类型 */
+        /**
+         * IQ 类型
+         */
         private Type type;
-        /** IQ 子元素 */
+        /**
+         * IQ 子元素
+         */
         private ExtensionElement childElement;
-        /** 错误元素 */
+        /**
+         * 错误元素
+         */
         private XmppError error;
 
         /**
@@ -335,13 +347,21 @@ public final class Iq extends Stanza {
      *
      */
     public enum Type {
-        /** 获取类型 */
+        /**
+         * 获取类型
+         */
         GET,
-        /** 设置类型 */
+        /**
+         * 设置类型
+         */
         SET,
-        /** 结果类型 */
+        /**
+         * 结果类型
+         */
         RESULT,
-        /** 错误类型 */
+        /**
+         * 错误类型
+         */
         ERROR;
 
         @Override

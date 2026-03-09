@@ -47,7 +47,6 @@ public class AsyncStanzaCollector {
      * 即使多个线程同时处理匹配的节，也只有一个能成功完成收集。</p>
      *
      * @param stanza 传入的 XMPP 节
-     *
      * @return 如果节被收集（匹配过滤器且 Future 未完成）则返回 true
      */
     public boolean processStanza(XmppStanza stanza) {
