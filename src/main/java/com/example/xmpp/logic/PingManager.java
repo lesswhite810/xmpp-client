@@ -95,7 +95,7 @@ public class PingManager {
             if (keepAliveTask != null && !keepAliveTask.isCancelled()) {
                 stopKeepAliveInternal();
                 keepAliveTask = XmppScheduler.getScheduler().scheduleWithFixedDelay(
-                        () -> XmppScheduler.executeVirtual(this::sendPing), pingIntervalSeconds, pingIntervalSeconds, TimeUnit.SECONDS);
+                        this::sendPing, pingIntervalSeconds, pingIntervalSeconds, TimeUnit.SECONDS);
             }
         } finally {
             taskLock.unlock();
@@ -113,7 +113,7 @@ public class PingManager {
             stopKeepAliveInternal();
 
             keepAliveTask = XmppScheduler.getScheduler().scheduleWithFixedDelay(
-                    () -> XmppScheduler.executeVirtual(this::sendPing), pingIntervalSeconds, pingIntervalSeconds, TimeUnit.SECONDS);
+                    this::sendPing, pingIntervalSeconds, pingIntervalSeconds, TimeUnit.SECONDS);
         } finally {
             taskLock.unlock();
         }
