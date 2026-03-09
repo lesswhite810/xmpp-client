@@ -180,42 +180,11 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     /**
      * IQ 处理器键，用于唯一标识一个 IQ 请求处理器。
      */
-    private static final class IqHandlerKey {
-        private final String element;
-        private final String namespace;
-        private final Iq.Type iqType;
-
-        IqHandlerKey(String element, String namespace, Iq.Type iqType) {
+    private static final record IqHandlerKey(String element, String namespace, Iq.Type iqType) {
+        IqHandlerKey {
             if (element == null || iqType == null) {
                 throw new IllegalArgumentException("element and iqType must not be null");
             }
-            this.element = element;
-            this.namespace = namespace;  // namespace 可以为 null（某些 IQ 无命名空间）
-            this.iqType = iqType;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            IqHandlerKey that = (IqHandlerKey) o;
-            return Objects.equals(element, that.element)
-                    && Objects.equals(namespace, that.namespace)
-                    && iqType == that.iqType;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(element, namespace, iqType);
-        }
-
-        @Override
-        public String toString() {
-            return String.format("(%s, %s, %s)", element, namespace, iqType);
         }
     }
 
