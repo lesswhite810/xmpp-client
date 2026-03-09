@@ -132,14 +132,14 @@ public class SecurityUtils {
         StringBuilder sb = new StringBuilder(input.length());
         for (int i = 0; i < input.length(); i++) {
             char c = input.charAt(i);
-            switch (c) {
-                case '&' -> sb.append("&amp;");
-                case '<' -> sb.append("&lt;");
-                case '>' -> sb.append("&gt;");
-                case '"' -> sb.append("&quot;");
-                case '\'' -> sb.append("&apos;");
-                default -> sb.append(c);
-            }
+            sb.append(switch (c) {
+                case '&' -> "&amp;";
+                case '<' -> "&lt;";
+                case '>' -> "&gt;";
+                case '"' -> "&quot;";
+                case '\'' -> "&apos;";
+                default -> String.valueOf(c);
+            });
         }
 
         return sb.toString();
