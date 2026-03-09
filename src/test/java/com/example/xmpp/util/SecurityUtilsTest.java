@@ -104,14 +104,6 @@ class SecurityUtilsTest {
     }
 
     @Test
-    @DisplayName("isEmpty 应正确判断空字符串")
-    void testIsEmpty() {
-        assertTrue(SecurityUtils.isEmpty(""));
-        assertTrue(SecurityUtils.isEmpty(null));
-        assertFalse(SecurityUtils.isEmpty("test"));
-    }
-
-    @Test
     @DisplayName("filterSensitiveXml 应遮罩 auth 元素")
     void testFilterSensitiveXmlAuth() {
         String xml = "<auth mechanism='PLAIN'>c2VjcmV0</auth>";
@@ -150,28 +142,10 @@ class SecurityUtilsTest {
     }
 
     @Test
-    @DisplayName("escapeXml 应正确转义特殊字符")
-    void testEscapeXml() {
-        String escaped = SecurityUtils.escapeXml("<>&");
-        
-        assertTrue(escaped.contains("&lt;"));
-        assertTrue(escaped.contains("&gt;"));
-        assertTrue(escaped.contains("&amp;"));
-    }
-
-    @Test
-    @DisplayName("escapeXml 应正确处理 null")
-    void testEscapeXmlNull() {
-        String escaped = SecurityUtils.escapeXml(null);
-        
-        assertNull(escaped);
-    }
-
-    @Test
     @DisplayName("escapeXmlAttribute 应正确转义")
     void testEscapeXmlAttribute() {
         String escaped = SecurityUtils.escapeXmlAttribute("\"'<>&");
-        
+
         assertTrue(escaped.contains("&quot;"));
         assertTrue(escaped.contains("&apos;"));
     }

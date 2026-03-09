@@ -108,4 +108,50 @@ public class SecurityUtils {
         return SENSITIVE_ELEMENTS_PATTERN.matcher(xml)
                 .replaceAll("<$1$2>" + MASK + "</$1>");
     }
+
+    /**
+     * 转义 XML 属性值中的特殊字符，防止 XML 注入攻击。
+     *
+     * <p>转义以下字符：</p>
+     * <ul>
+     *   <li>&amp; -> &amp;amp;</li>
+     *   <li>&lt; -> &amp;lt;</li>
+     *   <li>&gt; -> &amp;gt;</li>
+     *   <li>&quot; -> &amp;quot;</li>
+     *   <li>&apos; -> &amp;apos;</li>
+     * </ul>
+     *
+     * @param input 原始字符串
+     * @return 转义后的字符串，如果输入为 null 则返回 null
+     */
+    public static String escapeXmlAttribute(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+
+        StringBuilder sb = null;
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+            String replacement = switch (c) {
+                case '&' -> "&amp;";
+                case '<' -> "&lt;";
+                case '>' -> "&gt;";
+                case '"' -> "&quot;";
+                case '\'' -> "&apos;";
+                default -> null;
+            };
+
+            if (replacement != null) {
+                if (sb == null) {
+                    sb = new StringBuilder(input.length() + 16);
+                    sb.append(input, 0, i);
+                }
+                sb.append(replacement);
+            } else if (sb != null) {
+                sb.append(c);
+            }
+        }
+
+        return sb != null ? sb.toString() : input;
+    }
 }
