@@ -165,15 +165,6 @@ public class XmppClientConfig {
     private Locale language = Locale.getDefault();
 
     /**
-     * 安全获取密码（返回克隆副本）。
-     *
-     * @return 密码字符数组的克隆，如果未设置则返回 null
-     */
-    public char[] getPassword() {
-        return password != null ? password.clone() : null;
-    }
-
-    /**
      * 清除内存中的密码。
      *
      * <p>安全地清除认证密码的内存副本，防止密码泄露。</p>
