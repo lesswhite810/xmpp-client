@@ -14,6 +14,7 @@ import com.example.xmpp.protocol.model.sasl.SaslChallenge;
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
 import com.example.xmpp.protocol.model.sasl.SaslResponse;
 import com.example.xmpp.protocol.model.sasl.SaslSuccess;
+import com.example.xmpp.protocol.model.stream.StreamError;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.protocol.model.stream.TlsElements;
 import com.example.xmpp.protocol.provider.GenericExtensionProvider;
@@ -250,6 +251,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                     .content(XmlParserUtils.getElementText(reader))
                     .build();
             case "failure" -> parseSaslFailure(reader);
+            case "error" -> parseStreamError(reader);
             default -> null;
         };
     }
@@ -370,6 +372,45 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
      * @return 解析的 Iq 对象
      * @throws XMLStreamException 如果解析过程中发生 XML 流错误
      */
+
+    /**
+     * 解析 StreamError 元素。
+     *
+     * @param reader XML 事件读取器
+     * @return 解析的 StreamError 对象
+     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
+     */
+    private StreamError parseStreamError(XMLEventReader reader) throws XMLStreamException {
+        StreamError.Condition condition = StreamError.Condition.UNDEFINED_CONDITION;
+        String text = null;
+        String by = null;
+
+        while (reader.hasNext()) {
+            XMLEvent event = reader.nextEvent();
+            if (isEndElement(event, "error")) {
+                break;
+            }
+            if (!event.isStartElement()) {
+                continue;
+            }
+
+            StartElement element = event.asStartElement();
+            String name = element.getName().getLocalPart();
+            if ("text".equals(name)) {
+                text = XmlParserUtils.getElementText(reader);
+            } else if ("by".equals(name)) {
+                by = XmlParserUtils.getElementText(reader);
+            } else {
+                condition = StreamError.Condition.fromString(name);
+            }
+        }
+
+        return StreamError.builder()
+                .condition(condition)
+                .text(text)
+                .by(by)
+                .build();
+    }
     private Iq parseIq(XMLEventReader reader, StartElement element) throws XMLStreamException {
         StanzaAttrs attrs = StanzaAttrs.from(element);
         Iq.Builder builder = attrs.iqBuilder();

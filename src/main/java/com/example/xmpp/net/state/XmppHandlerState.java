@@ -2,6 +2,8 @@ package com.example.xmpp.net.state;
 
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppAuthException;
+import com.example.xmpp.exception.XmppSaslFailureException;
+import com.example.xmpp.exception.XmppStanzaErrorException;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.net.SslUtils;
 import com.example.xmpp.protocol.model.Iq;
@@ -273,7 +275,7 @@ public enum XmppHandlerState implements HandlerState {
                         log.error("SASL authentication failed - condition: {}, text: {}",
                                 failure.getCondition(), failure.getText());
                         context.setSaslNegotiator(null);
-                        context.closeConnectionOnError(ctx, "Authentication failed: " + failure.getCondition());
+                        context.closeConnectionOnError(ctx, new XmppSaslFailureException(failure));
                     }
                     default -> log.debug("Received unexpected message during SASL auth: {}", msg.getClass().getSimpleName());
                 }
@@ -315,6 +317,7 @@ public enum XmppHandlerState implements HandlerState {
                     context.sendStanza(ctx, new Presence());
                 }
 
+                context.getConnection().markConnectionReady();
                 context.getConnection().notifyAuthenticated(false);
             } else if (iq.getType() == Iq.Type.ERROR) {
                 XmppError error = iq.getError();
@@ -323,7 +326,8 @@ public enum XmppHandlerState implements HandlerState {
                         error.getCondition(), error.getType(), error.getText())
                         : "unknown";
                 log.error("Resource binding failed - {}", errorDetail);
-                context.closeConnectionOnError(ctx, "Resource binding failed: " + errorDetail);
+                context.closeConnectionOnError(ctx,
+                        new XmppStanzaErrorException("Resource binding failed: " + errorDetail, iq));
             }
         }
 

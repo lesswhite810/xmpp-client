@@ -6,6 +6,7 @@ import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.net.state.StateContext;
 import com.example.xmpp.net.state.XmppHandlerState;
 import com.example.xmpp.protocol.model.XmlSerializable;
+import com.example.xmpp.protocol.model.stream.StreamError;
 import com.example.xmpp.protocol.model.stream.StreamHeader;
 import com.example.xmpp.util.NettyUtils;
 import com.example.xmpp.util.SecurityUtils;
@@ -112,7 +113,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
                 cause.getMessage(),
                 cause);
 
-        connection.notifyConnectionClosedOnError(
+        connection.failConnection(
                 new XmppException("Connection error: " + cause.getClass().getSimpleName()));
         ctx.close();
     }
@@ -121,6 +122,14 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof StreamHeader) {
             log.debug("Stream header received, waiting for features");
+            return;
+        }
+
+        if (msg instanceof StreamError streamError) {
+            log.error("Received stream error - condition: {}, text: {}",
+                    streamError.getCondition(), streamError.getText());
+            connection.failConnection(new com.example.xmpp.exception.XmppStreamErrorException(streamError));
+            ctx.close();
             return;
         }
 
@@ -153,8 +162,8 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
             stateContext.transitionTo(XmppHandlerState.AWAITING_FEATURES, ctx);
         } else {
             log.error("SSL handshake failed: ", event.cause());
-            connection.notifyConnectionClosedOnError(
-                    new XmppException("SSL handshake failed"));
+            connection.failConnection(
+                    new XmppException("SSL handshake failed", event.cause()));
             ctx.close();
         }
     }

@@ -151,13 +151,21 @@ public class StateContext {
      * @param cause 错误原因
      */
     public void closeConnectionOnError(ChannelHandlerContext ctx, Object cause) {
+        Exception exception = toException(cause);
         if (connection != null) {
-            String message = (cause instanceof Throwable t)
-                    ? "Connection error: " + t.getClass().getSimpleName()
-                    : String.valueOf(cause);
-            connection.notifyConnectionClosedOnError(new XmppException(message));
+            connection.failConnection(exception);
         }
         ctx.close();
+    }
+
+    private Exception toException(Object cause) {
+        if (cause instanceof Exception exception) {
+            return exception;
+        }
+        if (cause instanceof Throwable throwable) {
+            return new XmppException("Connection error: " + throwable.getClass().getSimpleName(), throwable);
+        }
+        return new XmppException(String.valueOf(cause));
     }
 
     /**

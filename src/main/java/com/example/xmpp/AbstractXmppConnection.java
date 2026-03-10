@@ -2,6 +2,7 @@ package com.example.xmpp;
 
 import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.event.ConnectionEventType;
+import com.example.xmpp.exception.XmppStanzaErrorException;
 import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.handler.IqRequestHandler;
 import com.example.xmpp.util.XmppConstants;
@@ -321,6 +322,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
 
         return collector.getFuture()
                 .orTimeout(timeout, unit)
+                .thenCompose(this::mapIqErrorResponse)
                 .whenComplete((result, ex) -> {
                     collectors.remove(collector);
                     if (ex != null) {
@@ -334,6 +336,13 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      *
      * <p>移除所有 Future 已完成（正常完成、异常或取消）的收集器，避免内存泄漏。</p>
      */
+    private CompletableFuture<XmppStanza> mapIqErrorResponse(XmppStanza stanza) {
+        if (stanza instanceof Iq responseIq && responseIq.getType() == Iq.Type.ERROR) {
+            String message = "Received XMPP error response for IQ id=" + responseIq.getId();
+            return CompletableFuture.failedFuture(new XmppStanzaErrorException(message, responseIq));
+        }
+        return CompletableFuture.completedFuture(stanza);
+    }
     protected void cleanupCollectors() {
         collectors.removeIf(collector -> {
             if (collector.getFuture().isDone()) {

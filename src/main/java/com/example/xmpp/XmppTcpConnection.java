@@ -5,6 +5,7 @@ import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppDnsException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
+import com.example.xmpp.exception.XmppProtocolException;
 import com.example.xmpp.handler.PingIqRequestHandler;
 import com.example.xmpp.logic.PingManager;
 import com.example.xmpp.logic.ReconnectionManager;
@@ -34,7 +35,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * 基于 TCP 的 XMPP 连接实现。
@@ -79,6 +83,11 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     private ReconnectionManager reconnectionManager;
 
     /**
+     * 连接就绪 Future，在完成认证和资源绑定后完成。
+     */
+    private volatile CompletableFuture<Void> connectionReadyFuture = new CompletableFuture<>();
+
+    /**
      * 构造 TCP 连接。
      *
      * <p>根据配置初始化连接，并可选地创建 PingManager 和 ReconnectionManager。</p>
@@ -117,18 +126,53 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     @Override
     public void connect() throws XmppException {
+        try {
+            connectAsync().get(config.getReadTimeout(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            disconnect();
+            throw new XmppNetworkException("Interrupted while waiting for XMPP session to become ready", e);
+        } catch (TimeoutException e) {
+            disconnect();
+            throw new XmppNetworkException("Timed out waiting for XMPP session to become ready", e);
+        } catch (ExecutionException e) {
+            disconnect();
+            throw unwrapXmppException(e.getCause());
+        }
+    }
+
+    /**
+     * 异步建立 TCP 连接并等待认证完成。
+     *
+     * @return 在连接完成认证和资源绑定后完成的 Future
+     * @throws XmppException 如果前置的网络初始化失败
+     */
+    public CompletableFuture<Void> connectAsync() throws XmppException {
+        connectionReadyFuture = new CompletableFuture<>();
         workerGroup = new NioEventLoopGroup();
         nettyHandler = new XmppNettyHandler(config, this);
 
         List<ConnectionTarget> targets = resolveConnectionTargets();
         if (targets.isEmpty()) {
-            throw new XmppNetworkException("No connection targets available");
+            XmppNetworkException exception = new XmppNetworkException("No connection targets available");
+            connectionReadyFuture.completeExceptionally(exception);
+            throw exception;
         }
 
         Bootstrap bootstrap = createBootstrap();
 
-        this.channel = connectToTargets(bootstrap, targets)
-                .orElseThrow(() -> new XmppNetworkException("All connection attempts failed"));
+        try {
+            this.channel = connectToTargets(bootstrap, targets)
+                    .orElseThrow(() -> new XmppNetworkException("All connection attempts failed"));
+            return connectionReadyFuture;
+        } catch (XmppException e) {
+            connectionReadyFuture.completeExceptionally(e);
+            throw e;
+        } catch (RuntimeException e) {
+            XmppNetworkException exception = new XmppNetworkException("Failed to establish XMPP connection", e);
+            connectionReadyFuture.completeExceptionally(exception);
+            throw exception;
+        }
     }
 
     /**
@@ -281,6 +325,39 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * @param domain 服务域名
      * @return SRV 记录列表
      */
+
+    private XmppException unwrapXmppException(Throwable cause) {
+        if (cause instanceof XmppException xmppException) {
+            return xmppException;
+        }
+        if (cause instanceof RuntimeException runtimeException && runtimeException.getCause() instanceof XmppException xmppException) {
+            return xmppException;
+        }
+        return new XmppProtocolException("Unexpected error while establishing XMPP session", cause);
+    }
+
+    /**
+     * 标记连接已完成认证和资源绑定。
+     */
+    public void markConnectionReady() {
+        CompletableFuture<Void> future = connectionReadyFuture;
+        if (future != null && !future.isDone()) {
+            future.complete(null);
+        }
+    }
+
+    /**
+     * 以异常结束当前连接生命周期，并向用户发布错误事件。
+     *
+     * @param exception 连接级异常
+     */
+    public void failConnection(Exception exception) {
+        CompletableFuture<Void> future = connectionReadyFuture;
+        if (future != null && !future.isDone()) {
+            future.completeExceptionally(exception);
+        }
+        notifyConnectionClosedOnError(exception);
+    }
     private List<SrvRecord> resolveSrvRecords(String domain) {
         try (DnsResolver resolver = new DnsResolver()) {
             return resolver.resolveXmppService(domain);
@@ -307,6 +384,11 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         }
 
         cleanupCollectors();
+
+        CompletableFuture<Void> future = connectionReadyFuture;
+        if (future != null && !future.isDone()) {
+            future.completeExceptionally(new XmppNetworkException("Connection closed before session became ready"));
+        }
 
         if (channel != null) {
             channel.close();
