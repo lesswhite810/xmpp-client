@@ -31,19 +31,29 @@ import java.util.concurrent.locks.ReentrantLock;
 @Slf4j
 public class PingManager {
 
-    /** 关联的 XMPP 连接 */
+    /**
+     * 关联的 XMPP 连接
+     */
     private final XmppConnection connection;
 
-    /** 保活任务 */
+    /**
+     * 保活任务
+     */
     private volatile ScheduledFuture<?> keepAliveTask;
 
-    /** 任务操作锁 */
+    /**
+     * 任务操作锁
+     */
     private final ReentrantLock taskLock = new ReentrantLock();
 
-    /** Ping 间隔时间（秒） */
+    /**
+     * Ping 间隔时间（秒）
+     */
     private volatile int pingIntervalSeconds = XmppConstants.DEFAULT_PING_INTERVAL_SECONDS;
 
-    /** 事件订阅取消回调 */
+    /**
+     * 事件订阅取消回调
+     */
     private Runnable unsubscribe;
 
     /**
@@ -91,7 +101,9 @@ public class PingManager {
         taskLock.lock();
         try {
             this.pingIntervalSeconds = seconds;
-            /** 如果任务存在，先停止再启动 */
+            /**
+             * 如果任务存在，先停止再启动
+             */
             if (keepAliveTask != null && !keepAliveTask.isCancelled()) {
                 stopKeepAliveInternal();
                 keepAliveTask = XmppScheduler.getScheduler().scheduleWithFixedDelay(
@@ -152,7 +164,9 @@ public class PingManager {
     public void shutdown() {
         taskLock.lock();
         try {
-            /** 取消事件订阅 */
+            /**
+             * 取消事件订阅
+             */
             if (unsubscribe != null) {
                 unsubscribe.run();
                 unsubscribe = null;

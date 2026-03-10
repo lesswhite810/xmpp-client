@@ -39,16 +39,24 @@ import java.util.function.Consumer;
 @Slf4j
 public final class XmppEventBus {
 
-    /** 订阅记录，用于取消订阅 */
+    /**
+     * 订阅记录，用于取消订阅
+     */
     private record Subscription(ConnectionEventType eventType, Consumer<ConnectionEvent> handler) {}
 
-    /** 单例实例 */
+    /**
+     * 单例实例
+     */
     private static final XmppEventBus INSTANCE = new XmppEventBus();
 
-    /** 连接专属订阅者：connection -> (eventType -> handlers) */
+    /**
+     * 连接专属订阅者：connection -> (eventType -> handlers)
+     */
     private final Map<XmppConnection, Map<ConnectionEventType, List<Consumer<ConnectionEvent>>>> listeners = new ConcurrentHashMap<>();
 
-    /** 私有构造函数 */
+    /**
+     * 私有构造函数
+     */
     private XmppEventBus() {
     }
 

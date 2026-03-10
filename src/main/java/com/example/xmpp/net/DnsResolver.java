@@ -42,14 +42,20 @@ import java.util.concurrent.TimeoutException;
 @Slf4j
 public class DnsResolver implements AutoCloseable {
 
-    /** Netty 事件循环组 */
+    /**
+     * Netty 事件循环组
+     */
     @NonNull
     private final EventLoopGroup group;
 
-    /** DNS 名称解析器 */
+    /**
+     * DNS 名称解析器
+     */
     private final DnsNameResolver resolver;
 
-    /** 是否拥有 EventLoopGroup 所有权 */
+    /**
+     * 是否拥有 EventLoopGroup 所有权
+     */
     private final boolean ownsGroup;
 
     /**

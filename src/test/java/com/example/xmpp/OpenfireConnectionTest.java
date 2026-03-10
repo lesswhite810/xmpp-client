@@ -26,22 +26,34 @@ import static org.junit.jupiter.api.Assertions.*;
 @Disabled("需要真实的 Openfire 服务器")
 class OpenfireConnectionTest {
 
-    /** XMPP 域名（Openfire 服务器配置的域名） */
+    /**
+     * XMPP 域名（Openfire 服务器配置的域名）
+     */
     private static final String XMPP_DOMAIN = "lesswhite";
 
-    /** 服务器主机地址 */
+    /**
+     * 服务器主机地址
+     */
     private static final String HOST = "localhost";
 
-    /** 服务器端口 */
+    /**
+     * 服务器端口
+     */
     private static final int PORT = 5222;
 
-    /** 用户名 */
+    /**
+     * 用户名
+     */
     private static final String USERNAME = "acs";
 
-    /** 密码 */
+    /**
+     * 密码
+     */
     private static final String PASSWORD = "acs";
 
-    /** 信任所有证书的 TrustManager（仅用于测试） */
+    /**
+     * 信任所有证书的 TrustManager（仅用于测试）
+     */
     private static final X509TrustManager TRUST_ALL_MANAGER = new X509TrustManager() {
         @Override
         public void checkClientTrusted(X509Certificate[] chain, String authType) {

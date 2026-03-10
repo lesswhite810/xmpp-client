@@ -42,125 +42,183 @@ public class XmppClientConfig {
      * <p>控制 TLS/SSL 加密要求级别。</p>
      */
     public enum SecurityMode {
-        /** 要求 TLS 加密连接 */
+        /**
+         * 要求 TLS 加密连接
+         */
         REQUIRED,
-        /** 尽可能使用 TLS 加密 */
+        /**
+         * 尽可能使用 TLS 加密
+         */
         IF_POSSIBLE,
-        /** 禁用 TLS 加密 */
+        /**
+         * 禁用 TLS 加密
+         */
         DISABLED
     }
 
     // ==================== 连接配置 ====================
 
-    /** XMPP 服务域名 */
+    /**
+     * XMPP 服务域名
+     */
     @Builder.Default
     private String xmppServiceDomain = "";
 
-    /** XMPP 服务器主机名 */
+    /**
+     * XMPP 服务器主机名
+     */
     @Builder.Default
     private String host = "";
 
-    /** XMPP 服务器 IP 地址（优先于 host） */
+    /**
+     * XMPP 服务器 IP 地址（优先于 host）
+     */
     @Builder.Default
     private InetAddress hostAddress = null;
 
-    /** XMPP 服务器端口 */
+    /**
+     * XMPP 服务器端口
+     */
     @Builder.Default
     private int port = 0;
 
-    /** XMPP 资源标识 */
+    /**
+     * XMPP 资源标识
+     */
     @Builder.Default
     private String resource = "xmpp";
 
-    /** 启用的 SASL 认证机制 */
+    /**
+     * 启用的 SASL 认证机制
+     */
     @Builder.Default
     private Set<String> enabledSaslMechanisms = Set.of();
 
-    /** 连接超时时间（毫秒），默认 30000ms */
+    /**
+     * 连接超时时间（毫秒），默认 30000ms
+     */
     @Builder.Default
     private int connectTimeout = 0;
 
-    /** 读取超时时间（毫秒），默认 60000ms */
+    /**
+     * 读取超时时间（毫秒），默认 60000ms
+     */
     @Builder.Default
     private int readTimeout = 0;
 
-    /** 是否在连接成功后发送 Presence 节 */
+    /**
+     * 是否在连接成功后发送 Presence 节
+     */
     @Builder.Default
     private boolean sendPresence = true;
 
     // ==================== 认证配置 ====================
 
-    /** 用户名 */
+    /**
+     * 用户名
+     */
     @Builder.Default
     private String username = "";
 
-    /** 密码 */
+    /**
+     * 密码
+     */
     @Builder.Default
     private char[] password = null;
 
-    /** 授权标识符（可选） */
+    /**
+     * 授权标识符（可选）
+     */
     @Builder.Default
     private String authzid = "";
 
     // ==================== 安全配置 ====================
 
-    /** 安全模式 */
+    /**
+     * 安全模式
+     */
     @Builder.Default
     private SecurityMode securityMode = SecurityMode.REQUIRED;
 
-    /** 自定义 TrustManager（可选） */
+    /**
+     * 自定义 TrustManager（可选）
+     */
     @Builder.Default
     private TrustManager[] customTrustManager = null;
 
-    /** 自定义 KeyManager（可选） */
+    /**
+     * 自定义 KeyManager（可选）
+     */
     @Builder.Default
     private KeyManager[] keyManagers = null;
 
-    /** 自定义 SSLContext（可选） */
+    /**
+     * 自定义 SSLContext（可选）
+     */
     @Builder.Default
     private SSLContext customSslContext = null;
 
-    /** 启用的 SSL 协议数组 */
+    /**
+     * 启用的 SSL 协议数组
+     */
     @Builder.Default
     private String[] enabledSSLProtocols = null;
 
-    /** 启用的 SSL 密码套件数组 */
+    /**
+     * 启用的 SSL 密码套件数组
+     */
     @Builder.Default
     private String[] enabledSSLCiphers = null;
 
-    /** 是否使用 Direct TLS（默认 false，使用 STARTTLS） */
+    /**
+     * 是否使用 Direct TLS（默认 false，使用 STARTTLS）
+     */
     @Builder.Default
     private boolean usingDirectTLS = false;
 
-    /** SSL 握手超时时间（毫秒） */
+    /**
+     * SSL 握手超时时间（毫秒）
+     */
     @Builder.Default
     private int handshakeTimeoutMs = 0;
 
     // ==================== 心跳/重连配置 ====================
 
-    /** 是否启用自动重连 */
+    /**
+     * 是否启用自动重连
+     */
     @Builder.Default
     private boolean reconnectionEnabled = false;
 
-    /** 重连基础延迟（秒） */
+    /**
+     * 重连基础延迟（秒）
+     */
     @Builder.Default
     private int reconnectionBaseDelay = 5;
 
-    /** 重连最大延迟（秒） */
+    /**
+     * 重连最大延迟（秒）
+     */
     @Builder.Default
     private int reconnectionMaxDelay = 300;
 
-    /** 是否启用 Ping 心跳 */
+    /**
+     * 是否启用 Ping 心跳
+     */
     @Builder.Default
     private boolean pingEnabled = false;
 
-    /** Ping 间隔（秒） */
+    /**
+     * Ping 间隔（秒）
+     */
     @Builder.Default
     private int pingInterval = 60;
 
     // ==================== 其他配置 ====================
 
-    /** 语言区域设置 */
+    /**
+     * 语言区域设置
+     */
     @Builder.Default
     private Locale language = Locale.getDefault();
 

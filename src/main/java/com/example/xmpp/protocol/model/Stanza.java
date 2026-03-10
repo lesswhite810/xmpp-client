@@ -28,13 +28,21 @@ import java.util.Optional;
 @Getter
 public abstract sealed class Stanza implements XmppStanza, XmlSerializable permits Iq, Message, Presence {
 
-    /** 唯一标识符 */
+    /**
+     * 唯一标识符
+     */
     private final String id;
-    /** 发送方 JID */
+    /**
+     * 发送方 JID
+     */
     private final String from;
-    /** 接收方 JID */
+    /**
+     * 接收方 JID
+     */
     private final String to;
-    /** 扩展元素列表 */
+    /**
+     * 扩展元素列表
+     */
     private final List<ExtensionElement> extensions;
 
     /**
@@ -189,13 +197,21 @@ public abstract sealed class Stanza implements XmppStanza, XmlSerializable permi
      * @param <S> Stanza 类型
      */
     protected abstract static class Builder<B extends Builder<B, S>, S extends Stanza> {
-        /** 唯一标识符 */
+        /**
+         * 唯一标识符
+         */
         private String id;
-        /** 发送方 JID */
+        /**
+         * 发送方 JID
+         */
         private String from;
-        /** 接收方 JID */
+        /**
+         * 接收方 JID
+         */
         private String to;
-        /** 扩展元素列表 */
+        /**
+         * 扩展元素列表
+         */
         private List<ExtensionElement> extensions;
 
         protected Builder() {
