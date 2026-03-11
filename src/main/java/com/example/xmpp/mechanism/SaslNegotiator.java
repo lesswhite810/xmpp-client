@@ -1,12 +1,11 @@
 package com.example.xmpp.mechanism;
 
-import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.protocol.model.sasl.Auth;
 import com.example.xmpp.protocol.model.sasl.SaslResponse;
 import com.example.xmpp.util.SecurityUtils;
-import com.example.xmpp.util.XmlStringBuilder;
+import com.example.xmpp.util.XmppConstants;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
@@ -19,8 +18,9 @@ import java.util.Base64;
 /**
  * SASL 认证协商器。
  *
- * <p>处理 SASL 认证流程，将 SASL 逻辑从 XmppNettyHandler 状态机中解耦。
- * 负责发送 Auth 请求、处理 Challenge、验证 Success。</p>
+ * <p>负责驱动 SASL 认证过程，包括发送初始 {@code auth}、处理服务端
+ * {@code challenge}、校验最终 {@code success}，并将认证阶段的报文发送逻辑
+ * 从连接状态机中解耦出来。</p>
  *
  * @since 2026-02-09
  */
@@ -29,17 +29,17 @@ import java.util.Base64;
 public class SaslNegotiator {
 
     /**
-     * UTF-8 编码的最大字节/字符比率（安全余量）
+     * UTF-8 编码时每个字符的最大字节数，用于预估发送缓冲区大小。
      */
     private static final int UTF8_MAX_BYTES_PER_CHAR = XmppConstants.UTF8_MAX_BYTES_PER_CHAR;
 
     /**
-     * Base64 编码器实例
+     * Base64 编码器。
      */
     private static final Base64.Encoder BASE64_ENCODER = Base64.getEncoder();
 
     /**
-     * Base64 解码器实例
+     * Base64 解码器。
      */
     private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
 
@@ -49,15 +49,16 @@ public class SaslNegotiator {
     /**
      * 启动 SASL 认证流程。
      *
-     * <p>发送 Auth 元素和初始响应（如果机制支持）。</p>
+     * <p>如果当前机制支持初始响应，会在发送 {@link Auth} 前先生成并进行 Base64 编码。
+     * 对于 PLAIN 机制，还会在启动前强制校验 TLS 是否已经启用。</p>
      *
-     * @throws XmppAuthException 如果认证启动失败，包括：PLAIN 机制未使用 TLS 加密、生成初始响应失败或构造 Auth stanza 失败
+     * @throws XmppAuthException 如果认证启动失败
      */
     public void start() throws XmppAuthException {
         if ("PLAIN".equals(mechanism.getMechanismName()) && !isTlsEncrypted()) {
             throw new XmppAuthException("PLAIN authentication requires TLS encryption. Please enable TLS before authenticating.");
         }
-        
+
         log.info("Authenticating with {}", mechanism.getMechanismName());
         String content = "";
         if (mechanism.hasInitialResponse()) {
@@ -81,12 +82,10 @@ public class SaslNegotiator {
     }
 
     /**
-     * 处理服务器发送的 Challenge。
+     * 处理服务端返回的 SASL 挑战数据。
      *
-     * <p>解码 Challenge 数据，调用 SASL 机制处理，发送 Response。</p>
-     *
-     * @param contentB64 Base64 编码的 Challenge 内容
-     * @throws XmppAuthException 如果处理 Challenge 失败，包括 Base64 解码失败、SASL 机制处理失败或构造 Response stanza 失败
+     * @param contentB64 Base64 编码的挑战内容
+     * @throws XmppAuthException 如果挑战处理失败
      */
     public void handleChallenge(String contentB64) throws XmppAuthException {
         byte[] cContent = BASE64_DECODER.decode(contentB64 != null ? contentB64 : "");
@@ -105,13 +104,11 @@ public class SaslNegotiator {
     }
 
     /**
-     * 处理服务器发送的 Success。
+     * 处理服务端返回的 SASL 成功结果。
      *
-     * <p>验证最终的服务器签名（如果机制需要）。</p>
-     *
-     * @param contentB64 Base64 编码的 Success 内容（可选）
-     * @return 如果认证完成返回 true
-     * @throws XmppAuthException 如果验证失败，包括 Base64 解码失败或服务器签名验证失败
+     * @param contentB64 Base64 编码的成功附加数据，可能为空
+     * @return 如果认证已经完成则返回 {@code true}
+     * @throws XmppAuthException 如果成功结果校验失败
      */
     public boolean handleSuccess(String contentB64) throws XmppAuthException {
         if (contentB64 != null && !contentB64.isEmpty()) {
@@ -129,11 +126,10 @@ public class SaslNegotiator {
     }
 
     /**
-     * 发送 SASL 协议 stanza。
+     * 发送 SASL 阶段使用的扩展元素。
      *
-     * @param packet 要发送的协议元素
+     * @param packet 待发送的协议元素
      * @throws XmppAuthException 如果发送失败
-     * @throws IllegalArgumentException 如果 packet 不是 ExtensionElement 类型
      */
     private void sendStanza(Object packet) throws XmppAuthException {
         if (packet instanceof ExtensionElement element) {
@@ -152,6 +148,7 @@ public class SaslNegotiator {
                     if (bufToWrite.refCnt() > 0) {
                         bufToWrite.release();
                     }
+                    ctx.pipeline().fireExceptionCaught(new XmppAuthException("Failed to send SASL stanza", future.cause()));
                 }
             });
         } else {
@@ -161,13 +158,13 @@ public class SaslNegotiator {
     }
 
     /**
-     * 检查当前通道是否使用 TLS 加密。
+     * 检查当前通道是否已经完成 TLS 加密握手。
      *
-     * @return 如果通道已加密返回 true，否则返回 false
+     * @return 如果当前通道已加密则返回 {@code true}
      */
     private boolean isTlsEncrypted() {
-        return ctx.pipeline().get(SslHandler.class) != null 
-            && ctx.pipeline().get(SslHandler.class).handshakeFuture().isDone()
-            && !ctx.pipeline().get(SslHandler.class).handshakeFuture().isCancelled();
+        return ctx.pipeline().get(SslHandler.class) != null
+                && ctx.pipeline().get(SslHandler.class).handshakeFuture().isDone()
+                && !ctx.pipeline().get(SslHandler.class).handshakeFuture().isCancelled();
     }
 }

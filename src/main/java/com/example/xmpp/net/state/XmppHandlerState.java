@@ -2,9 +2,12 @@ package com.example.xmpp.net.state;
 
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppAuthException;
+import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.exception.XmppSaslFailureException;
 import com.example.xmpp.exception.XmppStanzaErrorException;
-import com.example.xmpp.exception.XmppNetworkException;
+import com.example.xmpp.mechanism.SaslMechanism;
+import com.example.xmpp.mechanism.SaslMechanismFactory;
+import com.example.xmpp.mechanism.SaslNegotiator;
 import com.example.xmpp.net.SslUtils;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.Presence;
@@ -14,13 +17,10 @@ import com.example.xmpp.protocol.model.extension.Bind;
 import com.example.xmpp.protocol.model.sasl.SaslChallenge;
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
 import com.example.xmpp.protocol.model.sasl.SaslSuccess;
-import com.example.xmpp.protocol.model.stream.TlsElements.StartTls;
-import com.example.xmpp.protocol.model.stream.TlsElements.TlsProceed;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.protocol.model.stream.StreamHeader;
-import com.example.xmpp.mechanism.SaslMechanism;
-import com.example.xmpp.mechanism.SaslMechanismFactory;
-import com.example.xmpp.mechanism.SaslNegotiator;
+import com.example.xmpp.protocol.model.stream.TlsElements.StartTls;
+import com.example.xmpp.protocol.model.stream.TlsElements.TlsProceed;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +31,8 @@ import java.util.Set;
 
 /**
  * XMPP 处理器状态枚举。
+ *
+ * <p>定义连接建立、TLS 协商、SASL 认证、资源绑定以及会话激活等阶段的状态行为与转换规则。</p>
  *
  * @since 2026-02-23
  */
@@ -122,6 +124,7 @@ public enum XmppHandlerState implements HandlerState {
 
         private void handleInsecureConnectionFeatures(StateContext context, ChannelHandlerContext ctx, StreamFeatures features) {
             XmppClientConfig.SecurityMode mode = context.getConfig().getSecurityMode();
+            boolean hasSaslMechanisms = features.getMechanisms() != null && !features.getMechanisms().isEmpty();
 
             if (mode == XmppClientConfig.SecurityMode.REQUIRED && !features.isStarttlsAvailable()) {
                 log.error("TLS required by configuration but not available on server");
@@ -131,10 +134,12 @@ public enum XmppHandlerState implements HandlerState {
 
             if (features.isStarttlsAvailable() && mode != XmppClientConfig.SecurityMode.DISABLED) {
                 initiateStartTls(context, ctx);
+            } else if (hasSaslMechanisms) {
+                startSaslAuthentication(context, ctx, features.getMechanisms());
             } else if (features.isBindAvailable()) {
                 handleBindRequest(context, ctx);
             } else {
-                startSaslAuthentication(context, ctx, features.getMechanisms());
+                context.closeConnectionOnError(ctx, "Server features missing both SASL mechanisms and bind capability");
             }
         }
 
@@ -374,7 +379,7 @@ public enum XmppHandlerState implements HandlerState {
     }
 
     /**
-     * 验证状态转换是否合法。
+     * 校验当前状态是否允许切换到目标状态。
      *
      * @param target 目标状态
      * @throws IllegalStateException 如果状态转换不合法
@@ -387,10 +392,10 @@ public enum XmppHandlerState implements HandlerState {
     }
 
     /**
-     * 检查是否可以转换到目标状态。
+     * 判断当前状态是否可以切换到目标状态。
      *
      * @param target 目标状态
-     * @return 如果允许转换返回 true
+     * @return 如果允许切换则返回 {@code true}
      */
     public abstract boolean canTransitionTo(XmppHandlerState target);
 }

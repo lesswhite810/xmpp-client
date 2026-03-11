@@ -1,7 +1,6 @@
 package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
-import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppDnsException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
@@ -11,12 +10,12 @@ import com.example.xmpp.logic.PingManager;
 import com.example.xmpp.logic.ReconnectionManager;
 import com.example.xmpp.net.DnsResolver;
 import com.example.xmpp.net.SrvRecord;
+import com.example.xmpp.net.SslUtils;
 import com.example.xmpp.net.XmppNettyHandler;
 import com.example.xmpp.net.XmppStreamDecoder;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.util.ConnectionUtils;
 import com.example.xmpp.util.XmppConstants;
-import com.example.xmpp.net.SslUtils;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -31,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -43,8 +41,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * 基于 TCP 的 XMPP 连接实现。
  *
- * <p>提供完整的 XMPP over TCP 连接功能，包括 DNS SRV 解析、TLS/SSL 加密、
- * SASL 认证和资源绑定等核心功能。</p>
+ * <p>负责创建 Netty 管道、建立 XMPP 会话，并协调 Ping 与重连等生命周期管理组件。</p>
  *
  * @since 2026-02-09
  */
@@ -52,48 +49,25 @@ import java.util.concurrent.TimeoutException;
 @Getter
 public class XmppTcpConnection extends AbstractXmppConnection {
 
-    /**
-     * 客户端配置。
-     */
     private final XmppClientConfig config;
 
-    /**
-     * Netty 工作线程组。
-     */
     private EventLoopGroup workerGroup;
 
-    /**
-     * Netty 通道。
-     */
     private Channel channel;
 
-    /**
-     * XMPP 协议处理器。
-     */
     private XmppNettyHandler nettyHandler;
 
-    /**
-     * Ping 管理器。
-     */
     private PingManager pingManager;
 
-    /**
-     * 重连管理器。
-     */
     private ReconnectionManager reconnectionManager;
 
-    /**
-     * 连接就绪 Future，在完成认证和资源绑定后完成。
-     */
     private volatile CompletableFuture<Void> connectionReadyFuture = new CompletableFuture<>();
 
     /**
-     * 构造 TCP 连接。
+     * 创建 TCP XMPP 连接。
      *
-     * <p>根据配置初始化连接，并可选地创建 PingManager 和 ReconnectionManager。</p>
-     *
-     * @param config 客户端配置，不能为 {@code null}
-     * @throws IllegalArgumentException 如果 config 为 null
+     * @param config 客户端配置
+     * @throws IllegalArgumentException 如果 {@code config} 为 {@code null}
      */
     public XmppTcpConnection(XmppClientConfig config) {
         this.config = Objects.requireNonNull(config, "XmppClientConfig must not be null");
@@ -110,19 +84,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 建立 TCP 连接。
+     * 同步建立连接并等待会话就绪。
      *
-     * <p>执行完整的 XMPP 连接流程：
-     * <ol>
-     *   <li>解析连接目标列表（DNS SRV 或配置）</li>
-     *   <li>创建并配置 Netty Bootstrap</li>
-     *   <li>尝试连接到目标服务器</li>
-     * </ol>
-     * </p>
-     *
-     * @throws XmppNetworkException 如果无法解析服务器地址或连接失败
-     * @throws XmppAuthException 如果 SASL 认证失败
-     * @throws XmppException 如果发生其他 XMPP 相关错误
+     * @throws XmppException 如果建连、认证或会话初始化失败
      */
     @Override
     public void connect() throws XmppException {
@@ -142,12 +106,13 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 异步建立 TCP 连接并等待认证完成。
+     * 异步建立连接并返回会话就绪 Future。
      *
-     * @return 在连接完成认证和资源绑定后完成的 Future
-     * @throws XmppException 如果前置的网络初始化失败
+     * @return 当前会话的就绪 Future
+     * @throws XmppException 如果连接目标解析或连接初始化失败
      */
     public CompletableFuture<Void> connectAsync() throws XmppException {
+        resetConnectionLifecycleEvents();
         connectionReadyFuture = new CompletableFuture<>();
         workerGroup = new NioEventLoopGroup();
         nettyHandler = new XmppNettyHandler(config, this);
@@ -160,7 +125,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         }
 
         Bootstrap bootstrap = createBootstrap();
-
         try {
             this.channel = connectToTargets(bootstrap, targets)
                     .orElseThrow(() -> new XmppNetworkException("All connection attempts failed"));
@@ -175,22 +139,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         }
     }
 
-    /**
-     * 连接目标记录。
-     *
-     * <p>封装连接目标的主机名、IP地址和端口信息。</p>
-     *
-     */
     private record ConnectionTarget(String host, InetAddress address, int port) {
 
-        /**
-         * 从主机信息创建连接目标。
-         *
-         * @param address IP 地址（优先使用）
-         * @param host    主机名
-         * @param port    端口号
-         * @return 如果配置了 address 或 host，返回目标；否则返回 empty
-         */
         static Optional<ConnectionTarget> of(InetAddress address, String host, int port) {
             if (address == null && (host == null || host.isEmpty())) {
                 return Optional.empty();
@@ -198,24 +148,12 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             return Optional.of(new ConnectionTarget(host, address, port));
         }
 
-        /**
-         * 从 SRV 记录创建连接目标列表。
-         *
-         * @param records SRV 记录列表
-         * @return 连接目标列表
-         */
         static List<ConnectionTarget> fromSrvRecords(List<SrvRecord> records) {
             return records.stream()
                     .map(record -> new ConnectionTarget(normalizeHost(record.target()), null, record.port()))
                     .toList();
         }
 
-        /**
-         * 规范化主机名（移除尾随点）。
-         *
-         * @param host 原始主机名
-         * @return 规范化后的主机名
-         */
         private static String normalizeHost(String host) {
             return host != null && host.endsWith(".")
                     ? host.substring(0, host.length() - 1)
@@ -229,11 +167,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
                     : host + ":" + port;
         }
 
-        /**
-         * 转换为 InetSocketAddress。
-         *
-         * @return InetSocketAddress 实例
-         */
         InetSocketAddress toSocketAddress() {
             return address != null
                     ? new InetSocketAddress(address, port)
@@ -241,19 +174,13 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         }
     }
 
-    /**
-     * 解析连接目标列表。
-     *
-     * @return 连接目标列表
-     */
     private List<ConnectionTarget> resolveConnectionTargets() {
         int basePort = config.isUsingDirectTLS()
                 ? XmppConstants.DIRECT_TLS_PORT
                 : XmppConstants.DEFAULT_XMPP_PORT;
         int port = config.getPort() > 0 ? config.getPort() : basePort;
 
-        Optional<ConnectionTarget> configTarget = ConnectionTarget.of(
-                config.getHostAddress(), config.getHost(), port);
+        Optional<ConnectionTarget> configTarget = ConnectionTarget.of(config.getHostAddress(), config.getHost(), port);
         if (configTarget.isPresent()) {
             return List.of(configTarget.get());
         }
@@ -268,19 +195,14 @@ public class XmppTcpConnection extends AbstractXmppConnection {
                 .orElse(List.of());
     }
 
-    /**
-     * 创建 Netty Bootstrap。
-     *
-     * @return 配置好的 Bootstrap
-     */
     private Bootstrap createBootstrap() {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(workerGroup);
         bootstrap.channel(NioSocketChannel.class);
         bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
-        bootstrap.option(ChannelOption.TCP_NODELAY, true); // 禁用 Nagle 算法，降低延迟
-        bootstrap.option(ChannelOption.SO_RCVBUF, 64 * 1024); // 接收缓冲区 64KB
-        bootstrap.option(ChannelOption.SO_SNDBUF, 64 * 1024); // 发送缓冲区 64KB
+        bootstrap.option(ChannelOption.TCP_NODELAY, true);
+        bootstrap.option(ChannelOption.SO_RCVBUF, 64 * 1024);
+        bootstrap.option(ChannelOption.SO_SNDBUF, 64 * 1024);
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeout());
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             @Override
@@ -298,13 +220,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         return bootstrap;
     }
 
-    /**
-     * 尝试连接到目标列表。
-     *
-     * @param bootstrap Netty Bootstrap
-     * @param targets   连接目标列表
-     * @return 成功连接的 Channel 的 Optional
-     */
     private Optional<Channel> connectToTargets(Bootstrap bootstrap, List<ConnectionTarget> targets) {
         for (ConnectionTarget target : targets) {
             try {
@@ -319,25 +234,19 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         return Optional.empty();
     }
 
-    /**
-     * 解析 DNS SRV 记录。
-     *
-     * @param domain 服务域名
-     * @return SRV 记录列表
-     */
-
     private XmppException unwrapXmppException(Throwable cause) {
         if (cause instanceof XmppException xmppException) {
             return xmppException;
         }
-        if (cause instanceof RuntimeException runtimeException && runtimeException.getCause() instanceof XmppException xmppException) {
+        if (cause instanceof RuntimeException runtimeException
+                && runtimeException.getCause() instanceof XmppException xmppException) {
             return xmppException;
         }
         return new XmppProtocolException("Unexpected error while establishing XMPP session", cause);
     }
 
     /**
-     * 标记连接已完成认证和资源绑定。
+     * 将当前连接生命周期标记为就绪。
      */
     public void markConnectionReady() {
         CompletableFuture<Void> future = connectionReadyFuture;
@@ -347,9 +256,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 以异常结束当前连接生命周期，并向用户发布错误事件。
+     * 使用异常结束当前连接生命周期。
      *
-     * @param exception 连接级异常
+     * @param exception 失败原因
      */
     public void failConnection(Exception exception) {
         CompletableFuture<Void> future = connectionReadyFuture;
@@ -358,6 +267,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         }
         notifyConnectionClosedOnError(exception);
     }
+
     private List<SrvRecord> resolveSrvRecords(String domain) {
         try (DnsResolver resolver = new DnsResolver()) {
             return resolver.resolveXmppService(domain);
@@ -368,10 +278,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 断开连接。
-     *
-     * <p>关闭 Netty 通道、停止 Ping 定时任务，并清理相关资源。
-     * 此方法会阻塞等待资源释放完成。</p>
+     * 关闭当前会话并释放相关资源。
      */
     @Override
     public void disconnect() {
@@ -397,9 +304,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         shutdownWorkerGroup();
     }
 
-    /**
-     * 优雅关闭 Netty 工作线程组。
-     */
     private void shutdownWorkerGroup() {
         if (workerGroup != null) {
             workerGroup.shutdownGracefully(
@@ -411,9 +315,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 检查连接状态。
+     * 判断底层通道是否仍处于活动状态。
      *
-     * @return 如果连接活跃返回 true，否则返回 false
+     * @return 如果通道仍然活跃则返回 {@code true}
      */
     @Override
     public boolean isConnected() {
@@ -421,9 +325,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 检查认证状态。
+     * 判断当前连接是否已经完成认证。
      *
-     * @return 如果已认证返回 true，否则返回 false
+     * @return 如果连接已完成认证则返回 {@code true}
      */
     @Override
     public boolean isAuthenticated() {
@@ -431,11 +335,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 发送节。
+     * 在通道可用时发送 XMPP stanza。
      *
-     * <p>将 XMPP 节发送到服务器。如果连接未激活，方法会记录错误日志并静默返回。</p>
-     *
-     * @param stanza 要发送的节，可以为 {@code null}（将静默忽略）
+     * @param stanza 待发送的协议元素
      */
     @Override
     public void sendStanza(XmppStanza stanza) {
@@ -452,9 +354,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 获取客户端配置。
+     * 获取当前连接绑定的客户端配置。
      *
-     * @return 客户端配置对象，永不为 {@code null}
+     * @return 当前连接配置
      */
     @Override
     public XmppClientConfig getConfig() {
@@ -462,9 +364,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 重置处理器状态。
-     *
-     * <p>用于重连场景，清除内部状态以便重新开始连接流程。</p>
+     * 重置底层 Netty 处理器的状态机。
      */
     @Override
     public void resetHandlerState() {

@@ -10,39 +10,20 @@ import com.example.xmpp.protocol.model.stream.StreamError;
 import com.example.xmpp.protocol.model.stream.StreamHeader;
 import com.example.xmpp.util.NettyUtils;
 import com.example.xmpp.util.SecurityUtils;
-
-import java.util.Optional;
-
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
-import io.netty.handler.ssl.SslHandler;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Optional;
+
 /**
- * XMPP 协议处理器（状态模式重构版）。
+ * XMPP Netty 入站处理器。
  *
- * <p>使用状态模式将 XMPP 状态机的逻辑分散到各个状态类中，提高代码可读性和可维护性。</p>
- *
- * <h2>状态流转</h2>
- * <ol>
- *   <li>CONNECTING - 初始连接状态</li>
- *   <li>AWAITING_FEATURES - 等待流特性（可用于多个阶段）</li>
- *   <li>TLS_NEGOTIATING - TLS 协商和握手中</li>
- *   <li>SASL_AUTH - SASL 认证中</li>
- *   <li>BINDING - 资源绑定中</li>
- *   <li>SESSION_ACTIVE - 会话已建立</li>
- * </ol>
- *
- * <h2>状态模式优势</h2>
- * <ul>
- *   <li>消除冗长的 switch-case 语句</li>
- *   <li>每个状态的逻辑独立封装，易于理解</li>
- *   <li>新增状态只需添加新类，符合开闭原则</li>
- *   <li>状态转换逻辑集中管理</li>
- * </ul>
+ * <p>负责衔接 Netty 事件与 XMPP 状态机，包括连接激活、入站消息分发、SSL 握手结果处理、
+ * 异常传播以及协议报文发送。</p>
  *
  * @since 2026-02-09
  */
@@ -59,7 +40,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     private final XmppTcpConnection connection;
 
     /**
-     * 初始化状态上下文。
+     * 初始化当前通道对应的状态上下文。
      *
      * @param ctx Netty 通道上下文
      */
@@ -68,9 +49,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     }
 
     /**
-     * 重置状态。
-     *
-     * <p>当连接断开后重新连接时调用此方法。下次 channelActive 时会正确初始化状态。</p>
+     * 重置处理器状态机。
      */
     public void resetState() {
         log.debug("Resetting handler state");
@@ -80,11 +59,9 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     }
 
     /**
-     * 检查连接是否已认证。
+     * 判断连接是否已经完成认证。
      *
-     * <p>使用局部变量避免竞态条件：先读取引用到局部变量，再进行空检查。</p>
-     *
-     * @return 如果已认证并处于 SESSION_ACTIVE 状态则返回 true
+     * @return 如果已进入已认证状态则返回 {@code true}
      */
     public boolean isAuthenticated() {
         StateContext ctx = this.stateContext;
@@ -94,7 +71,6 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         log.info("Channel active - Remote: {}", ctx.channel().remoteAddress());
-
         initStateContext(ctx);
     }
 
@@ -113,8 +89,10 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
                 cause.getMessage(),
                 cause);
 
-        connection.failConnection(
-                new XmppException("Connection error: " + cause.getClass().getSimpleName()));
+        Exception connectionException = cause instanceof XmppException xmppException
+                ? xmppException
+                : new XmppException("Connection error: " + cause.getClass().getSimpleName(), cause);
+        connection.failConnection(connectionException);
         ctx.close();
     }
 
@@ -162,17 +140,16 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
             stateContext.transitionTo(XmppHandlerState.AWAITING_FEATURES, ctx);
         } else {
             log.error("SSL handshake failed: ", event.cause());
-            connection.failConnection(
-                    new XmppException("SSL handshake failed", event.cause()));
+            connection.failConnection(new XmppException("SSL handshake failed", event.cause()));
             ctx.close();
         }
     }
 
     /**
-     * 发送 Stanza 到服务器。
+     * 向服务器发送可序列化的 XMPP 报文。
      *
      * @param ctx Netty 通道上下文
-     * @param packet 要发送的数据包
+     * @param packet 待发送的数据包
      */
     public void sendStanza(ChannelHandlerContext ctx, Object packet) {
         Optional.ofNullable(packet)

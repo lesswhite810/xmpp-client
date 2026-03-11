@@ -19,10 +19,7 @@ import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.protocol.model.stream.TlsElements;
 import com.example.xmpp.protocol.provider.GenericExtensionProvider;
 import com.example.xmpp.util.XmlParserUtils;
-
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufInputStream;
-import java.io.IOException;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import lombok.extern.slf4j.Slf4j;
@@ -33,38 +30,42 @@ import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
+import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * XMPP 流解码器（基于 Netty ByteToMessageDecoder）。
+ * XMPP 流解码器。
  *
- * <p>直接从 ByteBuf 解析 XML，将 XMPP stanza 转换为协议对象。</p>
- *
- * @since 2026-02-09
+ * <p>负责从 Netty {@link ByteBuf} 中切分出完整 XML 帧，并解析为对应的
+ * XMPP 协议对象。</p>
  */
 @Slf4j
 public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     private static final XMLInputFactory INPUT_FACTORY = XMLInputFactory.newFactory();
-
-    /**
-     * 最大缓冲区大小 (1MB).
-     * 超过此大小时,认为解析错误,清空缓冲区防止内存泄漏.
-     */
     private static final int MAX_BUFFER_SIZE = 1024 * 1024;
+    private static final String STREAMS_NAMESPACE = "http://etherx.jabber.org/streams";
+    private static final String TLS_NAMESPACE = "urn:ietf:params:xml:ns:xmpp-tls";
+    private static final String SASL_NAMESPACE = "urn:ietf:params:xml:ns:xmpp-sasl";
+    private static final String DECODER_ROOT_PREFIX =
+            "<decoder-root xmlns='jabber:client' xmlns:stream='" + STREAMS_NAMESPACE + "'>";
+    private static final String DECODER_ROOT_SUFFIX = "</decoder-root>";
+
+    private enum FrameType {
+        ELEMENT,
+        SKIP
+    }
+
+    private record FrameBoundary(FrameType type, int length) {
+    }
 
     /**
-     * Stanza 公共属性（id、from、to）及类型。
-     *
-     * @param type 节类型
-     * @param id 节 ID
-     * @param from 发送者
-     * @param to 接收者
+     * 提取 Stanza 共有属性，便于构建具体的协议对象。
      */
     private record StanzaAttrs(String type, String id, String from, String to) {
         static StanzaAttrs from(StartElement element) {
@@ -86,50 +87,89 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     }
 
     @Override
-    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
+    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
         if (!in.isReadable()) {
             return;
         }
 
-        // 标记当前读取位置,以便在解析失败时回退
-        in.markReaderIndex();
-
-        List<Object> elements = parseFromByteBuf(in);
-
-        if (elements.isEmpty()) {
-            // 解析失败,重置读取索引,等待更多数据
-            in.resetReaderIndex();
-            int bufferSize = in.readableBytes();
-            if (bufferSize > MAX_BUFFER_SIZE) {
-                // 缓冲区过大,可能是解析错误,清空缓冲区
-                log.warn("Buffer size {} exceeded max {}, clearing buffer to prevent memory leak",
-                        bufferSize, MAX_BUFFER_SIZE);
-                in.skipBytes(bufferSize);
-            } else {
-                log.debug("Parsing returned no elements, waiting for more data (buffer size: {})", bufferSize);
+        int initialReaderIndex = in.readerIndex();
+        while (in.isReadable()) {
+            skipLeadingWhitespace(in);
+            if (!in.isReadable()) {
+                break;
             }
-        } else {
-            out.addAll(elements);
+
+            FrameBoundary boundary = findNextFrame(in);
+            if (boundary == null) {
+                break;
+            }
+
+            if (boundary.type() == FrameType.SKIP) {
+                in.skipBytes(boundary.length());
+                continue;
+            }
+
+            byte[] xmlBytes = new byte[boundary.length()];
+            in.readBytes(xmlBytes);
+            parseFrame(xmlBytes).ifPresent(out::add);
+        }
+
+        if (initialReaderIndex == in.readerIndex()) {
+            handleIncompleteBuffer(in);
         }
     }
 
     /**
-     * 从 ByteBuf 解析 XML，收集所有顶级元素。
+     * 从缓冲区中解析所有已完整到达的顶层 XML 元素。
      *
      * @param buf 字节缓冲区
-     * @return 解析结果列表（可能包含多个 stanza）
+     * @return 已解析出的协议元素列表
      */
     protected List<Object> parseFromByteBuf(ByteBuf buf) {
+        List<Object> elements = new ArrayList<>();
+        int readerIndex = buf.readerIndex();
+        while (readerIndex < buf.writerIndex()) {
+            readerIndex = skipLeadingWhitespace(buf, readerIndex);
+            if (readerIndex >= buf.writerIndex()) {
+                break;
+            }
+
+            FrameBoundary boundary = findNextFrame(buf, readerIndex);
+            if (boundary == null) {
+                break;
+            }
+
+            if (boundary.type() == FrameType.ELEMENT) {
+                byte[] xmlBytes = new byte[boundary.length()];
+                buf.getBytes(readerIndex, xmlBytes);
+                parseFrame(xmlBytes).ifPresent(elements::add);
+            }
+            readerIndex += boundary.length();
+        }
+        return elements;
+    }
+
+    private void handleIncompleteBuffer(ByteBuf in) {
+        int bufferSize = in.readableBytes();
+        if (bufferSize > MAX_BUFFER_SIZE) {
+            log.warn("Buffer size {} exceeded max {}, clearing buffer", bufferSize, MAX_BUFFER_SIZE);
+            in.skipBytes(bufferSize);
+            return;
+        }
+        log.debug("Waiting for more data to complete XML frame, buffer size: {}", bufferSize);
+    }
+
+    private Optional<Object> parseFrame(byte[] xmlBytes) {
+        String xml = new String(xmlBytes, StandardCharsets.UTF_8);
+        String wrappedXml = DECODER_ROOT_PREFIX + xml + DECODER_ROOT_SUFFIX;
+
         XMLEventReader reader = null;
-        try (ByteBufInputStream in = new ByteBufInputStream(buf)) {
-            reader = INPUT_FACTORY.createXMLEventReader(in);
-            return parseAllRootElements(reader);
+        try {
+            reader = INPUT_FACTORY.createXMLEventReader(new StringReader(wrappedXml));
+            return parseWrappedFrame(reader);
         } catch (XMLStreamException e) {
             log.warn("XML parsing error: {}", e.getMessage());
-            return Collections.emptyList();
-        } catch (IOException e) {
-            log.warn("Error closing ByteBuf stream: {}", e.getMessage());
-            return Collections.emptyList();
+            return Optional.empty();
         } finally {
             if (reader != null) {
                 try {
@@ -141,63 +181,233 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         }
     }
 
-    /**
-     * 解析根元素，收集所有顶级元素。
-     *
-     * <p>修复: 原实现只返回第一个元素,导致同一 TCP 包中的多个 stanza 丢失。
-     * 现在改为收集所有顶级元素并返回列表。</p>
-     *
-     * <p>注意: XMPP 流是开放的 XML 文档,可能会遇到 EOF 异常。
-     * 我们捕获此类异常并返回已解析的元素。</p>
-     *
-     * @param reader XML 事件读取器
-     * @return 解析结果列表
-     */
-    private List<Object> parseAllRootElements(XMLEventReader reader) {
-        List<Object> results = new ArrayList<>();
-        try {
-            while (reader.hasNext()) {
-                XMLEvent event = reader.nextEvent();
-                if (!event.isStartElement()) {
-                    continue;
-                }
-
-                StartElement start = event.asStartElement();
-                String localName = start.getName().getLocalPart();
-
-                if ("stream".equals(localName)) {
-                    continue;
-                }
-
-                try {
-                    Optional<Object> element = parseElement(reader, start, localName, start.getName().getNamespaceURI());
-                    element.ifPresent(results::add);
-                } catch (XMLStreamException e) {
-                    // 单个元素解析失败,记录日志但继续处理
-                    log.warn("Error parsing element <{}>: {}", localName, e.getMessage());
-                }
+    private Optional<Object> parseWrappedFrame(XMLEventReader reader) throws XMLStreamException {
+        while (reader.hasNext()) {
+            XMLEvent event = reader.nextEvent();
+            if (!event.isStartElement()) {
+                continue;
             }
-        } catch (XMLStreamException e) {
-            // XMPP 流是开放的,EOF 是正常的
-            if (e.getMessage() != null && e.getMessage().contains("EOF")) {
-                log.debug("Reached end of XML stream chunk, parsed {} elements", results.size());
-            } else {
-                log.warn("XML stream error after parsing {} elements: {}", results.size(), e.getMessage());
+
+            StartElement start = event.asStartElement();
+            String localName = start.getName().getLocalPart();
+            if ("decoder-root".equals(localName)) {
+                continue;
             }
+            if (isStreamOpenElement(localName, start.getName().getNamespaceURI())) {
+                return Optional.empty();
+            }
+            return parseElement(reader, start, localName, start.getName().getNamespaceURI());
         }
-        return results;
+        return Optional.empty();
     }
 
-    /**
-     * 解析 XML 元素（顶层元素路由）。
-     *
-     * @param reader XML 事件读取器
-     * @param start 开始元素
-     * @param localName 元素本地名称
-     * @param namespace 命名空间
-     * @return 解析结果的可选对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
-     */
+    private void skipLeadingWhitespace(ByteBuf in) {
+        int newReaderIndex = skipLeadingWhitespace(in, in.readerIndex());
+        if (newReaderIndex > in.readerIndex()) {
+            in.readerIndex(newReaderIndex);
+        }
+    }
+
+    private int skipLeadingWhitespace(ByteBuf in, int index) {
+        while (index < in.writerIndex() && Character.isWhitespace((char) in.getByte(index))) {
+            index++;
+        }
+        return index;
+    }
+
+    private FrameBoundary findNextFrame(ByteBuf in) {
+        return findNextFrame(in, in.readerIndex());
+    }
+
+    private FrameBoundary findNextFrame(ByteBuf in, int startIndex) {
+        if (startIndex >= in.writerIndex()) {
+            return null;
+        }
+        if (in.getByte(startIndex) != '<') {
+            int nextTagIndex = findNextTagStart(in, startIndex);
+            if (nextTagIndex < 0) {
+                return null;
+            }
+            return new FrameBoundary(FrameType.SKIP, nextTagIndex - startIndex);
+        }
+
+        if (matches(in, startIndex, "<?")) {
+            Integer end = findSequence(in, startIndex + 2, "?>");
+            return end == null ? null : new FrameBoundary(FrameType.SKIP, end - startIndex);
+        }
+        if (matches(in, startIndex, "<!--")) {
+            Integer end = findSequence(in, startIndex + 4, "-->");
+            return end == null ? null : new FrameBoundary(FrameType.SKIP, end - startIndex);
+        }
+        if (matches(in, startIndex, "</")) {
+            Integer tagEnd = findTagEnd(in, startIndex + 2);
+            return tagEnd == null ? null : new FrameBoundary(FrameType.SKIP, tagEnd - startIndex);
+        }
+
+        Integer openingTagEnd = findTagEnd(in, startIndex + 1);
+        if (openingTagEnd == null) {
+            return null;
+        }
+
+        String tagName = readTagName(in, startIndex + 1, openingTagEnd);
+        if (tagName == null || tagName.isBlank()) {
+            return null;
+        }
+        if (isStreamOpenTag(tagName)) {
+            return new FrameBoundary(FrameType.SKIP, openingTagEnd - startIndex);
+        }
+        if (isSelfClosingTag(in, openingTagEnd)) {
+            return new FrameBoundary(FrameType.ELEMENT, openingTagEnd - startIndex);
+        }
+
+        int depth = 1;
+        int index = openingTagEnd;
+        while (index < in.writerIndex()) {
+            int nextTagStart = findNextTagStart(in, index);
+            if (nextTagStart < 0) {
+                return null;
+            }
+
+            if (matches(in, nextTagStart, "<!--")) {
+                Integer commentEnd = findSequence(in, nextTagStart + 4, "-->");
+                if (commentEnd == null) {
+                    return null;
+                }
+                index = commentEnd;
+                continue;
+            }
+            if (matches(in, nextTagStart, "<![CDATA[")) {
+                Integer cdataEnd = findSequence(in, nextTagStart + 9, "]]>");
+                if (cdataEnd == null) {
+                    return null;
+                }
+                index = cdataEnd;
+                continue;
+            }
+            if (matches(in, nextTagStart, "<?")) {
+                Integer processingEnd = findSequence(in, nextTagStart + 2, "?>");
+                if (processingEnd == null) {
+                    return null;
+                }
+                index = processingEnd;
+                continue;
+            }
+
+            Integer tagEnd = findTagEnd(in, nextTagStart + 1);
+            if (tagEnd == null) {
+                return null;
+            }
+
+            if (matches(in, nextTagStart, "</")) {
+                depth--;
+                index = tagEnd;
+                if (depth == 0) {
+                    return new FrameBoundary(FrameType.ELEMENT, tagEnd - startIndex);
+                }
+                continue;
+            }
+
+            if (!isSelfClosingTag(in, tagEnd)) {
+                depth++;
+            }
+            index = tagEnd;
+        }
+        return null;
+    }
+
+    private int findNextTagStart(ByteBuf in, int startIndex) {
+        for (int index = startIndex; index < in.writerIndex(); index++) {
+            if (in.getByte(index) == '<') {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private Integer findTagEnd(ByteBuf in, int startIndex) {
+        boolean inQuote = false;
+        byte quoteChar = 0;
+        for (int index = startIndex; index < in.writerIndex(); index++) {
+            byte current = in.getByte(index);
+            if ((current == '"' || current == '\'') && (!inQuote || current == quoteChar)) {
+                inQuote = !inQuote;
+                quoteChar = current;
+                continue;
+            }
+            if (!inQuote && current == '>') {
+                return index + 1;
+            }
+        }
+        return null;
+    }
+
+    private Integer findSequence(ByteBuf in, int startIndex, String sequence) {
+        byte[] bytes = sequence.getBytes(StandardCharsets.UTF_8);
+        for (int index = startIndex; index <= in.writerIndex() - bytes.length; index++) {
+            boolean matched = true;
+            for (int offset = 0; offset < bytes.length; offset++) {
+                if (in.getByte(index + offset) != bytes[offset]) {
+                    matched = false;
+                    break;
+                }
+            }
+            if (matched) {
+                return index + bytes.length;
+            }
+        }
+        return null;
+    }
+
+    private boolean matches(ByteBuf in, int startIndex, String value) {
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        if (startIndex + bytes.length > in.writerIndex()) {
+            return false;
+        }
+        for (int index = 0; index < bytes.length; index++) {
+            if (in.getByte(startIndex + index) != bytes[index]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String readTagName(ByteBuf in, int startIndex, int tagEndExclusive) {
+        int index = startIndex;
+        while (index < tagEndExclusive && Character.isWhitespace((char) in.getByte(index))) {
+            index++;
+        }
+        int nameStart = index;
+        while (index < tagEndExclusive) {
+            byte current = in.getByte(index);
+            if (Character.isWhitespace((char) current) || current == '/' || current == '>') {
+                break;
+            }
+            index++;
+        }
+        if (nameStart == index) {
+            return null;
+        }
+        byte[] nameBytes = new byte[index - nameStart];
+        in.getBytes(nameStart, nameBytes);
+        return new String(nameBytes, StandardCharsets.UTF_8);
+    }
+
+    private boolean isSelfClosingTag(ByteBuf in, int tagEndExclusive) {
+        int index = tagEndExclusive - 2;
+        while (index >= 0 && Character.isWhitespace((char) in.getByte(index))) {
+            index--;
+        }
+        return index >= 0 && in.getByte(index) == '/';
+    }
+
+    private boolean isStreamOpenTag(String tagName) {
+        return "stream:stream".equals(tagName) || "stream".equals(tagName);
+    }
+
+    private boolean isStreamOpenElement(String localName, String namespace) {
+        return "stream".equals(localName) && STREAMS_NAMESPACE.equals(namespace);
+    }
+
     private Optional<Object> parseElement(XMLEventReader reader, StartElement start,
                                           String localName, String namespace) throws XMLStreamException {
         return switch (localName) {
@@ -208,65 +418,50 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         };
     }
 
-    /**
-     * 解析非 Stanza 元素（流级别元素或 Provider 扩展）。
-     *
-     * @param reader XML 事件读取器
-     * @param start 开始元素
-     * @param localName 元素本地名称
-     * @param namespace 命名空间
-     * @return 解析结果的可选对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
-     */
     private Optional<Object> parseOtherElement(XMLEventReader reader, StartElement start,
-                                                String localName, String namespace) throws XMLStreamException {
-        Object streamElement = parseStreamElement(reader, start, localName);
+                                               String localName, String namespace) throws XMLStreamException {
+        Object streamElement = parseStreamElement(reader, start, localName, namespace);
         if (streamElement != null) {
             return Optional.of(streamElement);
         }
         return tryParseWithProvider(reader, localName, namespace);
     }
 
-    /**
-     * 解析流级别元素（SASL、TLS、Features 等）。
-     *
-     * @param reader XML 事件读取器
-     * @param start 开始元素
-     * @param localName 元素本地名称
-     * @return 解析的流元素对象，如果没有匹配的类型返回 null
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
-     */
     private Object parseStreamElement(XMLEventReader reader, StartElement start,
-                                       String localName) throws XMLStreamException {
-        return switch (localName) {
-            case "features" -> parseFeatures(reader);
-            case "starttls" -> TlsElements.StartTls.INSTANCE;
-            case "proceed" -> TlsElements.TlsProceed.INSTANCE;
-            case "auth" -> parseSaslAuth(reader, start);
-            case "challenge" -> SaslChallenge.builder()
-                    .content(XmlParserUtils.getElementText(reader))
-                    .build();
-            case "response" -> new SaslResponse(XmlParserUtils.getElementText(reader));
-            case "success" -> SaslSuccess.builder()
-                    .content(XmlParserUtils.getElementText(reader))
-                    .build();
-            case "failure" -> parseSaslFailure(reader);
-            case "error" -> parseStreamError(reader);
-            default -> null;
-        };
+                                      String localName, String namespace) throws XMLStreamException {
+        if (STREAMS_NAMESPACE.equals(namespace)) {
+            return switch (localName) {
+                case "features" -> parseFeatures(reader);
+                case "error" -> parseStreamError(reader);
+                default -> null;
+            };
+        }
+        if (TLS_NAMESPACE.equals(namespace)) {
+            return switch (localName) {
+                case "starttls" -> TlsElements.StartTls.INSTANCE;
+                case "proceed" -> TlsElements.TlsProceed.INSTANCE;
+                default -> null;
+            };
+        }
+        if (SASL_NAMESPACE.equals(namespace)) {
+            return switch (localName) {
+                case "auth" -> parseSaslAuth(reader, start);
+                case "challenge" -> SaslChallenge.builder()
+                        .content(XmlParserUtils.getElementText(reader))
+                        .build();
+                case "response" -> new SaslResponse(XmlParserUtils.getElementText(reader));
+                case "success" -> SaslSuccess.builder()
+                        .content(XmlParserUtils.getElementText(reader))
+                        .build();
+                case "failure" -> parseSaslFailure(reader);
+                default -> null;
+            };
+        }
+        return null;
     }
 
-    /**
-     * 尝试使用 Provider 解析元素。
-     *
-     * @param reader XML 事件读取器
-     * @param localName 元素本地名称
-     * @param namespace 命名空间
-     * @return 解析结果的可选对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
-     */
     private Optional<Object> tryParseWithProvider(XMLEventReader reader,
-                                                   String localName, String namespace) throws XMLStreamException {
+                                                  String localName, String namespace) throws XMLStreamException {
         Optional<ExtensionElementProvider<?>> extProvider =
                 ProviderRegistry.getInstance().getExtensionProvider(localName, namespace);
         if (extProvider.isEmpty()) {
@@ -281,13 +476,6 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         }
     }
 
-    /**
-     * 解析 StreamFeatures 元素。
-     *
-     * @param reader XML 事件读取器
-     * @return 解析的 StreamFeatures 对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
-     */
     private StreamFeatures parseFeatures(XMLEventReader reader) throws XMLStreamException {
         List<String> mechanisms = new ArrayList<>();
         boolean startTls = false;
@@ -307,7 +495,8 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 case "mechanism" -> mechanisms.add(XmlParserUtils.getElementText(reader));
                 case "starttls" -> startTls = true;
                 case "bind" -> bind = true;
-                default -> { /* 忽略未知元素 */ }
+                default -> {
+                }
             }
         }
         return StreamFeatures.builder()
@@ -317,27 +506,12 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 .build();
     }
 
-    /**
-     * 解析 SASL Auth 元素。
-     *
-     * @param reader XML 事件读取器
-     * @param element 开始元素
-     * @return 解析的 Auth 对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
-     */
     private Auth parseSaslAuth(XMLEventReader reader, StartElement element) throws XMLStreamException {
         String mechanism = getAttributeValue(element, "mechanism");
         String content = XmlParserUtils.getElementText(reader);
         return new Auth(mechanism, content.isEmpty() ? null : content);
     }
 
-    /**
-     * 解析 SASL Failure 元素。
-     *
-     * @param reader XML 事件读取器
-     * @return 解析的 SaslFailure 对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
-     */
     private SaslFailure parseSaslFailure(XMLEventReader reader) throws XMLStreamException {
         String condition = "undefined-condition";
         String text = null;
@@ -364,22 +538,6 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 .build();
     }
 
-    /**
-     * 解析 IQ 节。
-     *
-     * @param reader XML 事件读取器
-     * @param element 开始元素
-     * @return 解析的 Iq 对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
-     */
-
-    /**
-     * 解析 StreamError 元素。
-     *
-     * @param reader XML 事件读取器
-     * @return 解析的 StreamError 对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
-     */
     private StreamError parseStreamError(XMLEventReader reader) throws XMLStreamException {
         StreamError.Condition condition = StreamError.Condition.UNDEFINED_CONDITION;
         String text = null;
@@ -411,6 +569,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 .by(by)
                 .build();
     }
+
     private Iq parseIq(XMLEventReader reader, StartElement element) throws XMLStreamException {
         StanzaAttrs attrs = StanzaAttrs.from(element);
         Iq.Builder builder = attrs.iqBuilder();
@@ -429,14 +588,6 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         return builder.build();
     }
 
-    /**
-     * 解析 IQ 子元素。
-     *
-     * @param reader XML 事件读取器
-     * @param start 开始元素
-     * @param builder IQ 构建器
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
-     */
     private void parseIqChildElement(XMLEventReader reader, StartElement start, Iq.Builder builder)
             throws XMLStreamException {
         String name = start.getName().getLocalPart();
@@ -451,14 +602,6 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         parseExtensionElement(reader, start, name, namespace, builder::childElement);
     }
 
-    /**
-     * 解析 XMPP Error 元素。
-     *
-     * @param reader XML 事件读取器
-     * @param element 开始元素
-     * @return 解析的 XmppError 对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
-     */
     private XmppError parseError(XMLEventReader reader, StartElement element) throws XMLStreamException {
         String typeStr = getAttributeValue(element, "type");
         XmppError.Type type = typeStr != null ? parseErrorType(typeStr) : null;
@@ -496,9 +639,6 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         return errorBuilder.build();
     }
 
-    /**
-     * 解析错误类型。
-     */
     private XmppError.Type parseErrorType(String typeStr) {
         try {
             return XmppError.Type.valueOf(typeStr.toUpperCase().replace("-", "_"));
@@ -507,14 +647,6 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         }
     }
 
-    /**
-     * 解析 Message 节。
-     *
-     * @param reader XML 事件读取器
-     * @param element 开始元素
-     * @return 解析的 Message 对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
-     */
     private Message parseMessage(XMLEventReader reader, StartElement element) throws XMLStreamException {
         StanzaAttrs attrs = StanzaAttrs.from(element);
         Message.Builder builder = attrs.messageBuilder();
@@ -542,14 +674,6 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         return builder.build();
     }
 
-    /**
-     * 解析 Presence 节。
-     *
-     * @param reader XML 事件读取器
-     * @param element 开始元素
-     * @return 解析的 Presence 对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 流错误
-     */
     private Presence parsePresence(XMLEventReader reader, StartElement element) throws XMLStreamException {
         StanzaAttrs attrs = StanzaAttrs.from(element);
         Presence.Builder builder = attrs.presenceBuilder();
@@ -577,12 +701,6 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         return builder.build();
     }
 
-    /**
-     * 解析 priority 值。
-     *
-     * @param reader XML 事件读取器
-     * @param builder Presence 构建器
-     */
     private void parsePriority(XMLEventReader reader, Presence.Builder builder) {
         try {
             builder.priority(Integer.parseInt(XmlParserUtils.getElementText(reader)));
@@ -591,18 +709,9 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         }
     }
 
-    /**
-     * 解析扩展元素（使用注册的 Provider 或通用解析器）。
-     *
-     * @param reader        XML 事件读取器
-     * @param start         开始元素事件
-     * @param name          元素名称
-     * @param namespace     命名空间
-     * @param addExtension  添加扩展的回调函数
-     */
     private void parseExtensionElement(XMLEventReader reader, StartElement start,
-                                        String name, String namespace,
-                                        Consumer<ExtensionElement> addExtension) {
+                                       String name, String namespace,
+                                       Consumer<ExtensionElement> addExtension) {
         Optional<ExtensionElementProvider<?>> provider =
                 ProviderRegistry.getInstance().getExtensionProvider(name, namespace);
         if (provider.isPresent()) {
@@ -625,25 +734,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         }
     }
 
-    /**
-     * 判断是否为指定名称的结束元素。
-     *
-     * @param event XML 事件
-     * @param elementName 元素名称
-     * @return 如果是指定名称的结束元素返回 true，否则返回 false
-     */
     private boolean isEndElement(XMLEvent event, String elementName) {
         return event.isEndElement()
                 && elementName.equals(event.asEndElement().getName().getLocalPart());
     }
 
-    /**
-     * 获取元素属性值。
-     *
-     * @param element 开始元素
-     * @param attrName 属性名称
-     * @return 属性值，如果不存在返回 null
-     */
     private String getAttributeValue(StartElement element, String attrName) {
         var attr = element.getAttributeByName(new QName(attrName));
         return attr != null ? attr.getValue() : null;
