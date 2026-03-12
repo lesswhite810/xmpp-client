@@ -69,7 +69,10 @@ public final class ProtocolErrorHandlingExample {
         try {
             connection.connectAsync()
                     .thenRun(() -> log.info("Async connect succeeded"))
-                    .exceptionally(error -> {
+                    .whenComplete((ignored, error) -> {
+                        if (error == null) {
+                            return;
+                        }
                         Throwable cause = unwrap(error);
                         if (cause instanceof XmppSaslFailureException e) {
                             log.warn("Async SASL failure: condition={}, text={}",
@@ -80,7 +83,6 @@ public final class ProtocolErrorHandlingExample {
                         } else {
                             log.error("Async connect failed", cause);
                         }
-                        return null;
                     })
                     .join();
         } catch (XmppException e) {

@@ -53,6 +53,7 @@ public class SslUtils {
             throws XmppNetworkException {
         try {
             log.debug("Creating SslHandler for {}:{}", host, port);
+            validateTlsAuthenticationConfig(config);
 
             SSLContext sslContext = SSLContext.getInstance("TLS");
 
@@ -92,6 +93,14 @@ public class SslUtils {
 
         } catch (Exception e) {
             throw new XmppNetworkException("Failed to create SslHandler: " + e.getMessage(), e);
+        }
+    }
+
+    private static void validateTlsAuthenticationConfig(XmppClientConfig config) throws XmppNetworkException {
+        if (config.getTlsAuthenticationMode() == XmppClientConfig.TlsAuthenticationMode.MUTUAL
+                && config.getCustomSslContext() == null
+                && (config.getKeyManagers() == null || config.getKeyManagers().length == 0)) {
+            throw new XmppNetworkException("Mutual TLS requires at least one configured KeyManager");
         }
     }
 

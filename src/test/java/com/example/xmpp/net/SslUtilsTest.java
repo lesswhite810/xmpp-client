@@ -87,4 +87,18 @@ class SslUtilsTest {
         assertNotNull(handler);
         assertEquals(customTimeout, handler.getHandshakeTimeoutMillis());
     }
+
+    @Test
+    @DisplayName("双向认证模式缺少 KeyManager 时应失败")
+    void testMutualTlsWithoutKeyManagersFails() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .host("example.com")
+                .tlsAuthenticationMode(XmppClientConfig.TlsAuthenticationMode.MUTUAL)
+                .build();
+
+        XmppNetworkException exception = assertThrows(XmppNetworkException.class,
+                () -> SslUtils.createSslHandler(config));
+        assertTrue(exception.getMessage().contains("KeyManager"));
+    }
 }

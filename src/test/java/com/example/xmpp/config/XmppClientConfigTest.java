@@ -99,6 +99,31 @@ class XmppClientConfigTest {
                 .build();
 
         assertTrue(config.isUsingDirectTLS());
+        assertEquals(XmppConstants.DIRECT_TLS_PORT, config.getPort());
+    }
+
+    @Test
+    @DisplayName("TLS 认证模式默认应为单向认证")
+    void testDefaultTlsAuthenticationMode() {
+        XmppClientConfig config = XmppClientConfig.builder().build();
+
+        assertEquals(XmppClientConfig.TlsAuthenticationMode.ONE_WAY, config.getTlsAuthenticationMode());
+    }
+
+    @Test
+    @DisplayName("应从 SystemService 读取 TLS 认证模式")
+    void testFromSystemServiceTlsAuthenticationMode() {
+        SystemService systemService = key -> switch (key) {
+            case XmppConfigKeys.XMPP_SERVICE_DOMAIN -> "example.com";
+            case XmppConfigKeys.USERNAME -> "admin";
+            case XmppConfigKeys.PASSWORD -> "secret";
+            case XmppConfigKeys.TLS_AUTHENTICATION_MODE -> "mutual";
+            default -> null;
+        };
+
+        XmppClientConfig config = XmppClientConfig.fromSystemService(systemService);
+
+        assertEquals(XmppClientConfig.TlsAuthenticationMode.MUTUAL, config.getTlsAuthenticationMode());
     }
 
     @Test
@@ -131,6 +156,7 @@ class XmppClientConfigTest {
             case XmppConfigKeys.SEND_PRESENCE -> "false";
             case XmppConfigKeys.DIRECT_TLS -> "true";
             case XmppConfigKeys.ENABLED_SASL_MECHANISMS -> "SCRAM-SHA-256,PLAIN";
+            case XmppConfigKeys.TLS_AUTHENTICATION_MODE -> "mutual";
             default -> null;
         };
 
@@ -153,6 +179,7 @@ class XmppClientConfigTest {
         assertEquals(25, config.getPingInterval());
         assertFalse(config.isSendPresence());
         assertTrue(config.isUsingDirectTLS());
+        assertEquals(XmppClientConfig.TlsAuthenticationMode.MUTUAL, config.getTlsAuthenticationMode());
         assertEquals(2, config.getEnabledSaslMechanisms().size());
     }
 

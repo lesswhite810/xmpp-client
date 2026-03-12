@@ -193,10 +193,12 @@ public class PingManager {
 
         log.debug("Sending Keepalive Ping...");
         connection.sendIqPacketAsync(pingIq)
-                .thenAccept(res -> log.debug("Keepalive Pong received."))
-                .exceptionally(ex -> {
-                    log.warn("Keepalive Ping failed: {}", ex.getMessage());
-                    return null;
+                .whenComplete((res, ex) -> {
+                    if (ex != null) {
+                        log.warn("Keepalive Ping failed: {}", ex.getMessage());
+                        return;
+                    }
+                    log.debug("Keepalive Pong received.");
                 });
     }
 }

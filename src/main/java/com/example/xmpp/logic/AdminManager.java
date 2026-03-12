@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -185,20 +186,20 @@ public class AdminManager {
      * 解析 IQ 响应中的会话 ID。
      *
      * @param response 响应节
-     * @return 会话 ID，如果不存在返回 null
+     * @return 会话 ID；如果不存在则返回 {@link Optional#empty()}
      */
-    private String extractSessionId(XmppStanza response) {
+    private Optional<String> extractSessionId(XmppStanza response) {
         if (!(response instanceof Iq iq)) {
             // 理论上不会发生（过滤器已确保是 IQ），用 DEBUG 级别
             log.debug("Response is not an IQ stanza: {}", response.getClass().getSimpleName());
-            return null;
+            return Optional.empty();
         }
 
         ExtensionElement childElement = iq.getChildElement();
         if (childElement == null) {
             // 服务器返回不完整响应，用 DEBUG 级别（后续会抛出异常）
             log.debug("IQ has no child element");
-            return null;
+            return Optional.empty();
         }
 
         // 优先从 GenericExtensionElement 获取属性
@@ -206,7 +207,7 @@ public class AdminManager {
             String sessionId = genericElement.getAttributeValue(ATTR_SESSION_ID);
             if (sessionId != null) {
                 log.debug("Extracted sessionId: {}", sessionId);
-                return sessionId;
+                return Optional.of(sessionId);
             }
         }
 
@@ -217,32 +218,32 @@ public class AdminManager {
     /**
      * 从 XML 字符串中解析 sessionid 属性。
      */
-    private String extractSessionIdFromXml(String xml) {
+    private Optional<String> extractSessionIdFromXml(String xml) {
         int sessionidIndex = xml.indexOf(ATTR_SESSION_ID + "=");
         if (sessionidIndex == -1) {
             log.debug("No sessionid found in response XML");
-            return null;
+            return Optional.empty();
         }
 
         int valueStart = sessionidIndex + ATTR_SESSION_ID.length() + 1; // "sessionid=".length()
         if (valueStart >= xml.length()) {
             log.warn("Malformed sessionid attribute in XML");
-            return null;
+            return Optional.empty();
         }
 
         char quote = xml.charAt(valueStart);
         if (quote != '"' && quote != '\'') {
             log.warn("Malformed sessionid attribute: missing quote");
-            return null;
+            return Optional.empty();
         }
 
         int valueEnd = xml.indexOf(quote, valueStart + 1);
         if (valueEnd == -1) {
             log.warn("Malformed sessionid attribute: unclosed quote");
-            return null;
+            return Optional.empty();
         }
 
-        return xml.substring(valueStart + 1, valueEnd);
+        return Optional.of(xml.substring(valueStart + 1, valueEnd));
     }
 
     // ==================== 响应处理辅助方法 ====================
@@ -317,15 +318,15 @@ public class AdminManager {
         }
 
         // 提取 sessionId
-        String sessionId = extractSessionId(executeResponse);
-        if (sessionId == null) {
+        Optional<String> sessionId = extractSessionId(executeResponse);
+        if (sessionId.isEmpty()) {
             return CompletableFuture.failedFuture(
                     createCommandException(commandName, "No session ID in execute response", null));
         }
 
         // 第二步：提交表单
-        log.debug("Step 2: Submitting {} form with session ID: {}", commandName, sessionId);
-        T submitCmd = submitCmdFactory.apply(sessionId);
+        log.debug("Step 2: Submitting {} form with session ID: {}", commandName, sessionId.orElseThrow());
+        T submitCmd = submitCmdFactory.apply(sessionId.orElseThrow());
         Iq submitIq = buildAdminIq(submitCmd);
 
         return sendAdminCommand(submitIq)

@@ -160,10 +160,13 @@ public class StateContext {
 
     private Exception toException(Object cause) {
         if (cause instanceof Exception exception) {
-            return exception;
+            if (exception instanceof XmppException xmppException) {
+                return xmppException;
+            }
+            return new XmppException("Connection error: " + exception.getClass().getSimpleName());
         }
         if (cause instanceof Throwable throwable) {
-            return new XmppException("Connection error: " + throwable.getClass().getSimpleName(), throwable);
+            return new XmppException("Connection error: " + throwable.getClass().getSimpleName());
         }
         return new XmppException(String.valueOf(cause));
     }

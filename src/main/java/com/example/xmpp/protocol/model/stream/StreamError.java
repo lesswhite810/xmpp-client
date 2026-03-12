@@ -107,11 +107,11 @@ public class StreamError implements ExtensionElement {
          * 从字符串解析 Condition。
          *
          * @param name 条件名称，如 "bad-format"、"not-authorized"
-         * @return 对应的 Condition 枚举值，如果无法解析则返回 UNDEFINED_CONDITION；如果 name 为 null 则返回 null
+         * @return 对应的 Condition 枚举值；如果无法解析或参数为 {@code null}，则返回 {@link #UNDEFINED_CONDITION}
          */
         public static Condition fromString(String name) {
             if (name == null) {
-                return null;
+                return UNDEFINED_CONDITION;
             }
             String normalized = name.toUpperCase().replace('-', '_');
             try {

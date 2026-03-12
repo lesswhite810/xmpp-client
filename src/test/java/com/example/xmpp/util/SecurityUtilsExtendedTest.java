@@ -24,8 +24,9 @@ class SecurityUtilsExtendedTest {
     @DisplayName("toBytes 应处理 null")
     void testToBytesNull() {
         byte[] bytes = SecurityUtils.toBytes(null);
-        
-        assertNull(bytes);
+
+        assertNotNull(bytes);
+        assertEquals(0, bytes.length);
     }
 
     @Test

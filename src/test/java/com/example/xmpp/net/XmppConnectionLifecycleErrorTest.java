@@ -6,6 +6,7 @@ import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.exception.XmppSaslFailureException;
 import com.example.xmpp.exception.XmppStreamErrorException;
+import com.example.xmpp.net.state.StateContext;
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
 import com.example.xmpp.protocol.model.stream.StreamError;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
@@ -20,6 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
@@ -131,5 +133,25 @@ class XmppConnectionLifecycleErrorTest {
 
         assertEquals(0, errorCount.get());
         assertEquals(1, closedCount.get());
+    }
+
+    @Test
+    void testCloseConnectionOnErrorSanitizesSensitiveMessage() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        EmbeddedChannel channel = new EmbeddedChannel(new XmppNettyHandler(config, connection));
+        StateContext stateContext = new StateContext(config, connection, channel.pipeline().lastContext());
+
+        stateContext.closeConnectionOnError(channel.pipeline().lastContext(),
+                new IllegalArgumentException("password=secret"));
+
+        CompletionException exception = assertThrows(CompletionException.class,
+                () -> connection.getConnectionReadyFuture().join());
+        assertFalse(String.valueOf(exception.getCause().getMessage()).contains("secret"));
     }
 }

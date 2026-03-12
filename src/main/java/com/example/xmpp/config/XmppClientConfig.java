@@ -13,6 +13,7 @@ import java.net.InetAddress;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -58,6 +59,16 @@ public class XmppClientConfig {
         DISABLED
     }
 
+    /**
+     * TLS 认证模式。
+     *
+     * <p>单向认证表示仅校验服务端证书；双向认证表示客户端还需提供证书参与认证。</p>
+     */
+    public enum TlsAuthenticationMode {
+        ONE_WAY,
+        MUTUAL
+    }
+
     // ==================== 连接配置 ====================
 
     /**
@@ -79,7 +90,10 @@ public class XmppClientConfig {
     private InetAddress hostAddress = null;
 
     /**
-     * XMPP 服务器端口
+     * 显式配置的 XMPP 服务器端口。
+     *
+     * <p>Builder 原始默认值为 {@code 0}，表示未显式配置。实际生效端口由 {@link #getPort()}
+     * 按连接模式计算：普通模式使用 5222，Direct TLS 模式使用 5223。</p>
      */
     @Builder.Default
     private int port = 0;
@@ -97,13 +111,21 @@ public class XmppClientConfig {
     private Set<String> enabledSaslMechanisms = Set.of();
 
     /**
-     * 连接超时时间（毫秒），默认 30000ms
+     * 显式配置的 TCP 连接建立超时时间（毫秒）。
+     *
+     * <p>Builder 原始默认值为 {@code 0}，表示未显式配置。实际生效值由
+     * {@link #getConnectTimeout()} 返回，未显式配置时使用
+     * {@link XmppConstants#DEFAULT_CONNECT_TIMEOUT_MS}。</p>
      */
     @Builder.Default
     private int connectTimeout = 0;
 
     /**
-     * 读取超时时间（毫秒），默认 60000ms
+     * 显式配置的读超时时间（毫秒）。
+     *
+     * <p>用于连接建立后的服务端响应等待与通道读空闲检测。Builder 原始默认值为 {@code 0}，
+     * 表示未显式配置。实际生效值由 {@link #getReadTimeout()} 返回，未显式配置时使用
+     * {@link XmppConstants#DEFAULT_READ_TIMEOUT_MS}。</p>
      */
     @Builder.Default
     private int readTimeout = 0;
@@ -149,10 +171,20 @@ public class XmppClientConfig {
     private TrustManager[] customTrustManager = null;
 
     /**
-     * 自定义 KeyManager（可选）
+     * 自定义 KeyManager（可选）。
+     *
+     * <p>当 TLS 认证模式为双向认证时，通常需要提供客户端证书对应的 KeyManager。</p>
      */
     @Builder.Default
     private KeyManager[] keyManagers = null;
+
+    /**
+     * TLS 认证模式。
+     *
+     * <p>Builder 原始默认值为 {@link TlsAuthenticationMode#ONE_WAY}，表示仅校验服务端证书。</p>
+     */
+    @Builder.Default
+    private TlsAuthenticationMode tlsAuthenticationMode = TlsAuthenticationMode.ONE_WAY;
 
     /**
      * 自定义 SSLContext（可选）
@@ -173,13 +205,19 @@ public class XmppClientConfig {
     private String[] enabledSSLCiphers = null;
 
     /**
-     * 是否使用 Direct TLS（默认 false，使用 STARTTLS）
+     * 是否使用 Direct TLS。
+     *
+     * <p>Builder 原始默认值为 {@code false}，表示优先走 STARTTLS 升级流程。</p>
      */
     @Builder.Default
     private boolean usingDirectTLS = false;
 
     /**
-     * SSL 握手超时时间（毫秒）
+     * 显式配置的 SSL 握手超时时间（毫秒）。
+     *
+     * <p>Builder 原始默认值为 {@code 0}，表示未显式配置。实际生效值由
+     * {@link #getHandshakeTimeoutMs()} 返回，未显式配置时使用
+     * {@link XmppConstants#SSL_HANDSHAKE_TIMEOUT_MS}。</p>
      */
     @Builder.Default
     private int handshakeTimeoutMs = 0;
@@ -258,7 +296,7 @@ public class XmppClientConfig {
         XmppClientConfigBuilder builder = XmppClientConfig.builder()
                 .xmppServiceDomain(serviceDomain)
                 .host(defaultString(resolvedHost))
-                .hostAddress(resolveHostAddress(systemService, resolvedIp))
+                .hostAddress(resolveHostAddress(systemService, resolvedIp).orElse(null))
                 .port(getInt(systemService, XmppConfigKeys.PORT, 0))
                 .resource(defaultString(trimToNull(systemService.getValue(XmppConfigKeys.RESOURCE)), "xmpp"))
                 .username(username)
@@ -275,6 +313,7 @@ public class XmppClientConfig {
                 .pingInterval(getInt(systemService, XmppConfigKeys.PING_INTERVAL, 60))
                 .usingDirectTLS(getBoolean(systemService, XmppConfigKeys.DIRECT_TLS, false))
                 .handshakeTimeoutMs(getInt(systemService, XmppConfigKeys.HANDSHAKE_TIMEOUT, 0))
+                .tlsAuthenticationMode(getTlsAuthenticationMode(systemService))
                 .enabledSaslMechanisms(getSaslMechanisms(systemService));
 
         return builder.build();
@@ -288,13 +327,13 @@ public class XmppClientConfig {
         return value;
     }
 
-    private static InetAddress resolveHostAddress(SystemService systemService, String nodeIp) {
+    private static Optional<InetAddress> resolveHostAddress(SystemService systemService, String nodeIp) {
         String value = nodeIp != null ? nodeIp : trimToNull(systemService.getValue(XmppConfigKeys.HOST_ADDRESS));
         if (value == null) {
-            return null;
+            return Optional.empty();
         }
         try {
-            return InetAddress.getByName(value);
+            return Optional.of(InetAddress.getByName(value));
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid host address: " + value, e);
         }
@@ -306,6 +345,14 @@ public class XmppClientConfig {
             return SecurityMode.REQUIRED;
         }
         return SecurityMode.valueOf(value.trim().toUpperCase(Locale.ROOT));
+    }
+
+    private static TlsAuthenticationMode getTlsAuthenticationMode(SystemService systemService) {
+        String value = trimToNull(systemService.getValue(XmppConfigKeys.TLS_AUTHENTICATION_MODE));
+        if (value == null) {
+            return TlsAuthenticationMode.ONE_WAY;
+        }
+        return TlsAuthenticationMode.valueOf(value.trim().toUpperCase(Locale.ROOT));
     }
 
     private static Set<String> getSaslMechanisms(SystemService systemService) {
@@ -342,11 +389,10 @@ public class XmppClientConfig {
     }
 
     private static String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        return Optional.ofNullable(value)
+                .map(String::trim)
+                .filter(trimmed -> !trimmed.isEmpty())
+                .orElse(null);
     }
 
     /**
@@ -361,45 +407,49 @@ public class XmppClientConfig {
     /**
      * 获取 XML 语言标签。
      *
-     * @return RFC 5646 语言标签，如果未设置则返回 null
+     * @return RFC 5646 语言标签；如果未设置或无法确定则返回 {@code null}
      */
     public String getXmlLang() {
-        if (language == null) return null;
-        String tag = language.toLanguageTag();
-        return "und".equals(tag) ? null : tag;
+        return Optional.ofNullable(language)
+                .map(Locale::toLanguageTag)
+                .filter(tag -> !"und".equals(tag))
+                .orElse(null);
     }
 
     /**
-     * 获取端口号，默认值 5222。
+     * 获取当前实际生效的端口号。
      *
-     * @return XMPP 服务器端口号
+     * @return 显式配置端口；若原始字段值为 {@code 0}，则普通模式返回 5222，Direct TLS 模式返回 5223
      */
     public int getPort() {
-        return port > 0 ? port : XmppConstants.DEFAULT_XMPP_PORT;
+        if (port > 0) {
+            return port;
+        }
+        return usingDirectTLS ? XmppConstants.DIRECT_TLS_PORT : XmppConstants.DEFAULT_XMPP_PORT;
     }
 
     /**
-     * 获取连接超时，默认值 30000ms。
+     * 获取当前实际生效的连接超时时间。
      *
-     * @return 连接超时时间（毫秒）
+     * @return 显式配置值；若原始字段值为 {@code 0}，则返回 {@link XmppConstants#DEFAULT_CONNECT_TIMEOUT_MS}
      */
     public int getConnectTimeout() {
         return connectTimeout > 0 ? connectTimeout : XmppConstants.DEFAULT_CONNECT_TIMEOUT_MS;
     }
 
     /**
-     * 获取读取超时，默认值 60000ms。
+     * 获取当前实际生效的读超时时间。
      *
-     * @return 读取超时时间（毫秒）
+     * @return 显式配置值；若原始字段值为 {@code 0}，则返回 {@link XmppConstants#DEFAULT_READ_TIMEOUT_MS}
      */
     public int getReadTimeout() {
         return readTimeout > 0 ? readTimeout : XmppConstants.DEFAULT_READ_TIMEOUT_MS;
     }
 
     /**
-     * 获取 SSL 握手超时，默认值 30000ms。
+     * 获取当前实际生效的 SSL 握手超时时间。
      *
-     * @return SSL 握手超时时间（毫秒）
+     * @return 显式配置值；若原始字段值为 {@code 0}，则返回 {@link XmppConstants#SSL_HANDSHAKE_TIMEOUT_MS}
      */
     public int getHandshakeTimeoutMs() {
         return handshakeTimeoutMs > 0 ? handshakeTimeoutMs : XmppConstants.SSL_HANDSHAKE_TIMEOUT_MS;

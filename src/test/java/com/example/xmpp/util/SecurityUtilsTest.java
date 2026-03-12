@@ -89,8 +89,9 @@ class SecurityUtilsTest {
     @DisplayName("toBytes 应正确处理 null")
     void testToBytesNull() {
         byte[] bytes = SecurityUtils.toBytes(null);
-        
-        assertNull(bytes);
+
+        assertNotNull(bytes);
+        assertArrayEquals(new byte[0], bytes);
     }
 
     @Test

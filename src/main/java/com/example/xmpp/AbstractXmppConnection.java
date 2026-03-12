@@ -8,12 +8,14 @@ import com.example.xmpp.protocol.AsyncStanzaCollector;
 import com.example.xmpp.protocol.StanzaFilter;
 import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.util.XmppConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Validate;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,7 +45,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @param handler 待注册的处理器
      */
     @Override
-    public void registerIqRequestHandler(IqRequestHandler handler) {
+    public final void registerIqRequestHandler(IqRequestHandler handler) {
         Validate.notNull(handler, "Handler must not be null");
         IqHandlerKey key = new IqHandlerKey(
                 handler.getElement(),
@@ -64,7 +66,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @return 如果处理器被移除则返回 {@code true}
      */
     @Override
-    public boolean unregisterIqRequestHandler(IqRequestHandler handler) {
+    public final boolean unregisterIqRequestHandler(IqRequestHandler handler) {
         Validate.notNull(handler, "Handler must not be null");
         IqHandlerKey key = new IqHandlerKey(
                 handler.getElement(),
@@ -95,15 +97,18 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         }
 
         String elementName = getChildElementName(childElement);
-        String namespace = getChildElementNamespace(childElement);
-        if (elementName == null || namespace == null) {
+        Optional<String> namespace = findChildElementNamespace(childElement);
+        if (elementName == null || namespace.isEmpty()) {
             return false;
         }
 
-        IqHandlerKey key = new IqHandlerKey(elementName, namespace, iq.getType());
+        IqHandlerKey key = new IqHandlerKey(elementName, namespace.get(), iq.getType());
         IqRequestHandler handler = iqRequestHandlers.get(key);
         if (handler == null) {
-            return false;
+            XmppError.Condition condition = resolveUnsupportedIqCondition(key);
+            log.debug("No IQ request handler found for key: {}, returning {}", key, condition);
+            sendUnsupportedIqError(iq, condition);
+            return true;
         }
 
         log.debug("Handling IQ request with handler: {} for IQ id={}",
@@ -116,6 +121,19 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         return true;
     }
 
+    private XmppError.Condition resolveUnsupportedIqCondition(IqHandlerKey key) {
+        boolean knownNamespace = iqRequestHandlers.keySet().stream()
+                .anyMatch(registeredKey -> registeredKey.iqType() == key.iqType()
+                        && registeredKey.namespace().equals(key.namespace()));
+        return knownNamespace ? XmppError.Condition.feature_not_implemented
+                : XmppError.Condition.service_unavailable;
+    }
+
+    private void sendUnsupportedIqError(Iq iq, XmppError.Condition condition) {
+        XmppError error = new XmppError.Builder(condition).build();
+        sendStanza(Iq.createErrorResponse(iq, error));
+    }
+
     private String getChildElementName(Object childElement) {
         if (childElement instanceof ExtensionElement ext) {
             return ext.getElementName();
@@ -123,11 +141,11 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         return childElement.getClass().getSimpleName().toLowerCase();
     }
 
-    private String getChildElementNamespace(Object childElement) {
+    private Optional<String> findChildElementNamespace(Object childElement) {
         if (childElement instanceof ExtensionElement ext) {
-            return ext.getNamespace();
+            return Optional.ofNullable(ext.getNamespace());
         }
-        return null;
+        return Optional.empty();
     }
 
     private record IqHandlerKey(String element, String namespace, Iq.Type iqType) {
@@ -181,7 +199,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      *
      * @param resumed 是否为会话恢复
      */
-    public void notifyAuthenticated(boolean resumed) {
+    public void notifyAuthenticated() {
         fireEvent(ConnectionEventType.AUTHENTICATED);
     }
 

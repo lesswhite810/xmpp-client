@@ -1,5 +1,6 @@
 package com.example.xmpp.util;
 
+import com.example.xmpp.exception.XmppNetworkException;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -31,7 +32,7 @@ public class ConnectionUtils {
      * @return 已连接的 Channel 实例
      * @throws io.netty.channel.ChannelException 如果连接失败（如拒绝连接、超时等）
      */
-    public static Channel connectSync(Bootstrap bootstrap, InetSocketAddress address) {
+    public static Channel connectSync(Bootstrap bootstrap, InetSocketAddress address) throws XmppNetworkException {
         String hostDesc = address.isUnresolved()
                 ? address.getHostString()
                 : address.getAddress().getHostAddress();
@@ -41,12 +42,16 @@ public class ConnectionUtils {
         try {
             ChannelFuture future = bootstrap.connect(address);
             future.sync();
+            if (!future.isSuccess()) {
+                throw new XmppNetworkException("Failed to connect to " + hostDesc + ":" + port, future.cause());
+            }
             Channel channel = future.channel();
             log.info("Connected to {}", channel.remoteAddress());
             return channel;
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             log.error("Connection interrupted for {}:{}", hostDesc, port);
-            throw new RuntimeException("Connection interrupted", e);
+            throw new XmppNetworkException("Connection interrupted", e);
         }
     }
 }

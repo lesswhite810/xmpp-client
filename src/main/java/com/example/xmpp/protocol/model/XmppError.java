@@ -201,7 +201,7 @@ public class XmppError implements XmppExtension {
          */
         public static Condition fromString(String name) {
             if (name == null) {
-                return null;
+                return undefined_condition;
             }
             String normalized = name.toLowerCase().replace('-', '_');
             try {

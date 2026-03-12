@@ -99,17 +99,18 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 break;
             }
 
-            FrameBoundary boundary = findNextFrame(in);
-            if (boundary == null) {
+            Optional<FrameBoundary> boundary = findNextFrame(in);
+            if (boundary.isEmpty()) {
                 break;
             }
 
-            if (boundary.type() == FrameType.SKIP) {
-                in.skipBytes(boundary.length());
+            FrameBoundary frameBoundary = boundary.orElseThrow();
+            if (frameBoundary.type() == FrameType.SKIP) {
+                in.skipBytes(frameBoundary.length());
                 continue;
             }
 
-            byte[] xmlBytes = new byte[boundary.length()];
+            byte[] xmlBytes = new byte[frameBoundary.length()];
             in.readBytes(xmlBytes);
             parseFrame(xmlBytes).ifPresent(out::add);
         }
@@ -134,17 +135,18 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 break;
             }
 
-            FrameBoundary boundary = findNextFrame(buf, readerIndex);
-            if (boundary == null) {
+            Optional<FrameBoundary> boundary = findNextFrame(buf, readerIndex);
+            if (boundary.isEmpty()) {
                 break;
             }
 
-            if (boundary.type() == FrameType.ELEMENT) {
-                byte[] xmlBytes = new byte[boundary.length()];
+            FrameBoundary frameBoundary = boundary.orElseThrow();
+            if (frameBoundary.type() == FrameType.ELEMENT) {
+                byte[] xmlBytes = new byte[frameBoundary.length()];
                 buf.getBytes(readerIndex, xmlBytes);
                 parseFrame(xmlBytes).ifPresent(elements::add);
             }
-            readerIndex += boundary.length();
+            readerIndex += frameBoundary.length();
         }
         return elements;
     }
@@ -215,104 +217,104 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         return index;
     }
 
-    private FrameBoundary findNextFrame(ByteBuf in) {
+    private Optional<FrameBoundary> findNextFrame(ByteBuf in) {
         return findNextFrame(in, in.readerIndex());
     }
 
-    private FrameBoundary findNextFrame(ByteBuf in, int startIndex) {
+    private Optional<FrameBoundary> findNextFrame(ByteBuf in, int startIndex) {
         if (startIndex >= in.writerIndex()) {
-            return null;
+            return Optional.empty();
         }
         if (in.getByte(startIndex) != '<') {
             int nextTagIndex = findNextTagStart(in, startIndex);
             if (nextTagIndex < 0) {
-                return null;
+                return Optional.empty();
             }
-            return new FrameBoundary(FrameType.SKIP, nextTagIndex - startIndex);
+            return Optional.of(new FrameBoundary(FrameType.SKIP, nextTagIndex - startIndex));
         }
 
         if (matches(in, startIndex, "<?")) {
-            Integer end = findSequence(in, startIndex + 2, "?>");
-            return end == null ? null : new FrameBoundary(FrameType.SKIP, end - startIndex);
+            return findSequence(in, startIndex + 2, "?>")
+                    .map(end -> new FrameBoundary(FrameType.SKIP, end - startIndex));
         }
         if (matches(in, startIndex, "<!--")) {
-            Integer end = findSequence(in, startIndex + 4, "-->");
-            return end == null ? null : new FrameBoundary(FrameType.SKIP, end - startIndex);
+            return findSequence(in, startIndex + 4, "-->")
+                    .map(end -> new FrameBoundary(FrameType.SKIP, end - startIndex));
         }
         if (matches(in, startIndex, "</")) {
-            Integer tagEnd = findTagEnd(in, startIndex + 2);
-            return tagEnd == null ? null : new FrameBoundary(FrameType.SKIP, tagEnd - startIndex);
+            return findTagEnd(in, startIndex + 2)
+                    .map(tagEnd -> new FrameBoundary(FrameType.SKIP, tagEnd - startIndex));
         }
 
-        Integer openingTagEnd = findTagEnd(in, startIndex + 1);
-        if (openingTagEnd == null) {
-            return null;
+        Optional<Integer> openingTagEnd = findTagEnd(in, startIndex + 1);
+        if (openingTagEnd.isEmpty()) {
+            return Optional.empty();
         }
 
-        String tagName = readTagName(in, startIndex + 1, openingTagEnd);
-        if (tagName == null || tagName.isBlank()) {
-            return null;
+        String tagName = readTagName(in, startIndex + 1, openingTagEnd.orElseThrow()).orElse("");
+        if (tagName.isBlank()) {
+            return Optional.empty();
         }
         if (isStreamOpenTag(tagName)) {
-            return new FrameBoundary(FrameType.SKIP, openingTagEnd - startIndex);
+            return Optional.of(new FrameBoundary(FrameType.SKIP, openingTagEnd.orElseThrow() - startIndex));
         }
-        if (isSelfClosingTag(in, openingTagEnd)) {
-            return new FrameBoundary(FrameType.ELEMENT, openingTagEnd - startIndex);
+        if (isSelfClosingTag(in, openingTagEnd.orElseThrow())) {
+            return Optional.of(new FrameBoundary(FrameType.ELEMENT, openingTagEnd.orElseThrow() - startIndex));
         }
 
         int depth = 1;
-        int index = openingTagEnd;
+        int index = openingTagEnd.orElseThrow();
         while (index < in.writerIndex()) {
             int nextTagStart = findNextTagStart(in, index);
             if (nextTagStart < 0) {
-                return null;
+                return Optional.empty();
             }
 
             if (matches(in, nextTagStart, "<!--")) {
-                Integer commentEnd = findSequence(in, nextTagStart + 4, "-->");
-                if (commentEnd == null) {
-                    return null;
+                Optional<Integer> commentEnd = findSequence(in, nextTagStart + 4, "-->");
+                if (commentEnd.isEmpty()) {
+                    return Optional.empty();
                 }
-                index = commentEnd;
+                index = commentEnd.orElseThrow();
                 continue;
             }
             if (matches(in, nextTagStart, "<![CDATA[")) {
-                Integer cdataEnd = findSequence(in, nextTagStart + 9, "]]>");
-                if (cdataEnd == null) {
-                    return null;
+                Optional<Integer> cdataEnd = findSequence(in, nextTagStart + 9, "]]>");
+                if (cdataEnd.isEmpty()) {
+                    return Optional.empty();
                 }
-                index = cdataEnd;
+                index = cdataEnd.orElseThrow();
                 continue;
             }
             if (matches(in, nextTagStart, "<?")) {
-                Integer processingEnd = findSequence(in, nextTagStart + 2, "?>");
-                if (processingEnd == null) {
-                    return null;
+                Optional<Integer> processingEnd = findSequence(in, nextTagStart + 2, "?>");
+                if (processingEnd.isEmpty()) {
+                    return Optional.empty();
                 }
-                index = processingEnd;
+                index = processingEnd.orElseThrow();
                 continue;
             }
 
-            Integer tagEnd = findTagEnd(in, nextTagStart + 1);
-            if (tagEnd == null) {
-                return null;
+            Optional<Integer> tagEnd = findTagEnd(in, nextTagStart + 1);
+            if (tagEnd.isEmpty()) {
+                return Optional.empty();
             }
 
             if (matches(in, nextTagStart, "</")) {
                 depth--;
-                index = tagEnd;
+                index = tagEnd.orElseThrow();
                 if (depth == 0) {
-                    return new FrameBoundary(FrameType.ELEMENT, tagEnd - startIndex);
+                    return Optional.of(new FrameBoundary(FrameType.ELEMENT, tagEnd.orElseThrow() - startIndex));
                 }
                 continue;
             }
 
-            if (!isSelfClosingTag(in, tagEnd)) {
+            if (!isSelfClosingTag(in, tagEnd.orElseThrow())) {
                 depth++;
             }
-            index = tagEnd;
+            index = tagEnd.orElseThrow();
         }
-        return null;
+        return Optional.empty();
     }
 
     private int findNextTagStart(ByteBuf in, int startIndex) {
@@ -324,7 +326,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         return -1;
     }
 
-    private Integer findTagEnd(ByteBuf in, int startIndex) {
+    private Optional<Integer> findTagEnd(ByteBuf in, int startIndex) {
         boolean inQuote = false;
         byte quoteChar = 0;
         for (int index = startIndex; index < in.writerIndex(); index++) {
@@ -335,13 +337,13 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 continue;
             }
             if (!inQuote && current == '>') {
-                return index + 1;
+                return Optional.of(index + 1);
             }
         }
-        return null;
+        return Optional.empty();
     }
 
-    private Integer findSequence(ByteBuf in, int startIndex, String sequence) {
+    private Optional<Integer> findSequence(ByteBuf in, int startIndex, String sequence) {
         byte[] bytes = sequence.getBytes(StandardCharsets.UTF_8);
         for (int index = startIndex; index <= in.writerIndex() - bytes.length; index++) {
             boolean matched = true;
@@ -352,10 +354,10 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 }
             }
             if (matched) {
-                return index + bytes.length;
+                return Optional.of(index + bytes.length);
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     private boolean matches(ByteBuf in, int startIndex, String value) {
@@ -371,7 +373,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         return true;
     }
 
-    private String readTagName(ByteBuf in, int startIndex, int tagEndExclusive) {
+    private Optional<String> readTagName(ByteBuf in, int startIndex, int tagEndExclusive) {
         int index = startIndex;
         while (index < tagEndExclusive && Character.isWhitespace((char) in.getByte(index))) {
             index++;
@@ -385,11 +387,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             index++;
         }
         if (nameStart == index) {
-            return null;
+            return Optional.empty();
         }
         byte[] nameBytes = new byte[index - nameStart];
         in.getBytes(nameStart, nameBytes);
-        return new String(nameBytes, StandardCharsets.UTF_8);
+        return Optional.of(new String(nameBytes, StandardCharsets.UTF_8));
     }
 
     private boolean isSelfClosingTag(ByteBuf in, int tagEndExclusive) {
@@ -420,44 +422,44 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     private Optional<Object> parseOtherElement(XMLEventReader reader, StartElement start,
                                                String localName, String namespace) throws XMLStreamException {
-        Object streamElement = parseStreamElement(reader, start, localName, namespace);
-        if (streamElement != null) {
-            return Optional.of(streamElement);
+        Optional<Object> streamElement = parseStreamElement(reader, start, localName, namespace);
+        if (streamElement.isPresent()) {
+            return streamElement;
         }
         return tryParseWithProvider(reader, localName, namespace);
     }
 
-    private Object parseStreamElement(XMLEventReader reader, StartElement start,
-                                      String localName, String namespace) throws XMLStreamException {
+    private Optional<Object> parseStreamElement(XMLEventReader reader, StartElement start,
+                                                String localName, String namespace) throws XMLStreamException {
         if (STREAMS_NAMESPACE.equals(namespace)) {
             return switch (localName) {
-                case "features" -> parseFeatures(reader);
-                case "error" -> parseStreamError(reader);
-                default -> null;
+                case "features" -> Optional.of(parseFeatures(reader));
+                case "error" -> Optional.of(parseStreamError(reader));
+                default -> Optional.empty();
             };
         }
         if (TLS_NAMESPACE.equals(namespace)) {
             return switch (localName) {
-                case "starttls" -> TlsElements.StartTls.INSTANCE;
-                case "proceed" -> TlsElements.TlsProceed.INSTANCE;
-                default -> null;
+                case "starttls" -> Optional.of(TlsElements.StartTls.INSTANCE);
+                case "proceed" -> Optional.of(TlsElements.TlsProceed.INSTANCE);
+                default -> Optional.empty();
             };
         }
         if (SASL_NAMESPACE.equals(namespace)) {
             return switch (localName) {
-                case "auth" -> parseSaslAuth(reader, start);
-                case "challenge" -> SaslChallenge.builder()
+                case "auth" -> Optional.of(parseSaslAuth(reader, start));
+                case "challenge" -> Optional.of(SaslChallenge.builder()
                         .content(XmlParserUtils.getElementText(reader))
-                        .build();
-                case "response" -> new SaslResponse(XmlParserUtils.getElementText(reader));
-                case "success" -> SaslSuccess.builder()
+                        .build());
+                case "response" -> Optional.of(new SaslResponse(XmlParserUtils.getElementText(reader)));
+                case "success" -> Optional.of(SaslSuccess.builder()
                         .content(XmlParserUtils.getElementText(reader))
-                        .build();
-                case "failure" -> parseSaslFailure(reader);
-                default -> null;
+                        .build());
+                case "failure" -> Optional.of(parseSaslFailure(reader));
+                default -> Optional.empty();
             };
         }
-        return null;
+        return Optional.empty();
     }
 
     private Optional<Object> tryParseWithProvider(XMLEventReader reader,
@@ -604,8 +606,8 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     private XmppError parseError(XMLEventReader reader, StartElement element) throws XMLStreamException {
         String typeStr = getAttributeValue(element, "type");
-        XmppError.Type type = typeStr != null ? parseErrorType(typeStr) : null;
-        XmppError.Condition condition = null;
+        Optional<XmppError.Type> type = typeStr != null ? parseErrorType(typeStr) : Optional.empty();
+        XmppError.Condition condition = XmppError.Condition.undefined_condition;
         String text = null;
 
         while (reader.hasNext()) {
@@ -625,13 +627,9 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             }
         }
 
-        if (condition == null) {
-            condition = XmppError.Condition.undefined_condition;
-        }
-
         XmppError.Builder errorBuilder = new XmppError.Builder(condition);
-        if (type != null) {
-            errorBuilder.type(type);
+        if (type.isPresent()) {
+            errorBuilder.type(type.orElseThrow());
         }
         if (text != null) {
             errorBuilder.text(text);
@@ -639,11 +637,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         return errorBuilder.build();
     }
 
-    private XmppError.Type parseErrorType(String typeStr) {
+    private Optional<XmppError.Type> parseErrorType(String typeStr) {
         try {
-            return XmppError.Type.valueOf(typeStr.toUpperCase().replace("-", "_"));
+            return Optional.of(XmppError.Type.valueOf(typeStr.toUpperCase().replace("-", "_")));
         } catch (IllegalArgumentException e) {
-            return null;
+            return Optional.empty();
         }
     }
 

@@ -178,7 +178,7 @@ public enum XmppHandlerState implements HandlerState {
                     context.transitionTo(SASL_AUTH, ctx);
                 } catch (XmppAuthException e) {
                     log.error("Authentication error", e);
-                    context.closeConnectionOnError(ctx, "Authentication error: " + e.getMessage());
+                        context.closeConnectionOnError(ctx, e);
                 }
             } else {
                 log.error("No supported SASL mechanism - Server offered: {}, Client enabled: {}",
@@ -231,7 +231,7 @@ public enum XmppHandlerState implements HandlerState {
                 String hostname = context.getConfig().getHost() != null
                         ? context.getConfig().getHost()
                         : context.getConfig().getXmppServiceDomain();
-                int port = context.getConfig().getPort() > 0 ? context.getConfig().getPort() : 5222;
+                int port = context.getConfig().getPort();
 
                 var sslHandler = SslUtils.createSslHandler(hostname, port, context.getConfig());
 
@@ -323,7 +323,7 @@ public enum XmppHandlerState implements HandlerState {
                 }
 
                 context.getConnection().markConnectionReady();
-                context.getConnection().notifyAuthenticated(false);
+                context.getConnection().notifyAuthenticated();
             } else if (iq.getType() == Iq.Type.ERROR) {
                 XmppError error = iq.getError();
                 String errorDetail = error != null

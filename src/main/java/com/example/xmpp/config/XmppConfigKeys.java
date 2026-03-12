@@ -28,6 +28,7 @@ public final class XmppConfigKeys {
     public static final String PING_INTERVAL = "xmpp.ping.interval.seconds";
     public static final String DIRECT_TLS = "xmpp.direct.tls";
     public static final String HANDSHAKE_TIMEOUT = "xmpp.handshake.timeout.ms";
+    public static final String TLS_AUTHENTICATION_MODE = "xmpp.tls.authentication.mode";
     public static final String ENABLED_SASL_MECHANISMS = "xmpp.enabled.sasl.mechanisms";
 
     private XmppConfigKeys() {

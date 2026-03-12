@@ -25,6 +25,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -206,13 +207,18 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeout());
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             @Override
-            protected void initChannel(SocketChannel ch) throws Exception {
+            protected void initChannel(SocketChannel ch) {
                 if (config.isUsingDirectTLS()) {
                     String host = config.getHost() != null ? config.getHost() : config.getXmppServiceDomain();
-                    int port = config.getPort() > 0 ? config.getPort() : XmppConstants.DIRECT_TLS_PORT;
-                    SslHandler sslHandler = SslUtils.createSslHandler(host, port, config);
-                    ch.pipeline().addLast(sslHandler);
+                    int port = config.getPort();
+                    try {
+                        SslHandler sslHandler = SslUtils.createSslHandler(host, port, config);
+                        ch.pipeline().addLast(sslHandler);
+                    } catch (XmppNetworkException e) {
+                        throw new IllegalStateException("Failed to initialize Direct TLS pipeline", e);
+                    }
                 }
+                ch.pipeline().addLast(new ReadTimeoutHandler(config.getReadTimeout(), TimeUnit.MILLISECONDS));
                 ch.pipeline().addLast(new XmppStreamDecoder());
                 ch.pipeline().addLast(nettyHandler);
             }
@@ -227,7 +233,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
                 Channel channel = ConnectionUtils.connectSync(bootstrap, target.toSocketAddress());
                 log.info("Connected to {}", target);
                 return Optional.of(channel);
-            } catch (RuntimeException e) {
+            } catch (XmppNetworkException e) {
                 log.warn("Connection failed to {}: {}", target, e.getMessage());
             }
         }
@@ -247,6 +253,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     /**
      * 将当前连接生命周期标记为就绪。
+     *
+     * <p>该方法会完成 {@code connectionReadyFuture}，用于唤醒同步 {@link #connect()}
+     * 和异步 {@link #connectAsync()} 的等待方，表明资源绑定与会话激活已经完成。</p>
      */
     public void markConnectionReady() {
         CompletableFuture<Void> future = connectionReadyFuture;

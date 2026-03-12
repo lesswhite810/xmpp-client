@@ -20,14 +20,16 @@ import java.io.Serial;
  * <h3>使用示例</h3>
  * <pre>{@code
  * adminManager.addUser("user", "password")
- *     .exceptionally(ex -> {
+ *     .whenComplete((result, ex) -> {
+ *         if (ex == null) {
+ *             return;
+ *         }
  *         if (ex instanceof AdminCommandException ace) {
  *             if (ace.hasErrorResponse()) {
  *                 Iq error = ace.getErrorResponse();
  *                 // 处理服务器错误
  *             }
  *         }
- *         return null;
  *     });
  * }</pre>
  *

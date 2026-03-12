@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * 通用扩展元素，用于保存未知 XML 元素的数据。
@@ -89,15 +90,15 @@ public class GenericExtensionElement implements ExtensionElement {
      * 获取指定名称的第一个子元素。
      *
      * @param elementName 子元素名称
-     * @return 子元素，不存在返回 null
+     * @return 匹配的子元素；如果不存在则返回 {@link Optional#empty()}
      */
-    public GenericExtensionElement getFirstChild(String elementName) {
+    public Optional<GenericExtensionElement> getFirstChild(String elementName) {
         for (GenericExtensionElement child : children) {
             if (child.getElementName().equals(elementName)) {
-                return child;
+                return Optional.of(child);
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     /**
@@ -105,16 +106,16 @@ public class GenericExtensionElement implements ExtensionElement {
      *
      * @param elementName 元素名称
      * @param namespace 命名空间
-     * @return 子元素，不存在返回 null
+     * @return 匹配的子元素；如果不存在则返回 {@link Optional#empty()}
      */
-    public GenericExtensionElement getFirstChild(String elementName, String namespace) {
+    public Optional<GenericExtensionElement> getFirstChild(String elementName, String namespace) {
         for (GenericExtensionElement child : children) {
             if (child.getElementName().equals(elementName)
                     && Objects.equals(child.getNamespace(), namespace)) {
-                return child;
+                return Optional.of(child);
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     /**

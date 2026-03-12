@@ -69,7 +69,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     }
 
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+    public void channelActive(ChannelHandlerContext ctx) {
         log.info("Channel active - Remote: {}", ctx.channel().remoteAddress());
         initStateContext(ctx);
     }
@@ -82,7 +82,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         log.error("Exception caught - State: {}, Remote: {}, Error: {}",
                 stateContext != null ? stateContext.getCurrentStateName() : "unknown",
                 ctx.channel().remoteAddress(),
@@ -97,7 +97,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
         if (msg instanceof StreamHeader) {
             log.debug("Stream header received, waiting for features");
             return;

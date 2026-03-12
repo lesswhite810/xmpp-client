@@ -189,7 +189,7 @@ public abstract class ScramMechanism implements SaslMechanism {
      * </ol>
      *
      * @param challenge 服务器发送的挑战数据
-     * @return 响应数据，认证最终完成后返回 null
+     * @return 响应数据；认证最终完成后返回空字节数组
      * @throws SaslException 如果处理失败，包括：挑战数据格式无效、nonce 验证失败、迭代次数过低、服务器签名验证失败
      */
     @Override
@@ -206,7 +206,7 @@ public abstract class ScramMechanism implements SaslMechanism {
             case FINAL_SUCCESS:
                 String serverFinalMessage = new String(challenge, StandardCharsets.UTF_8);
                 verifyServerFinalMessage(serverFinalMessage);
-                return null;
+                return new byte[0];
 
             default:
                 throw new SaslException("Invalid state");

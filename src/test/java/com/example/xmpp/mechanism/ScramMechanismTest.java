@@ -253,4 +253,55 @@ class ScramMechanismTest {
         assertThrows(SaslException.class,
                 () -> mechanism.processChallenge(serverFinalMessage.getBytes(StandardCharsets.UTF_8)));
     }
+
+    @Test
+    @DisplayName("测试服务器最终消息校验完成后应返回空字节数组而不是 null")
+    void testServerFinalVerificationReturnsEmptyBytes() throws SaslException {
+        byte[] clientFirst = mechanism.processChallenge(null);
+        String clientFirstMsg = new String(clientFirst, StandardCharsets.UTF_8);
+
+        Pattern noncePattern = Pattern.compile("r=([A-Za-z0-9_-]+)");
+        Matcher matcher = noncePattern.matcher(clientFirstMsg);
+        matcher.find();
+        String clientNonce = matcher.group(1);
+
+        String serverNonce = clientNonce + "ServerNonce";
+        String salt = Base64.getEncoder().encodeToString("salt".getBytes(StandardCharsets.UTF_8));
+        String serverFirstMessage = String.format("r=%s,s=%s,i=%d", serverNonce, salt, 4096);
+        String clientFinalMessage = new String(
+                mechanism.processChallenge(serverFirstMessage.getBytes(StandardCharsets.UTF_8)),
+                StandardCharsets.UTF_8);
+        String authMessage = clientFirstMsg.substring(3) + "," + serverFirstMessage + ","
+                + clientFinalMessage.substring(0, clientFinalMessage.indexOf(",p="));
+        byte[] saltedPassword = pbkdf2(TEST_PASSWORD, "salt".getBytes(StandardCharsets.UTF_8), 4096);
+        byte[] serverKey = hmac(saltedPassword, "HmacSHA256", "Server Key".getBytes(StandardCharsets.UTF_8));
+        byte[] serverSignature = hmac(serverKey, "HmacSHA256", authMessage.getBytes(StandardCharsets.UTF_8));
+        String serverFinalMessage = "v=" + Base64.getEncoder().encodeToString(serverSignature);
+
+        byte[] result = mechanism.processChallenge(serverFinalMessage.getBytes(StandardCharsets.UTF_8));
+
+        assertNotNull(result);
+        assertEquals(0, result.length);
+    }
+
+    private byte[] pbkdf2(char[] password, byte[] salt, int iterations) throws SaslException {
+        try {
+            javax.crypto.SecretKeyFactory skf = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+            javax.crypto.spec.PBEKeySpec spec =
+                    new javax.crypto.spec.PBEKeySpec(password, salt, iterations, 256);
+            return skf.generateSecret(spec).getEncoded();
+        } catch (java.security.NoSuchAlgorithmException | java.security.spec.InvalidKeySpecException e) {
+            throw new SaslException("Failed to derive PBKDF2 key", e);
+        }
+    }
+
+    private byte[] hmac(byte[] key, String algorithm, byte[] data) throws SaslException {
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance(algorithm);
+            mac.init(new javax.crypto.spec.SecretKeySpec(key, algorithm));
+            return mac.doFinal(data);
+        } catch (java.security.NoSuchAlgorithmException | java.security.InvalidKeyException e) {
+            throw new SaslException("Failed to compute HMAC", e);
+        }
+    }
 }

@@ -74,11 +74,11 @@ public class SecurityUtils {
      * <p>避免创建中间 String 对象，提高安全性。</p>
      *
      * @param chars 字符数组
-     * @return 字节数组
+     * @return 字节数组；如果输入为 {@code null}，则返回空字节数组
      */
     public static byte[] toBytes(char[] chars) {
         if (chars == null) {
-            return null;
+            return new byte[0];
         }
         ByteBuffer buf = StandardCharsets.UTF_8.encode(CharBuffer.wrap(chars));
         byte[] result = new byte[buf.remaining()];

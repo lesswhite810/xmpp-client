@@ -1,17 +1,37 @@
 package com.example.xmpp.logic;
 
+import com.example.xmpp.XmppConnection;
 import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 /**
  * 测试 extractSessionId 方法是否能正确从 GenericExtensionElement 中提取 sessionid。
  */
 @Slf4j
 class AdminManagerSessionIdTest {
+
+    @Test
+    void testExtractSessionIdMethodReturnsOptionalEmptyWhenMissing() throws Exception {
+        AdminManager manager = new AdminManager(mock(XmppConnection.class), "admin", "example.com");
+        Iq responseIq = new Iq.Builder(Iq.Type.RESULT)
+                .id("missing-session-id")
+                .build();
+
+        Method method = AdminManager.class.getDeclaredMethod("extractSessionId", com.example.xmpp.protocol.model.XmppStanza.class);
+        method.setAccessible(true);
+        Object result = method.invoke(manager, responseIq);
+
+        assertInstanceOf(Optional.class, result);
+        assertTrue(((Optional<?>) result).isEmpty());
+    }
 
     @Test
     void testExtractSessionIdFromGenericExtensionElement() {
