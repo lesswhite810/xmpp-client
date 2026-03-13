@@ -60,7 +60,7 @@ class PingFormatTest {
         assertTrue(xml.contains("type=\"result\""), "Should have type='result'");
         assertTrue(xml.contains("id=\"ping_123\""), "Should have same id as request");
         assertTrue(xml.contains("to=\"client@example.com\""), "Should have to attribute set to client");
-        assertTrue(xml.contains("from=\"server@example.com\""), "Should have from attribute set to server");
+        assertFalse(xml.contains("from=\""), "Default pong should omit from attribute when not explicitly provided");
         assertFalse(xml.contains("<ping"), "Pong should not contain ping element");
     }
 

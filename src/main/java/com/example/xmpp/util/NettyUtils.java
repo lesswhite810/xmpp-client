@@ -44,6 +44,21 @@ public class NettyUtils {
      * @throws IllegalArgumentException 如果 ctx 或 content 为 null
      */
     public static void writeAndFlushString(ChannelHandlerContext ctx, String content) {
+        writeAndFlushStringAsync(ctx, content);
+    }
+
+    /**
+     * 将字符串写入 Channel 并返回对应的发送 Future。
+     *
+     * <p>自动分配 ByteBuf（预估容量），将字符串以 UTF-8 编码写入，然后立即刷新到通道。
+     * 写入成功后 ByteBuf 由 Netty 自动释放，失败时通过 listener 确保释放。</p>
+     *
+     * @param ctx     通道处理器上下文，不能为 null
+     * @param content 要发送的字符串内容，不能为 null
+     * @return Netty 发送 Future
+     * @throws IllegalArgumentException 如果 ctx 或 content 为 null
+     */
+    public static ChannelFuture writeAndFlushStringAsync(ChannelHandlerContext ctx, String content) {
         Validate.notNull(ctx, "ChannelHandlerContext must not be null");
         Validate.notNull(content, "Content must not be null");
 
@@ -60,5 +75,6 @@ public class NettyUtils {
                 buf.release();
             }
         });
+        return future;
     }
 }

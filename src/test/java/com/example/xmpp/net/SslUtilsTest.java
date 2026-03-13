@@ -101,4 +101,21 @@ class SslUtilsTest {
                 () -> SslUtils.createSslHandler(config));
         assertTrue(exception.getMessage().contains("KeyManager"));
     }
+
+    @Test
+    @DisplayName("未显式配置 host 时应回退到域名创建 SslHandler")
+    void testCreateSslHandlerFallsBackToServiceDomain() throws XmppNetworkException {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .host("")
+                .port(5222)
+                .securityMode(XmppClientConfig.SecurityMode.IF_POSSIBLE)
+                .build();
+
+        SslHandler handler = SslUtils.createSslHandler(config);
+
+        assertNotNull(handler);
+        assertEquals("example.com", handler.engine().getPeerHost());
+        assertEquals(5222, handler.engine().getPeerPort());
+    }
 }

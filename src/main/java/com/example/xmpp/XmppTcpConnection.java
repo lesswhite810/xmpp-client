@@ -18,6 +18,7 @@ import com.example.xmpp.util.ConnectionUtils;
 import com.example.xmpp.util.XmppConstants;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
@@ -71,15 +72,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     public XmppTcpConnection(XmppClientConfig config) {
         this.config = Objects.requireNonNull(config, "XmppClientConfig must not be null");
-
-        if (config.isPingEnabled()) {
-            this.pingManager = new PingManager(this);
-        }
-
-        if (config.isReconnectionEnabled()) {
-            this.reconnectionManager = new ReconnectionManager(this);
-        }
-
         registerIqRequestHandler(new PingIqRequestHandler());
     }
 
@@ -115,31 +107,49 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * @return 当前会话的就绪 Future
      * @throws XmppException 如果连接目标解析或连接初始化失败
      */
-    public CompletableFuture<Void> connectAsync() throws XmppException {
+    public synchronized CompletableFuture<Void> connectAsync() throws XmppException {
+        CompletableFuture<Void> currentFuture = connectionReadyFuture;
+        if (currentFuture != null && !currentFuture.isDone()
+                && (workerGroup != null || (channel != null && channel.isActive()))) {
+            return currentFuture;
+        }
+
         resetConnectionLifecycleEvents();
         connectionReadyFuture = new CompletableFuture<>();
         workerGroup = new NioEventLoopGroup();
         nettyHandler = new XmppNettyHandler(config, this);
+        initializeLifecycleManagersIfNeeded();
 
         List<ConnectionTarget> targets = resolveConnectionTargets();
         if (targets.isEmpty()) {
             XmppNetworkException exception = new XmppNetworkException("No connection targets available");
             connectionReadyFuture.completeExceptionally(exception);
+            shutdownWorkerGroup();
             throw exception;
         }
 
-        Bootstrap bootstrap = createBootstrap();
         try {
-            this.channel = connectToTargets(bootstrap, targets)
+            this.channel = connectToTargets(targets)
                     .orElseThrow(() -> new XmppNetworkException("All connection attempts failed"));
             return connectionReadyFuture;
         } catch (XmppException e) {
             connectionReadyFuture.completeExceptionally(e);
+            shutdownWorkerGroup();
             throw e;
         } catch (RuntimeException e) {
             XmppNetworkException exception = new XmppNetworkException("Failed to establish XMPP connection", e);
             connectionReadyFuture.completeExceptionally(exception);
+            shutdownWorkerGroup();
             throw exception;
+        }
+    }
+
+    private void initializeLifecycleManagersIfNeeded() {
+        if (config.isPingEnabled() && pingManager == null) {
+            pingManager = new PingManager(this);
+        }
+        if (config.isReconnectionEnabled() && reconnectionManager == null) {
+            reconnectionManager = new ReconnectionManager(this);
         }
     }
 
@@ -199,7 +209,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
                 .orElse(List.of());
     }
 
-    private Bootstrap createBootstrap() {
+    private Bootstrap createBootstrap(ConnectionTarget target) {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(workerGroup);
         bootstrap.channel(NioSocketChannel.class);
@@ -212,10 +222,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             @Override
             protected void initChannel(SocketChannel ch) {
                 if (config.isUsingDirectTLS()) {
-                    String host = config.getHost() != null ? config.getHost() : config.getXmppServiceDomain();
-                    int port = config.getPort();
+                    String tlsPeerHost = resolveTlsPeerHost(target);
                     try {
-                        SslHandler sslHandler = SslUtils.createSslHandler(host, port, config);
+                        SslHandler sslHandler = SslUtils.createSslHandler(tlsPeerHost, target.port(), config);
                         ch.pipeline().addLast(sslHandler);
                     } catch (XmppNetworkException e) {
                         throw new IllegalStateException("Failed to initialize Direct TLS pipeline", e);
@@ -228,10 +237,21 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         return bootstrap;
     }
 
-    private Optional<Channel> connectToTargets(Bootstrap bootstrap, List<ConnectionTarget> targets) {
+    private String resolveTlsPeerHost(ConnectionTarget target) {
+        if (target.host() != null && !target.host().isBlank()) {
+            return target.host();
+        }
+        if (config.getHost() != null && !config.getHost().isBlank()) {
+            return config.getHost();
+        }
+        return config.getXmppServiceDomain();
+    }
+
+    private Optional<Channel> connectToTargets(List<ConnectionTarget> targets) {
         for (ConnectionTarget target : targets) {
             try {
                 log.info("Connecting to {}...", target);
+                Bootstrap bootstrap = createBootstrap(target);
                 Channel channel = ConnectionUtils.connectSync(bootstrap, target.toSocketAddress());
                 log.info("Connected to {}", target);
                 return Optional.of(channel);
@@ -278,6 +298,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         if (future != null && !future.isDone()) {
             future.completeExceptionally(exception);
         }
+        failPendingCollectors(exception);
         notifyConnectionClosedOnError(exception);
     }
 
@@ -298,13 +319,16 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     @Override
     public void disconnect() {
         if (pingManager != null) {
-            pingManager.stopKeepAlive();
+            pingManager.shutdown();
+            pingManager = null;
         }
 
         if (reconnectionManager != null) {
-            reconnectionManager.disable();
+            reconnectionManager.shutdown();
+            reconnectionManager = null;
         }
 
+        failPendingCollectors(new XmppNetworkException("Connection closed"));
         cleanupCollectors();
 
         CompletableFuture<Void> future = connectionReadyFuture;
@@ -314,6 +338,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
         if (channel != null) {
             channel.close();
+            channel = null;
         }
 
         shutdownWorkerGroup();
@@ -361,11 +386,44 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             return;
         }
 
-        if (channel != null && channel.isActive()) {
-            nettyHandler.sendStanza(channel.pipeline().lastContext(), stanza);
-        } else {
-            log.error("Channel is not active, cannot send stanza");
+        dispatchStanza(stanza).whenComplete((unused, error) -> {
+            if (error != null) {
+                log.error("Failed to send stanza: {}", error.getMessage());
+            }
+        });
+    }
+
+    @Override
+    protected CompletableFuture<Void> dispatchStanza(XmppStanza stanza) {
+        if (stanza == null) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Stanza must not be null"));
         }
+
+        Channel currentChannel = channel;
+        if (currentChannel == null || !currentChannel.isActive()) {
+            return CompletableFuture.failedFuture(new XmppNetworkException("Channel is not active"));
+        }
+
+        var context = currentChannel.pipeline().lastContext();
+        if (context == null) {
+            return CompletableFuture.failedFuture(new XmppNetworkException("Channel pipeline has no active context"));
+        }
+
+        ChannelFuture writeFuture = nettyHandler.sendStanza(context, stanza);
+        if (writeFuture == null) {
+            return CompletableFuture.failedFuture(new XmppNetworkException("Failed to serialize stanza for sending"));
+        }
+
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        writeFuture.addListener(future -> {
+            if (future.isSuccess()) {
+                result.complete(null);
+            } else {
+                Throwable cause = future.cause();
+                result.completeExceptionally(new XmppNetworkException("Failed to send stanza", cause));
+            }
+        });
+        return result;
     }
 
     /**

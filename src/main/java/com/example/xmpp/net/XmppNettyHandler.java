@@ -10,6 +10,7 @@ import com.example.xmpp.protocol.model.stream.StreamError;
 import com.example.xmpp.protocol.model.stream.StreamHeader;
 import com.example.xmpp.util.NettyUtils;
 import com.example.xmpp.util.SecurityUtils;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
@@ -153,15 +154,16 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
      * @param ctx Netty 通道上下文
      * @param packet 待发送的数据包
      */
-    public void sendStanza(ChannelHandlerContext ctx, Object packet) {
-        Optional.ofNullable(packet)
+    public ChannelFuture sendStanza(ChannelHandlerContext ctx, Object packet) {
+        return Optional.ofNullable(packet)
                 .filter(XmlSerializable.class::isInstance)
                 .map(XmlSerializable.class::cast)
                 .map(XmlSerializable::toXml)
                 .filter(xml -> !xml.isEmpty())
-                .ifPresent(xml -> {
+                .map(xml -> {
                     log.debug("Sending stanza: {}", SecurityUtils.filterSensitiveXml(xml));
-                    NettyUtils.writeAndFlushString(ctx, xml);
-                });
+                    return NettyUtils.writeAndFlushStringAsync(ctx, xml);
+                })
+                .orElse(null);
     }
 }

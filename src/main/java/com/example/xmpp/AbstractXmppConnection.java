@@ -2,6 +2,7 @@ package com.example.xmpp;
 
 import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
+import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.exception.XmppStanzaErrorException;
 import com.example.xmpp.handler.IqRequestHandler;
 import com.example.xmpp.protocol.AsyncStanzaCollector;
@@ -270,6 +271,9 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         Validate.notNull(unit, "TimeUnit must not be null");
         Validate.isTrue(timeout > 0, "Timeout must be positive");
         Validate.notBlank(iq.getId(), "IQ must have a non-blank ID");
+        if (!isConnected()) {
+            return CompletableFuture.failedFuture(new XmppNetworkException("Channel is not active"));
+        }
 
         final String iqId = iq.getId();
         StanzaFilter filter = stanza -> {
@@ -281,11 +285,10 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         };
 
         AsyncStanzaCollector collector = createStanzaCollector(filter);
-        sendStanza(iq);
-
-        return collector.getFuture()
-                .orTimeout(timeout, unit)
-                .thenCompose(this::mapIqErrorResponse)
+        return dispatchStanza(iq)
+                .thenCompose(ignored -> collector.getFuture()
+                        .orTimeout(timeout, unit)
+                        .thenCompose(this::mapIqErrorResponse))
                 .whenComplete((result, ex) -> {
                     collectors.remove(collector);
                     if (ex != null) {
@@ -294,12 +297,36 @@ public abstract class AbstractXmppConnection implements XmppConnection {
                 });
     }
 
+    /**
+     * 将 stanza 发送到底层传输层，并返回发送结果。
+     *
+     * @param stanza 待发送的 stanza
+     * @return 发送完成 Future；如果发送未能下发到底层通道，则以异常结束
+     */
+    protected abstract CompletableFuture<Void> dispatchStanza(XmppStanza stanza);
+
     private CompletableFuture<XmppStanza> mapIqErrorResponse(XmppStanza stanza) {
         if (stanza instanceof Iq responseIq && responseIq.getType() == Iq.Type.ERROR) {
             String message = "Received XMPP error response for IQ id=" + responseIq.getId();
             return CompletableFuture.failedFuture(new XmppStanzaErrorException(message, responseIq));
         }
         return CompletableFuture.completedFuture(stanza);
+    }
+
+    /**
+     * 使用指定异常结束所有未完成的 collector。
+     *
+     * @param exception 失败原因
+     */
+    protected void failPendingCollectors(Exception exception) {
+        collectors.removeIf(collector -> {
+            CompletableFuture<XmppStanza> future = collector.getFuture();
+            if (future.isDone()) {
+                return true;
+            }
+            future.completeExceptionally(exception);
+            return true;
+        });
     }
 
     /**

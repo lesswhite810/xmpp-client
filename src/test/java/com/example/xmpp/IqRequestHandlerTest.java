@@ -14,6 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Modifier;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -192,6 +193,12 @@ class IqRequestHandlerTest {
         @Override
         public void sendStanza(com.example.xmpp.protocol.model.XmppStanza stanza) {
             lastSentStanza = stanza;
+        }
+
+        @Override
+        protected CompletableFuture<Void> dispatchStanza(XmppStanza stanza) {
+            lastSentStanza = stanza;
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override

@@ -15,6 +15,7 @@ import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * 自动重连管理器。
  *
@@ -71,8 +72,9 @@ public class ReconnectionManager {
                 ConnectionEventType.CLOSED, event -> onConnectionClosed(),
                 ConnectionEventType.ERROR, event -> onConnectionClosedOnError(event.error())
         ));
-}
-/**
+    }
+
+    /**
      * 启用自动重连。
      *
      * <p>允许在连接断开时自动尝试重新连接。</p>
@@ -104,8 +106,9 @@ public class ReconnectionManager {
             unsubscribe = null;
         }
         log.debug("ReconnectionManager shutdown");
-}
-/**
+    }
+
+    /**
      * 处理连接事件。
      *
      * <p>此方法用于测试目的，实际事件处理通过 XmppEventBus 自动触发。</p>
@@ -149,7 +152,8 @@ public class ReconnectionManager {
             return;
         }
         reconnectionScheduledDueToError = true;
-        log.info("Connection closed on error. Starting reconnection...", e);
+        log.info("Connection closed on error. Starting reconnection.");
+        log.debug("Connection closed on error detail", e);
         scheduleReconnect(0);
     }
 

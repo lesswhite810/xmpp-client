@@ -37,7 +37,10 @@ public class SslUtils {
      */
     public static SslHandler createSslHandler(XmppClientConfig config)
             throws XmppNetworkException {
-        return createSslHandler(config.getHost(), config.getPort(), config);
+        String host = config.getHost() != null && !config.getHost().isBlank()
+                ? config.getHost()
+                : config.getXmppServiceDomain();
+        return createSslHandler(host, config.getPort(), config);
     }
 
     /**

@@ -19,9 +19,9 @@ import java.util.concurrent.TimeUnit;
 public class NoTlsConnectionTest {
 
     // 从系统属性或环境变量读取配置，方便测试
-    private static final String XMPP_DOMAIN = System.getProperty("xmpp.domain", System.getenv().getOrDefault("XMPP_DOMAIN", "localhost"));
-    private static final String USERNAME = System.getProperty("xmpp.user", System.getenv().getOrDefault("XMPP_USER", "test"));
-    private static final String PASSWORD = System.getProperty("xmpp.password", System.getenv().getOrDefault("XMPP_PASSWORD", "test"));
+    private static final String XMPP_DOMAIN = System.getProperty("xmpp.domain", System.getenv().getOrDefault("XMPP_DOMAIN", "lesswhite"));
+    private static final String USERNAME = System.getProperty("xmpp.user", System.getenv().getOrDefault("XMPP_USER", "admin"));
+    private static final String PASSWORD = System.getProperty("xmpp.password", System.getenv().getOrDefault("XMPP_PASSWORD", "admin"));
     private static final String HOST = System.getProperty("xmpp.host", System.getenv().getOrDefault("XMPP_HOST", "localhost"));
     private static final int PORT = Integer.parseInt(System.getProperty("xmpp.port", System.getenv().getOrDefault("XMPP_PORT", "5222")));
 
@@ -69,16 +69,13 @@ public class NoTlsConnectionTest {
             log.info("Waiting for authentication...");
             boolean authenticated = authLatch.await(15, TimeUnit.SECONDS);
 
-            if (authenticated) {
-                log.info("=== Test passed: Authentication completed ===");
-                log.info("Connection state: connected={}, authenticated={}",
-                        connection.isConnected(), connection.isAuthenticated());
-
-                // 保持连接 5 秒，观察日志
-                Thread.sleep(5000);
-            } else {
-                log.error("=== Test failed: Authentication timeout ===");
+            if (!authenticated) {
+                throw new AssertionError("Authentication timeout");
             }
+
+            log.info("=== Test passed: Authentication completed ===");
+            log.info("Connection state: connected={}, authenticated={}",
+                    connection.isConnected(), connection.isAuthenticated());
 
         } finally {
             log.info("Disconnecting...");

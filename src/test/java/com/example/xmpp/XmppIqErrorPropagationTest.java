@@ -1,6 +1,7 @@
 package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
+import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.exception.XmppStanzaErrorException;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppError;
@@ -16,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * IQ 协议错误传播测试。
@@ -60,7 +62,23 @@ class XmppIqErrorPropagationTest {
         assertEquals(XmppError.Condition.service_unavailable, cause.getXmppError().getCondition());
     }
 
-    private static final class TestXmppConnection extends AbstractXmppConnection {
+    @Test
+    @DisplayName("sendIqPacketAsync 底层发送失败时应立即异常完成并清理 collector")
+    void testSendIqPacketAsyncFailsImmediatelyWhenDispatchFails() {
+        Iq request = new Iq.Builder(Iq.Type.GET)
+                .id("iq-send-fail-1")
+                .to("server@example.com")
+                .build();
+        connection = new FailingDispatchXmppConnection(connection.getConfig());
+
+        CompletionException exception = assertThrows(CompletionException.class,
+                () -> connection.sendIqPacketAsync(request).join());
+
+        assertInstanceOf(XmppNetworkException.class, exception.getCause());
+        assertTrue(connection.getCollectors().isEmpty());
+    }
+
+    private static class TestXmppConnection extends AbstractXmppConnection {
 
         private final XmppClientConfig config;
 
@@ -91,12 +109,33 @@ class XmppIqErrorPropagationTest {
         }
 
         @Override
+        protected CompletableFuture<Void> dispatchStanza(XmppStanza stanza) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
         public XmppClientConfig getConfig() {
             return config;
         }
 
         @Override
         public void resetHandlerState() {
+        }
+
+        protected java.util.Queue<?> getCollectors() {
+            return collectors;
+        }
+    }
+
+    private static final class FailingDispatchXmppConnection extends TestXmppConnection {
+
+        private FailingDispatchXmppConnection(XmppClientConfig config) {
+            super(config);
+        }
+
+        @Override
+        protected CompletableFuture<Void> dispatchStanza(XmppStanza stanza) {
+            return CompletableFuture.failedFuture(new XmppNetworkException("Channel is not active"));
         }
     }
 }

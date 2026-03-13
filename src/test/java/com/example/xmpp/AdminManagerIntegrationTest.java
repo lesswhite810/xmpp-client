@@ -3,6 +3,7 @@ package com.example.xmpp;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
+import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.logic.AdminManager;
 import com.example.xmpp.protocol.model.Iq;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class AdminManagerIntegrationTest {
 
     private static final String XMPP_DOMAIN = "lesswhite";
-    private static final String ADMIN_USERNAME = "admin1";
+    private static final String ADMIN_USERNAME = "admin";
     private static final String ADMIN_PASSWORD = "admin";
     private static final String HOST = "localhost";
     private static final int PORT = 5222;
@@ -469,7 +470,13 @@ public class AdminManagerIntegrationTest {
             verifyLatch.countDown();
         });
 
-        deletedUserConnection.connect();
+        try {
+            deletedUserConnection.connect();
+        } catch (XmppException e) {
+            log.info("Expected: deleted user connection failed during connect - {}", e.getMessage());
+            authSucceeded.set(false);
+            verifyLatch.countDown();
+        }
         boolean verifyCompleted = verifyLatch.await(15, TimeUnit.SECONDS);
 
         assertTrue(verifyCompleted, "Verification should complete");

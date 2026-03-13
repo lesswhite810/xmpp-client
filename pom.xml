@@ -86,14 +86,6 @@
             <scope>test</scope>
         </dependency>
         
-        <!-- Lombok -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>1.18.30</version>
-            <scope>provided</scope>
-        </dependency>
-        
         <!-- Mockito for mocking -->
         <dependency>
             <groupId>org.mockito</groupId>
@@ -130,6 +122,13 @@
                             <version>1.18.34</version>
                         </path>
                     </annotationProcessorPaths>
+                    <testAnnotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.34</version>
+                        </path>
+                    </testAnnotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>
@@ -157,13 +156,17 @@
                 <version>0.8.11</version>
                 <executions>
                     <execution>
+                        <id>prepare-agent</id>
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
+                        <configuration>
+                            <append>false</append>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>report</id>
-                        <phase>test</phase>
+                        <phase>verify</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>

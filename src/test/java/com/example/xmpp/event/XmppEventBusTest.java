@@ -267,8 +267,9 @@ class XmppEventBusTest {
             assertEquals(testError, event.error());
         });
 
-        ConnectionEvent event = new ConnectionEvent(mockConnection1, ConnectionEventType.ERROR, testError);
         eventBus.publish(mockConnection1, ConnectionEventType.ERROR, testError);
+
+        assertTrue(handled.get());
 
     }
 
