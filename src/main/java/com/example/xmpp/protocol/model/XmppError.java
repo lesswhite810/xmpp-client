@@ -141,31 +141,32 @@ public class XmppError implements XmppExtension {
 
     /**
      * 错误条件枚举，定义了 XMPP 协议中常用的错误条件。
+     * 枚举常量使用大写字母加下划线命名。
      *
      */
     public enum Condition {
-        bad_request("bad-request", Type.MODIFY),
-        conflict("conflict", Type.CANCEL),
-        feature_not_implemented("feature-not-implemented", Type.CANCEL),
-        forbidden("forbidden", Type.AUTH),
-        gone("gone", Type.MODIFY),
-        internal_server_error("internal-server-error", Type.WAIT),
-        item_not_found("item-not-found", Type.CANCEL),
-        jid_malformed("jid-malformed", Type.MODIFY),
-        not_acceptable("not-acceptable", Type.MODIFY),
-        not_allowed("not-allowed", Type.CANCEL),
-        not_authorized("not-authorized", Type.AUTH),
-        policy_violation("policy-violation", Type.MODIFY),
-        recipient_unavailable("recipient-unavailable", Type.WAIT),
-        redirect("redirect", Type.MODIFY),
-        registration_required("registration-required", Type.AUTH),
-        remote_server_not_found("remote-server-not-found", Type.CANCEL),
-        remote_server_timeout("remote-server-timeout", Type.WAIT),
-        resource_constraint("resource-constraint", Type.WAIT),
-        service_unavailable("service-unavailable", Type.CANCEL),
-        subscription_required("subscription-required", Type.AUTH),
-        undefined_condition("undefined-condition", Type.WAIT),
-        unexpected_request("unexpected-request", Type.WAIT);
+        BAD_REQUEST("bad-request", Type.MODIFY),
+        CONFLICT("conflict", Type.CANCEL),
+        FEATURE_NOT_IMPLEMENTED("feature-not-implemented", Type.CANCEL),
+        FORBIDDEN("forbidden", Type.AUTH),
+        GONE("gone", Type.MODIFY),
+        INTERNAL_SERVER_ERROR("internal-server-error", Type.WAIT),
+        ITEM_NOT_FOUND("item-not-found", Type.CANCEL),
+        JID_MALFORMED("jid-malformed", Type.MODIFY),
+        NOT_ACCEPTABLE("not-acceptable", Type.MODIFY),
+        NOT_ALLOWED("not-allowed", Type.CANCEL),
+        NOT_AUTHORIZED("not-authorized", Type.AUTH),
+        POLICY_VIOLATION("policy-violation", Type.MODIFY),
+        RECIPIENT_UNAVAILABLE("recipient-unavailable", Type.WAIT),
+        REDIRECT("redirect", Type.MODIFY),
+        REGISTRATION_REQUIRED("registration-required", Type.AUTH),
+        REMOTE_SERVER_NOT_FOUND("remote-server-not-found", Type.CANCEL),
+        REMOTE_SERVER_TIMEOUT("remote-server-timeout", Type.WAIT),
+        RESOURCE_CONSTRAINT("resource-constraint", Type.WAIT),
+        SERVICE_UNAVAILABLE("service-unavailable", Type.CANCEL),
+        SUBSCRIPTION_REQUIRED("subscription-required", Type.AUTH),
+        UNDEFINED_CONDITION("undefined-condition", Type.WAIT),
+        UNEXPECTED_REQUEST("unexpected-request", Type.WAIT);
 
         private final String elementName;
         private final Type defaultType;
@@ -203,11 +204,11 @@ public class XmppError implements XmppExtension {
             if (name == null) {
                 return undefined_condition;
             }
-            String normalized = name.toLowerCase().replace('-', '_');
+            String normalized = name.toUpperCase().replace('-', '_');
             try {
                 return valueOf(normalized);
             } catch (IllegalArgumentException e) {
-                return undefined_condition;
+                return UNDEFINED_CONDITION;
             }
         }
     }
