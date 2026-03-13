@@ -59,7 +59,7 @@ public abstract class AbstractProvider<T extends ExtensionElement>
      * 序列化对象为 XML。
      *
      * @param object 要序列化的扩展元素对象，不能为 null
-     * @param xml    XmlStringBuilder，用于构建 XML 输出，不能为 null
+     * @param xml XmlStringBuilder，用于构建 XML 输出，不能为 null
      */
     @Override
     public final void serialize(T object, XmlStringBuilder xml) {
@@ -93,7 +93,7 @@ public abstract class AbstractProvider<T extends ExtensionElement>
      * 执行具体的序列化逻辑，子类在此方法中将对象内容写入 XmlStringBuilder。
      *
      * @param object 要序列化的扩展元素对象（非 null）
-     * @param xml    XmlStringBuilder，用于构建 XML 输出（非 null）
+     * @param xml XmlStringBuilder，用于构建 XML 输出（非 null）
      */
     protected abstract void serializeInstance(T object, XmlStringBuilder xml);
 

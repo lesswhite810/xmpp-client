@@ -50,6 +50,8 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
 
     /**
      * 重置处理器状态机。
+     *
+     * <p>该方法用于连接重建或复用连接对象时，将状态机恢复到初始连接阶段。</p>
      */
     public void resetState() {
         log.debug("Resetting handler state");

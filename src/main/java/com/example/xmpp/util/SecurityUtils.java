@@ -122,7 +122,7 @@ public class SecurityUtils {
      * </ul>
      *
      * @param input 原始字符串
-     * @return 转义后的字符串，如果输入为 null 则返回 null
+     * @return 转义后的字符串；如果输入为 {@code null} 则返回 {@code null}
      */
     public static String escapeXmlAttribute(String input) {
         if (input == null || input.isEmpty()) {

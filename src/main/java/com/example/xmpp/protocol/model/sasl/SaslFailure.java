@@ -18,15 +18,25 @@ import lombok.Getter;
 @Builder
 public class SaslFailure implements ExtensionElement {
 
+    /**
+     * SASL 命名空间。
+     */
     public static final String NAMESPACE = XmppConstants.NS_XMPP_SASL;
 
+    /**
+     * 失败条件名称。
+     */
     private final String condition;
+
+    /**
+     * 可选的错误描述文本。
+     */
     private final String text;
 
     /**
      * 获取元素名称。
      *
-     * @return 元素名称
+     * @return 固定返回 {@code failure}
      */
     @Override
     public String getElementName() {
@@ -36,7 +46,7 @@ public class SaslFailure implements ExtensionElement {
     /**
      * 获取命名空间。
      *
-     * @return 命名空间
+     * @return SASL 命名空间
      */
     @Override
     public String getNamespace() {
@@ -46,7 +56,7 @@ public class SaslFailure implements ExtensionElement {
     /**
      * 转换为 XML 字符串。
      *
-     * @return XML 字符串
+     * @return 失败元素 XML 字符串
      */
     @Override
     public String toXml() {
@@ -57,6 +67,9 @@ public class SaslFailure implements ExtensionElement {
         return xml.optTextElement("text", text).closeElement("failure").toString();
     }
 
+    /**
+     * SASL 失败条件枚举。
+     */
     public enum Condition {
         ABORTED("aborted"),
         CREDENTIALS_EXPIRED("credentials-expired"),

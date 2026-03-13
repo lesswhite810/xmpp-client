@@ -18,8 +18,14 @@ import lombok.Getter;
 @Builder
 public class SaslChallenge implements ExtensionElement {
 
+    /**
+     * SASL 命名空间。
+     */
     public static final String NAMESPACE = XmppConstants.NS_XMPP_SASL;
 
+    /**
+     * 挑战内容，通常为 Base64 编码的字符串。
+     */
     private final String content;
 
     /**
@@ -35,7 +41,7 @@ public class SaslChallenge implements ExtensionElement {
     /**
      * 获取元素名称。
      *
-     * @return 元素名称
+     * @return 固定返回 {@code challenge}
      */
     @Override
     public String getElementName() {
@@ -45,7 +51,7 @@ public class SaslChallenge implements ExtensionElement {
     /**
      * 获取命名空间。
      *
-     * @return 命名空间
+     * @return SASL 命名空间
      */
     @Override
     public String getNamespace() {
@@ -55,7 +61,7 @@ public class SaslChallenge implements ExtensionElement {
     /**
      * 转换为 XML 字符串。
      *
-     * @return XML 字符串
+     * @return 挑战元素 XML 字符串
      */
     @Override
     public String toXml() {

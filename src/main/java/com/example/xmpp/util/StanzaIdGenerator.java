@@ -12,11 +12,15 @@ import java.util.UUID;
  * String id = StanzaIdGenerator.newId();                    // "a1b2c3d4-e5f6-..."
  * String id = StanzaIdGenerator.newId("ping");              // "ping-a1b2c3d4-..."
  * }</pre>
+ *
+ * @since 2026-02-09
  */
 public final class StanzaIdGenerator {
 
+    /**
+     * 创建节 ID 生成器。
+     */
     private StanzaIdGenerator() {
-        // 工具类，禁止实例化
     }
 
     /**

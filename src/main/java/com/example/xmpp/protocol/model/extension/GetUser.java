@@ -17,29 +17,67 @@ import lombok.Setter;
 @Setter
 public class GetUser implements ExtensionElement {
 
+    /**
+     * 获取用户信息命令节点。
+     */
     public static final String COMMAND_NODE = "http://jabber.org/protocol/admin#get-user";
+
+    /**
+     * Ad-Hoc Commands 命名空间。
+     */
     public static final String NAMESPACE = "http://jabber.org/protocol/commands";
+
+    /**
+     * Data Forms 命名空间。
+     */
     public static final String DATA_FORMS_NS = "jabber:x:data";
 
-    // XEP-0050 命令动作类型
+    /**
+     * 执行命令动作。
+     */
     public static final String ACTION_EXECUTE = "execute";
+
+    /**
+     * 提交表单并完成命令动作。
+     */
     public static final String ACTION_COMPLETE = "complete";
 
+    /**
+     * 待查询用户的完整 JID。
+     */
     private String accountJid;
+
+    /**
+     * Ad-Hoc Commands 会话标识。
+     */
     private String sessionId;
+
+    /**
+     * 当前命令动作。
+     */
     private String action;
 
+    /**
+     * 创建一个默认提交表单的获取用户命令。
+     */
     public GetUser() {
         this.action = ACTION_COMPLETE;
     }
 
+    /**
+     * 创建一个获取用户信息命令。
+     *
+     * @param accountJid 待查询用户的完整 JID
+     */
     public GetUser(String accountJid) {
         this.accountJid = accountJid;
         this.action = ACTION_COMPLETE;
     }
 
     /**
-     * 创建执行命令（第一阶段）
+     * 创建执行阶段的获取用户命令。
+     *
+     * @return 仅用于请求表单的命令对象
      */
     public static GetUser createExecuteCommand() {
         GetUser cmd = new GetUser();
@@ -48,7 +86,11 @@ public class GetUser implements ExtensionElement {
     }
 
     /**
-     * 创建提交表单命令（第二阶段）
+     * 创建提交表单阶段的获取用户命令。
+     *
+     * @param sessionId 命令会话标识
+     * @param accountJid 待查询用户的完整 JID
+     * @return 可直接提交的命令对象
      */
     public static GetUser createSubmitForm(String sessionId, String accountJid) {
         GetUser cmd = new GetUser(accountJid);
@@ -57,16 +99,31 @@ public class GetUser implements ExtensionElement {
         return cmd;
     }
 
+    /**
+     * 获取扩展元素名称。
+     *
+     * @return 固定返回 {@code command}
+     */
     @Override
     public String getElementName() {
         return "command";
     }
 
+    /**
+     * 获取扩展元素命名空间。
+     *
+     * @return Ad-Hoc Commands 命名空间
+     */
     @Override
     public String getNamespace() {
         return NAMESPACE;
     }
 
+    /**
+     * 将获取用户信息命令序列化为 XML。
+     *
+     * @return 命令 XML 字符串
+     */
     @Override
     public String toXml() {
         XmlStringBuilder xml = new XmlStringBuilder();
@@ -75,14 +132,12 @@ public class GetUser implements ExtensionElement {
         xml.attribute("node", COMMAND_NODE);
         xml.attribute("action", action);
 
-        // 如果是 execute 命令，不包含表单数据
         if (ACTION_EXECUTE.equals(action)) {
             xml.rightAngleBracket();
             xml.closeElement("command");
             return xml.toString();
         }
 
-        // 如果是 complete 命令，包含会话ID和表单数据
         if (sessionId != null) {
             xml.attribute("sessionid", sessionId);
         }
@@ -93,10 +148,8 @@ public class GetUser implements ExtensionElement {
         xml.attribute("type", "submit");
         xml.rightAngleBracket();
 
-        // 添加 FORM_TYPE 字段
         appendHiddenField(xml, "FORM_TYPE", "http://jabber.org/protocol/admin");
 
-        // accountjid
         if (accountJid != null) {
             appendField(xml, "accountjid", accountJid);
         }
@@ -106,6 +159,13 @@ public class GetUser implements ExtensionElement {
         return xml.toString();
     }
 
+    /**
+     * 追加隐藏字段。
+     *
+     * @param xml XML 构建器
+     * @param var 字段名称
+     * @param value 字段值
+     */
     private void appendHiddenField(XmlStringBuilder xml, String var, String value) {
         xml.element("field");
         xml.attribute("var", var);
@@ -115,6 +175,13 @@ public class GetUser implements ExtensionElement {
         xml.closeElement("field");
     }
 
+    /**
+     * 追加普通文本字段。
+     *
+     * @param xml XML 构建器
+     * @param var 字段名称
+     * @param value 字段值
+     */
     private void appendField(XmlStringBuilder xml, String var, String value) {
         if (value != null) {
             xml.element("field");

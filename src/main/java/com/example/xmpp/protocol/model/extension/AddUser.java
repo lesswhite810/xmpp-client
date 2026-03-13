@@ -17,30 +17,82 @@ import lombok.Setter;
 @Setter
 public class AddUser implements ExtensionElement {
 
+    /**
+     * 添加用户命令节点。
+     */
     public static final String COMMAND_NODE = "http://jabber.org/protocol/admin#add-user";
+
+    /**
+     * Ad-Hoc Commands 命名空间。
+     */
     public static final String NAMESPACE = "http://jabber.org/protocol/commands";
+
+    /**
+     * Data Forms 命名空间。
+     */
     public static final String DATA_FORMS_NS = "jabber:x:data";
 
-    // XEP-0050 命令动作类型
+    /**
+     * 执行命令动作。
+     */
     public static final String ACTION_EXECUTE = "execute";
-    public static final String ACTION_COMPLETE = "complete";  // 用于提交表单完成命令
 
-    private String username;      // 完整 JID (user@domain)
+    /**
+     * 提交表单并完成命令动作。
+     */
+    public static final String ACTION_COMPLETE = "complete";
+
+    /**
+     * 待创建用户的完整 JID。
+     */
+    private String username;
+
+    /**
+     * 待创建用户的密码。
+     */
     private String password;
-    private String email;
-    private String sessionId;     // 会话ID
-    private String action;        // 命令动作
 
+    /**
+     * 待创建用户的邮箱地址。
+     */
+    private String email;
+
+    /**
+     * Ad-Hoc Commands 会话标识。
+     */
+    private String sessionId;
+
+    /**
+     * 当前命令动作。
+     */
+    private String action;
+
+    /**
+     * 创建一个默认提交表单的添加用户命令。
+     */
     public AddUser() {
-        this.action = ACTION_COMPLETE;  // 默认为完成命令
+        this.action = ACTION_COMPLETE;
     }
 
+    /**
+     * 创建一个添加用户命令。
+     *
+     * @param username 待创建用户的完整 JID
+     * @param password 待创建用户的密码
+     */
     public AddUser(String username, String password) {
         this.username = username;
         this.password = password;
         this.action = ACTION_COMPLETE;
     }
 
+    /**
+     * 创建一个带邮箱信息的添加用户命令。
+     *
+     * @param username 待创建用户的完整 JID
+     * @param password 待创建用户的密码
+     * @param email 待创建用户的邮箱地址
+     */
     public AddUser(String username, String password, String email) {
         this.username = username;
         this.password = password;
@@ -49,7 +101,9 @@ public class AddUser implements ExtensionElement {
     }
 
     /**
-     * 创建执行命令（第一阶段）
+     * 创建执行阶段的添加用户命令。
+     *
+     * @return 仅用于请求表单的命令对象
      */
     public static AddUser createExecuteCommand() {
         AddUser cmd = new AddUser();
@@ -58,25 +112,46 @@ public class AddUser implements ExtensionElement {
     }
 
     /**
-     * 创建提交表单命令（第二阶段）
+     * 创建提交表单阶段的添加用户命令。
+     *
+     * @param sessionId 命令会话标识
+     * @param username 待创建用户的完整 JID
+     * @param password 待创建用户的密码
+     * @param email 待创建用户的邮箱地址
+     * @return 可直接提交的命令对象
      */
     public static AddUser createSubmitForm(String sessionId, String username, String password, String email) {
         AddUser cmd = new AddUser(username, password, email);
         cmd.sessionId = sessionId;
-        cmd.action = ACTION_COMPLETE;  // 使用 complete 提交表单
+        cmd.action = ACTION_COMPLETE;
         return cmd;
     }
 
+    /**
+     * 获取扩展元素名称。
+     *
+     * @return 固定返回 {@code command}
+     */
     @Override
     public String getElementName() {
         return "command";
     }
 
+    /**
+     * 获取扩展元素命名空间。
+     *
+     * @return Ad-Hoc Commands 命名空间
+     */
     @Override
     public String getNamespace() {
         return NAMESPACE;
     }
 
+    /**
+     * 将添加用户命令序列化为 XML。
+     *
+     * @return 命令 XML 字符串
+     */
     @Override
     public String toXml() {
         XmlStringBuilder xml = new XmlStringBuilder();
@@ -85,14 +160,12 @@ public class AddUser implements ExtensionElement {
         xml.attribute("node", COMMAND_NODE);
         xml.attribute("action", action);
 
-        // 如果是 execute 命令，不包含表单数据
         if (ACTION_EXECUTE.equals(action)) {
             xml.rightAngleBracket();
             xml.closeElement("command");
             return xml.toString();
         }
 
-        // 如果是 complete 命令，包含会话ID和表单数据
         if (sessionId != null) {
             xml.attribute("sessionid", sessionId);
         }
@@ -103,10 +176,8 @@ public class AddUser implements ExtensionElement {
         xml.attribute("type", "submit");
         xml.rightAngleBracket();
 
-        // 添加 FORM_TYPE 字段（XEP-0004 要求，type="hidden"）
         appendHiddenField(xml, "FORM_TYPE", "http://jabber.org/protocol/admin");
 
-        // accountjid 需要完整的 JID 格式 (user@domain)
         if (username != null) {
             appendField(xml, "accountjid", username);
         }
@@ -125,7 +196,11 @@ public class AddUser implements ExtensionElement {
     }
 
     /**
-     * 添加隐藏字段（用于 FORM_TYPE）
+     * 追加隐藏字段。
+     *
+     * @param xml XML 构建器
+     * @param var 字段名称
+     * @param value 字段值
      */
     private void appendHiddenField(XmlStringBuilder xml, String var, String value) {
         xml.element("field");
@@ -137,7 +212,11 @@ public class AddUser implements ExtensionElement {
     }
 
     /**
-     * 添加普通文本字段
+     * 追加普通文本字段。
+     *
+     * @param xml XML 构建器
+     * @param var 字段名称
+     * @param value 字段值
      */
     private void appendField(XmlStringBuilder xml, String var, String value) {
         if (value != null) {

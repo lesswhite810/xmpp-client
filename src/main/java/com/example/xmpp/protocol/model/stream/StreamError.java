@@ -17,16 +17,30 @@ import lombok.Getter;
 @Getter
 @Builder
 public class StreamError implements ExtensionElement {
+    /**
+     * 流错误命名空间。
+     */
     public static final String NAMESPACE = "urn:ietf:params:xml:ns:xmpp-streams";
 
+    /**
+     * 流错误条件。
+     */
     private final Condition condition;
+
+    /**
+     * 可选的错误描述文本。
+     */
     private final String text;
+
+    /**
+     * 可选的错误来源主机。
+     */
     private final String by;
 
     /**
      * 获取元素名称。
      *
-     * @return 元素名称 "error"
+     * @return 固定返回 {@code error}
      */
     @Override
     public String getElementName() {
@@ -36,7 +50,7 @@ public class StreamError implements ExtensionElement {
     /**
      * 获取命名空间。
      *
-     * @return 命名空间
+     * @return 流错误命名空间
      */
     @Override
     public String getNamespace() {
@@ -46,7 +60,7 @@ public class StreamError implements ExtensionElement {
     /**
      * 序列化为 XML 字符串。
      *
-     * @return XML 字符串表示
+     * @return 流错误元素 XML 字符串
      */
     @Override
     public String toXml() {
@@ -60,6 +74,9 @@ public class StreamError implements ExtensionElement {
         return xml.closeElement("stream:error").toString();
     }
 
+    /**
+     * 流错误条件枚举。
+     */
     public enum Condition {
         BAD_FORMAT("bad-format"),
         BAD_NAMESPACE_PREFIX("bad-namespace-prefix"),
@@ -90,6 +107,11 @@ public class StreamError implements ExtensionElement {
 
         private final String elementName;
 
+        /**
+         * 创建流错误条件枚举实例。
+         *
+         * @param elementName 条件对应的元素名称
+         */
         Condition(String elementName) {
             this.elementName = elementName;
         }

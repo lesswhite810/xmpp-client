@@ -16,10 +16,24 @@ import lombok.Getter;
 @Getter
 @Builder
 public class ConnectionRequest implements ExtensionElement {
+    /**
+     * 元素名称。
+     */
     public static final String ELEMENT = "connectionRequest";
+
+    /**
+     * Broadband Forum 连接请求命名空间。
+     */
     public static final String NAMESPACE = "urn:broadband-forum-org:cwmp:xmppConnReq-1-0";
 
+    /**
+     * CPE 用户名。
+     */
     private final String username;
+
+    /**
+     * CPE 密码。
+     */
     private final String password;
 
     /**
@@ -36,7 +50,7 @@ public class ConnectionRequest implements ExtensionElement {
     /**
      * 获取元素名称。
      *
-     * @return 元素名称 "connectionRequest"
+     * @return 固定返回 {@code connectionRequest}
      */
     @Override
     public String getElementName() {
@@ -46,7 +60,7 @@ public class ConnectionRequest implements ExtensionElement {
     /**
      * 获取命名空间。
      *
-     * @return 命名空间
+     * @return Broadband Forum 连接请求命名空间
      */
     @Override
     public String getNamespace() {
@@ -56,7 +70,7 @@ public class ConnectionRequest implements ExtensionElement {
     /**
      * 序列化为 XML 字符串。
      *
-     * @return XML 字符串表示
+     * @return 扩展元素 XML 字符串
      */
     @Override
     public String toXml() {

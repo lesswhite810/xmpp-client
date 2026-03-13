@@ -13,8 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 连接辅助工具类。
  *
- * <p>提供 XMPP 连接相关的辅助方法，包括同步连接建立等操作。
- * 此类主要用于封装 Netty Bootstrap 的连接操作，提供更便捷的 API。</p>
+ * <p>提供 XMPP 连接相关的辅助方法，主要用于封装 Netty Bootstrap 的同步建连流程。</p>
  *
  * @since 2026-02-09
  */
@@ -27,10 +26,10 @@ public class ConnectionUtils {
      *
      * <p>此方法会阻塞当前线程，直到连接成功建立或发生异常。</p>
      *
-     * @param bootstrap Netty Bootstrap 实例，用于建立连接，不能为 null
-     * @param address   目标地址（可以是已解析或未解析的），不能为 null
+     * @param bootstrap Netty Bootstrap 实例，用于建立连接
+     * @param address   目标地址，可以是已解析或未解析地址
      * @return 已连接的 Channel 实例
-     * @throws io.netty.channel.ChannelException 如果连接失败（如拒绝连接、超时等）
+     * @throws XmppNetworkException 如果连接失败、中断或底层 ChannelFuture 返回异常
      */
     public static Channel connectSync(Bootstrap bootstrap, InetSocketAddress address) throws XmppNetworkException {
         String hostDesc = address.isUnresolved()

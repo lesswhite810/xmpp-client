@@ -62,7 +62,7 @@ public class GenericExtensionElement implements ExtensionElement {
      * 获取属性值。
      *
      * @param name 属性名
-     * @return 属性值，不存在返回 null
+     * @return 属性值；如果属性不存在则返回 {@code null}
      */
     public String getAttributeValue(String name) {
         return attributes.get(name);
@@ -128,7 +128,7 @@ public class GenericExtensionElement implements ExtensionElement {
     }
 
     /**
-     * 获取 QName。
+     * 获取当前元素的 QName。
      *
      * @return QName 对象
      */
@@ -136,6 +136,11 @@ public class GenericExtensionElement implements ExtensionElement {
         return new QName(namespace, elementName);
     }
 
+    /**
+     * 将当前扩展元素序列化为 XML 字符串。
+     *
+     * @return XML 字符串
+     */
     @Override
     public String toXml() {
         XmlStringBuilder xml = new XmlStringBuilder();
@@ -210,7 +215,7 @@ public class GenericExtensionElement implements ExtensionElement {
      * 创建 Builder。
      *
      * @param elementName 元素名称
-     * @param namespace    命名空间
+     * @param namespace 命名空间
      * @return Builder 实例
      */
     public static Builder builder(String elementName, String namespace) {
@@ -230,6 +235,8 @@ public class GenericExtensionElement implements ExtensionElement {
 
     /**
      * Builder 类，用于构造 GenericExtensionElement 实例。
+     *
+     * <p>支持逐步添加属性、子元素和文本内容，最终构建不可变扩展元素对象。</p>
      */
     public static class Builder {
         private final String elementName;

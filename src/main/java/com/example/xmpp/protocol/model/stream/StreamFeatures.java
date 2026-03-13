@@ -26,18 +26,36 @@ import java.util.List;
 @Getter
 @Builder
 public class StreamFeatures implements ExtensionElement {
+    /**
+     * 流特性命名空间。
+     */
     public static final String NAMESPACE = XmppConstants.NS_XMPP_STREAM_FEATURES;
 
+    /**
+     * 是否支持 STARTTLS。
+     */
     private final boolean starttlsAvailable;
+
+    /**
+     * 是否要求必须使用 STARTTLS。
+     */
     private final boolean starttlsRequired;
+
+    /**
+     * 服务端声明的 SASL 机制列表。
+     */
     @Singular
     private final List<String> mechanisms;
+
+    /**
+     * 是否支持资源绑定。
+     */
     private final boolean bindAvailable;
 
     /**
      * 获取元素名称。
      *
-     * @return 元素名称 "features"
+     * @return 固定返回 {@code features}
      */
     @Override
     public String getElementName() {
@@ -47,7 +65,7 @@ public class StreamFeatures implements ExtensionElement {
     /**
      * 获取命名空间。
      *
-     * @return 命名空间
+     * @return 流特性命名空间
      */
     @Override
     public String getNamespace() {
@@ -57,7 +75,7 @@ public class StreamFeatures implements ExtensionElement {
     /**
      * 序列化为 XML 字符串。
      *
-     * @return XML 字符串表示
+     * @return 流特性元素 XML 字符串
      */
     @Override
     public String toXml() {

@@ -15,13 +15,14 @@ import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
+
 /**
  * XMPP Ping 管理器（XEP-0199）。
  *
  * <p>实现 XMPP Ping 协议的客户端 Ping 功能：</p>
  * <ul>
- * <li>定期发送 Keepalive Ping 保持连接活跃</li>
- * <li>支持自定义 Ping 间隔时间</li>
+ *   <li>定期发送 Keepalive Ping 保持连接活跃</li>
+ *   <li>支持自定义 Ping 间隔时间</li>
  * </ul>
  *
  * <p>服务端 Ping 请求由 {@link PingIqRequestHandler} 处理。</p>
@@ -32,27 +33,27 @@ import java.util.concurrent.locks.ReentrantLock;
 public class PingManager {
 
     /**
-     * 关联的 XMPP 连接
+     * 关联的 XMPP 连接。
      */
     private final XmppConnection connection;
 
     /**
-     * 保活任务
+     * 当前保活任务。
      */
     private volatile ScheduledFuture<?> keepAliveTask;
 
     /**
-     * 任务操作锁
+     * 保活任务状态变更锁。
      */
     private final ReentrantLock taskLock = new ReentrantLock();
 
     /**
-     * Ping 间隔时间（秒）
+     * Ping 间隔时间，单位为秒。
      */
     private volatile int pingIntervalSeconds = XmppConstants.DEFAULT_PING_INTERVAL_SECONDS;
 
     /**
-     * 事件订阅取消回调
+     * 事件订阅取消回调。
      */
     private Runnable unsubscribe;
 
@@ -71,11 +72,12 @@ public class PingManager {
                 ConnectionEventType.CLOSED, event -> shutdown(),
                 ConnectionEventType.ERROR, event -> shutdown()
         ));
-}
-/**
+    }
+
+    /**
      * 处理连接事件。
      *
-     * <p>此方法用于测试目的，实际事件处理通过 XmppEventBus 自动触发。</p>
+     * <p>该方法主要用于测试或显式触发场景，生产环境通常通过 {@link XmppEventBus} 自动回调。</p>
      *
      * @param event 连接事件
      */
@@ -101,9 +103,6 @@ public class PingManager {
         taskLock.lock();
         try {
             this.pingIntervalSeconds = seconds;
-            /**
-             * 如果任务存在，先停止再启动
-             */
             if (keepAliveTask != null && !keepAliveTask.isCancelled()) {
                 stopKeepAliveInternal();
                 keepAliveTask = XmppScheduler.getScheduler().scheduleWithFixedDelay(
@@ -164,9 +163,6 @@ public class PingManager {
     public void shutdown() {
         taskLock.lock();
         try {
-            /**
-             * 取消事件订阅
-             */
             if (unsubscribe != null) {
                 unsubscribe.run();
                 unsubscribe = null;
@@ -181,7 +177,7 @@ public class PingManager {
     /**
      * 发送 Ping 请求。
      *
-     * <p>向 XMPP 服务器发送 Keepalive Ping 以检测连接状态。</p>
+     * <p>向 XMPP 服务器发送 Keepalive Ping 以检测连接状态。仅在连接已建立且完成认证后发送。</p>
      */
     private void sendPing() {
         if (!connection.isConnected() || !connection.isAuthenticated()) {

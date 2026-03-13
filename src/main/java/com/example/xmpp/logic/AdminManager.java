@@ -24,8 +24,7 @@ import java.util.function.Supplier;
 /**
  * XEP-0133: Service Administration 管理员管理器。
  *
- * <p>提供 XMPP 服务管理功能，包括用户管理、在线用户管理等。
- * 使用此管理器需要管理员权限。</p>
+ * <p>提供 XMPP 服务管理功能，包括用户管理、在线用户管理等操作。使用此管理器需要管理员权限。</p>
  *
  * <p>管理员命令通过 Ad-Hoc Commands (XEP-0050) 发送到服务器。</p>
  *
@@ -45,41 +44,62 @@ import java.util.function.Supplier;
  * AdminManager adminManager = new AdminManager(connection, config);
  * adminManager.addUser("newuser", "password");
  * }</pre>
+ *
+ * @since 2026-02-09
  */
 @Slf4j
 @Getter
 public class AdminManager {
 
-    // ==================== 常量定义 ====================
-
     /**
-     * 默认命令超时时间（毫秒）
+     * 默认命令超时时间，单位为毫秒。
      */
     private static final long DEFAULT_TIMEOUT_MS = 15000;
 
     /**
-     * XEP-0050 命令属性名
+     * XEP-0050 命令属性名。
      */
     private static final String ATTR_SESSION_ID = "sessionid";
+
+    /**
+     * 命令状态属性名。
+     */
     private static final String ATTR_STATUS = "status";
+
+    /**
+     * 命令已完成状态值。
+     */
     private static final String STATUS_COMPLETED = "completed";
 
     /**
-     * JID 分隔符
+     * JID 分隔符。
      */
     private static final String JID_SEPARATOR = "@";
 
-    // ==================== 成员变量 ====================
-
-    private final XmppConnection connection;
-    private final String serviceDomain;
-    private final String adminUsername;
     /**
-     * 预计算的管理员 JID 前缀，避免重复拼接
+     * 关联的 XMPP 连接。
+     */
+    private final XmppConnection connection;
+
+    /**
+     * 管理命令发送的目标服务域名。
+     */
+    private final String serviceDomain;
+
+    /**
+     * 管理员用户名。
+     */
+    private final String adminUsername;
+
+    /**
+     * 预计算的管理员 JID 前缀。
+     *
+     * <p>用于快速匹配来自管理员账户的响应地址，避免重复拼接字符串。</p>
      */
     private final String adminJidPrefix;
+
     /**
-     * 命令超时时间
+     * 命令超时时间，单位为毫秒。
      */
     private final long timeoutMs;
 
@@ -119,8 +139,6 @@ public class AdminManager {
         this.adminJidPrefix = adminUsername + JID_SEPARATOR;
         this.timeoutMs = timeoutMs;
     }
-
-    // ==================== 核心方法 ====================
 
     /**
      * 发送管理命令并等待响应（使用 ID + from 地址匹配，支持 Openfire）。
@@ -166,13 +184,15 @@ public class AdminManager {
             if (from == null) {
                 return false;
             }
-            // 使用预计算的 JID 前缀进行匹配
             return from.startsWith(adminJidPrefix) || from.equals(serviceDomain);
         };
     }
 
     /**
      * 构建管理命令 IQ 请求。
+     *
+     * @param childElement 命令载荷
+     * @return 发送到服务域名的管理命令 IQ
      */
     private Iq buildAdminIq(ExtensionElement childElement) {
         return new Iq.Builder(Iq.Type.SET)
@@ -190,19 +210,16 @@ public class AdminManager {
      */
     private Optional<String> extractSessionId(XmppStanza response) {
         if (!(response instanceof Iq iq)) {
-            // 理论上不会发生（过滤器已确保是 IQ），用 DEBUG 级别
             log.debug("Response is not an IQ stanza: {}", response.getClass().getSimpleName());
             return Optional.empty();
         }
 
         ExtensionElement childElement = iq.getChildElement();
         if (childElement == null) {
-            // 服务器返回不完整响应，用 DEBUG 级别（后续会抛出异常）
             log.debug("IQ has no child element");
             return Optional.empty();
         }
 
-        // 优先从 GenericExtensionElement 获取属性
         if (childElement instanceof GenericExtensionElement genericElement) {
             String sessionId = genericElement.getAttributeValue(ATTR_SESSION_ID);
             if (sessionId != null) {
@@ -211,12 +228,14 @@ public class AdminManager {
             }
         }
 
-        // 回退到字符串解析
         return extractSessionIdFromXml(iq.toXml());
     }
 
     /**
      * 从 XML 字符串中解析 sessionid 属性。
+     *
+     * @param xml XML 字符串
+     * @return 会话 ID；如果不存在则返回 {@link Optional#empty()}
      */
     private Optional<String> extractSessionIdFromXml(String xml) {
         int sessionidIndex = xml.indexOf(ATTR_SESSION_ID + "=");
@@ -246,8 +265,6 @@ public class AdminManager {
         return Optional.of(xml.substring(valueStart + 1, valueEnd));
     }
 
-    // ==================== 响应处理辅助方法 ====================
-
     /**
      * 检查响应是否为错误类型。
      */
@@ -275,8 +292,6 @@ public class AdminManager {
     private AdminCommandException createCommandException(String commandName, String message, XmppStanza response) {
         return new AdminCommandException(commandName, message, response instanceof Iq iq ? iq : null);
     }
-
-    // ==================== 通用两阶段命令模板 ====================
 
     /**
      * 执行两阶段命令的通用模板。
@@ -306,25 +321,21 @@ public class AdminManager {
             XmppStanza executeResponse,
             Function<String, T> submitCmdFactory) {
 
-        // 卫语句：错误响应
         if (isErrorResponse(executeResponse)) {
             return CompletableFuture.failedFuture(
                     createCommandException(commandName, "Server returned error response", executeResponse));
         }
 
-        // 卫语句：已直接完成
         if (isCompletedResponse(executeResponse)) {
             return CompletableFuture.completedFuture(executeResponse);
         }
 
-        // 提取 sessionId
         Optional<String> sessionId = extractSessionId(executeResponse);
         if (sessionId.isEmpty()) {
             return CompletableFuture.failedFuture(
                     createCommandException(commandName, "No session ID in execute response", null));
         }
 
-        // 第二步：提交表单
         log.debug("Step 2: Submitting {} form with session ID: {}", commandName, sessionId.orElseThrow());
         T submitCmd = submitCmdFactory.apply(sessionId.orElseThrow());
         Iq submitIq = buildAdminIq(submitCmd);
@@ -338,8 +349,6 @@ public class AdminManager {
                     return CompletableFuture.completedFuture(submitResponse);
                 });
     }
-
-    // ==================== 用户管理命令 ====================
 
     /**
      * 添加用户。
@@ -426,8 +435,6 @@ public class AdminManager {
         return atIndex >= 0 ? username : username + JID_SEPARATOR + serviceDomain;
     }
 
-    // ==================== 列表查询命令 ====================
-
     /**
      * 列出所有用户。
      */
@@ -462,8 +469,6 @@ public class AdminManager {
                 GetOnlineUsers::createSubmitForm
         );
     }
-
-    // ==================== 其他管理命令 ====================
 
     /**
      * 踢出用户。

@@ -15,14 +15,20 @@ import javax.xml.stream.events.XMLEvent;
  */
 public final class PingProvider extends AbstractProvider<Ping> {
 
+    /**
+     * Ping 元素名称。
+     */
     public static final String ELEMENT = "ping";
 
+    /**
+     * Ping 命名空间。
+     */
     public static final String NAMESPACE = "urn:xmpp:ping";
 
     /**
      * 获取元素名称。
      *
-     * @return 元素名称 "ping"
+     * @return 固定返回 {@code ping}
      */
     @Override
     public String getElementName() {
@@ -32,7 +38,7 @@ public final class PingProvider extends AbstractProvider<Ping> {
     /**
      * 获取命名空间。
      *
-     * @return 命名空间 "urn:xmpp:ping"
+     * @return Ping 命名空间
      */
     @Override
     public String getNamespace() {
@@ -61,7 +67,7 @@ public final class PingProvider extends AbstractProvider<Ping> {
      * 序列化 Ping 对象为 XML。
      *
      * @param ping Ping 对象（此处未使用，因为 Ping 是单例）
-     * @param xml  XmlStringBuilder，用于构建 XML 输出
+     * @param xml XmlStringBuilder，用于构建 XML 输出
      */
     @Override
     protected void serializeInstance(Ping ping, XmlStringBuilder xml) {

@@ -19,7 +19,7 @@ import java.util.UUID;
 /**
  * 状态上下文（状态模式）。
  *
- * <p>持有处理器状态和共享数据，提供状态转换方法。</p>
+ * <p>持有处理器状态和共享数据，为各状态实现提供状态切换、报文发送和错误关闭等公共能力。</p>
  *
  * @since 2026-02-20
  */
@@ -120,7 +120,9 @@ public class StateContext {
     /**
      * 重置状态。
      *
-     * @param connectingState 连接状态实例
+     * <p>该方法通常在连接重建或处理器状态机重置时调用。</p>
+     *
+     * @param connectingState 新的初始连接状态
      */
     public void reset(XmppHandlerState connectingState) {
         this.currentState = connectingState;
@@ -131,7 +133,7 @@ public class StateContext {
      * 发送 Stanza 到服务器。
      *
      * @param ctx    通道上下文
-     * @param packet 要发送的对象
+     * @param packet 要发送的对象；仅支持实现了 {@link XmlSerializable} 的协议对象
      */
     public void sendStanza(ChannelHandlerContext ctx, Object packet) {
         if (packet instanceof XmlSerializable serializable) {
@@ -148,7 +150,7 @@ public class StateContext {
      * 关闭连接并记录错误。
      *
      * @param ctx   通道上下文
-     * @param cause 错误原因
+     * @param cause 错误原因，可以是异常对象或错误描述
      */
     public void closeConnectionOnError(ChannelHandlerContext ctx, Object cause) {
         Exception exception = toException(cause);
@@ -174,6 +176,8 @@ public class StateContext {
     /**
      * 打开 XMPP 流。
      *
+     * <p>该方法会发送初始或重开后的 stream 头，用于进入功能协商阶段。</p>
+     *
      * @param ctx 通道上下文
      */
     public void openStream(ChannelHandlerContext ctx) {
@@ -194,6 +198,8 @@ public class StateContext {
 
     /**
      * 重置解码器并打开流。
+     *
+     * <p>当前实现仅重新发送 stream 头，保留该方法用于后续扩展解码器重置逻辑。</p>
      *
      * @param ctx 通道上下文
      */

@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
  * <pre>
  * java -jar xmpp-client.jar &lt;domain&gt; &lt;username&gt; &lt;password&gt;
  * </pre>
+ *
+ * @since 2026-02-09
  */
 @Slf4j
 public class Main {
@@ -45,10 +47,10 @@ public class Main {
     /**
      * 运行 XMPP 客户端。
      *
-     * @param domain   XMPP 服务域名
+     * @param domain XMPP 服务域名
      * @param username 用户名
      * @param password 密码
-     * @throws XmppException        如果 XMPP 连接失败
+     * @throws XmppException 如果 XMPP 连接失败
      */
     private static void runClient(String domain, String username, String password)
             throws XmppException {

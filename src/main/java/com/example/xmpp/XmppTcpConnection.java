@@ -86,6 +86,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     /**
      * 同步建立连接并等待会话就绪。
      *
+     * <p>该方法会等待 TCP 建连、认证、资源绑定和会话激活全部完成。</p>
+     *
      * @throws XmppException 如果建连、认证或会话初始化失败
      */
     @Override
@@ -107,6 +109,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     /**
      * 异步建立连接并返回会话就绪 Future。
+     *
+     * <p>返回的 Future 在资源绑定完成且会话进入可用状态后结束。</p>
      *
      * @return 当前会话的就绪 Future
      * @throws XmppException 如果连接目标解析或连接初始化失败
@@ -265,6 +269,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     /**
      * 使用异常结束当前连接生命周期。
      *
+     * <p>该方法会使连接就绪 Future 失败，并向连接事件总线发布错误事件。</p>
+     *
      * @param exception 失败原因
      */
     public void failConnection(Exception exception) {
@@ -286,6 +292,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     /**
      * 关闭当前会话并释放相关资源。
+     *
+     * <p>该方法会停止心跳与重连逻辑、清理 collector，并关闭底层 Netty 资源。</p>
      */
     @Override
     public void disconnect() {
@@ -344,7 +352,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     /**
      * 在通道可用时发送 XMPP stanza。
      *
-     * @param stanza 待发送的协议元素
+     * @param stanza 待发送的协议元素；如果为 {@code null} 或通道不可用，则仅记录日志
      */
     @Override
     public void sendStanza(XmppStanza stanza) {

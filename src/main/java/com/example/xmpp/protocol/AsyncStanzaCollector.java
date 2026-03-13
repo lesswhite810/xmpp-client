@@ -19,8 +19,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class AsyncStanzaCollector {
 
+    /**
+     * 用于匹配目标响应的过滤器。
+     */
     private final StanzaFilter filter;
 
+    /**
+     * 收集结果对应的异步结果。
+     */
     @Getter
     private final CompletableFuture<XmppStanza> future;
 
@@ -51,15 +57,11 @@ public class AsyncStanzaCollector {
      * @return 如果节被收集（匹配过滤器且 Future 未完成）则返回 true
      */
     public boolean processStanza(XmppStanza stanza) {
-        // 使用 CAS 确保只有一个线程能进入处理逻辑
-        // 如果 alreadyCollected 为 true，说明已经有其他线程完成了收集
         if (collected.get()) {
             return false;
         }
 
         if (filter.accept(stanza)) {
-            // 原子地尝试设置 collected 标志
-            // 只有第一个成功设置 CAS 的线程才能完成 future
             if (collected.compareAndSet(false, true)) {
                 future.complete(stanza);
                 return true;

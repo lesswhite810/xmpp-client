@@ -27,6 +27,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * XMPP 连接的抽象基类。
  *
  * <p>提供 IQ 处理器注册、collector 管理以及连接生命周期事件分发等公共能力。</p>
+ *
+ * @since 2026-02-09
  */
 @Slf4j
 public abstract class AbstractXmppConnection implements XmppConnection {
@@ -196,8 +198,6 @@ public abstract class AbstractXmppConnection implements XmppConnection {
 
     /**
      * 发布认证完成事件。
-     *
-     * @param resumed 是否为会话恢复
      */
     public void notifyAuthenticated() {
         fireEvent(ConnectionEventType.AUTHENTICATED);
@@ -250,7 +250,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * 异步发送 IQ stanza 并等待匹配响应。
      *
      * @param iq 待发送的 IQ stanza
-     * @return 响应 Future
+     * @return 响应 Future，若服务端返回 IQ error，则以异常形式结束
      */
     @Override
     public CompletableFuture<XmppStanza> sendIqPacketAsync(Iq iq) {
@@ -263,7 +263,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @param iq 待发送的 IQ stanza
      * @param timeout 超时时间
      * @param unit 超时时间单位
-     * @return 响应 Future
+     * @return 响应 Future，成功时返回匹配的结果节，失败时返回异常
      */
     public CompletableFuture<XmppStanza> sendIqPacketAsync(Iq iq, long timeout, TimeUnit unit) {
         Validate.notNull(iq, "IQ must not be null");

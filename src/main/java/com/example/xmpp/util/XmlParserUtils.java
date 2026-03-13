@@ -34,6 +34,9 @@ import java.util.HashMap;
 @UtilityClass
 public class XmlParserUtils {
 
+    /**
+     * 共享的安全 XML 输入工厂。
+     */
     private static final XMLInputFactory SHARED_INPUT_FACTORY = createInputFactoryInternal();
 
     /**
@@ -49,6 +52,8 @@ public class XmlParserUtils {
 
     /**
      * 创建配置好的 XMLInputFactory 实例。
+     *
+     * @return 已启用安全选项的 XMLInputFactory 实例
      */
     private static XMLInputFactory createInputFactoryInternal() {
         XMLInputFactory factory = XMLInputFactory.newInstance();
@@ -70,6 +75,10 @@ public class XmlParserUtils {
 
     /**
      * 尝试设置属性，如果不支持则忽略。
+     *
+     * @param factory XML 输入工厂
+     * @param name 属性名称
+     * @param value 属性值
      */
     private static void setPropertyIfSupported(XMLInputFactory factory, String name, Object value) {
         try {
@@ -102,7 +111,7 @@ public class XmlParserUtils {
      * 从字节数组创建 XMLEventReader。
      *
      * @param bytes 字节数组
-     * @return XMLEventReader
+     * @return 新创建的 XMLEventReader 实例
      * @throws XMLStreamException 如果创建 reader 失败
      */
     public static XMLEventReader createReader(byte[] bytes) throws XMLStreamException {
@@ -113,7 +122,7 @@ public class XmlParserUtils {
      * 获取开始元素的所有属性。
      *
      * @param startElement 开始元素
-     * @return 属性 Map，key 为属性名，value 为属性值
+     * @return 属性映射，键为属性名，值为属性值
      */
     public static Map<String, String> getAttributes(StartElement startElement) {
         Map<String, String> attrs = new HashMap<>();
@@ -129,7 +138,7 @@ public class XmlParserUtils {
      * 获取元素的文本内容。
      *
      * @param reader XMLEventReader
-     * @return 文本内容
+     * @return 去除首尾空白后的文本内容
      * @throws XMLStreamException 如果读取失败
      */
     public static String getElementText(XMLEventReader reader) throws XMLStreamException {

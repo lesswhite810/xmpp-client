@@ -19,23 +19,64 @@ import lombok.Setter;
 @Setter
 public class ChangeUserPassword implements ExtensionElement {
 
+    /**
+     * 修改用户密码命令节点。
+     */
     public static final String COMMAND_NODE = "http://jabber.org/protocol/admin#change-user-password";
+
+    /**
+     * Ad-Hoc Commands 命名空间。
+     */
     public static final String NAMESPACE = "http://jabber.org/protocol/commands";
+
+    /**
+     * Data Forms 命名空间。
+     */
     public static final String DATA_FORMS_NS = "jabber:x:data";
 
-    // 命令动作类型
+    /**
+     * 执行命令动作。
+     */
     public static final String ACTION_EXECUTE = "execute";
+
+    /**
+     * 提交表单并完成命令动作。
+     */
     public static final String ACTION_COMPLETE = "complete";
 
+    /**
+     * 待修改密码用户的完整 JID。
+     */
     private String accountJid;
+
+    /**
+     * 新密码。
+     */
     private String newPassword;
+
+    /**
+     * Ad-Hoc Commands 会话标识。
+     */
     private String sessionId;
+
+    /**
+     * 当前命令动作。
+     */
     private String action;
 
+    /**
+     * 创建一个默认提交表单的修改密码命令。
+     */
     public ChangeUserPassword() {
         this.action = ACTION_COMPLETE;
     }
 
+    /**
+     * 创建一个修改用户密码命令。
+     *
+     * @param accountJid 待修改密码用户的完整 JID
+     * @param newPassword 新密码
+     */
     public ChangeUserPassword(String accountJid, String newPassword) {
         this.accountJid = accountJid;
         this.newPassword = newPassword;
@@ -43,7 +84,9 @@ public class ChangeUserPassword implements ExtensionElement {
     }
 
     /**
-     * 创建 execute 命令（获取表单）。
+     * 创建执行阶段的修改密码命令。
+     *
+     * @return 仅用于请求表单的命令对象
      */
     public static ChangeUserPassword createExecuteCommand() {
         ChangeUserPassword cmd = new ChangeUserPassword();
@@ -52,11 +95,12 @@ public class ChangeUserPassword implements ExtensionElement {
     }
 
     /**
-     * 创建提交表单（修改密码）。
+     * 创建提交表单阶段的修改密码命令。
      *
-     * @param sessionId 会话ID（从 execute 响应中获取）
-     * @param accountJid 用户 JID
+     * @param sessionId 命令会话标识
+     * @param accountJid 待修改密码用户的完整 JID
      * @param newPassword 新密码
+     * @return 可直接提交的命令对象
      */
     public static ChangeUserPassword createSubmitForm(String sessionId, String accountJid, String newPassword) {
         ChangeUserPassword cmd = new ChangeUserPassword(accountJid, newPassword);
@@ -65,16 +109,31 @@ public class ChangeUserPassword implements ExtensionElement {
         return cmd;
     }
 
+    /**
+     * 获取扩展元素名称。
+     *
+     * @return 固定返回 {@code command}
+     */
     @Override
     public String getElementName() {
         return "command";
     }
 
+    /**
+     * 获取扩展元素命名空间。
+     *
+     * @return Ad-Hoc Commands 命名空间
+     */
     @Override
     public String getNamespace() {
         return NAMESPACE;
     }
 
+    /**
+     * 将修改用户密码命令序列化为 XML。
+     *
+     * @return 命令 XML 字符串
+     */
     @Override
     public String toXml() {
         XmlStringBuilder xml = new XmlStringBuilder();
@@ -83,14 +142,12 @@ public class ChangeUserPassword implements ExtensionElement {
         xml.attribute("node", COMMAND_NODE);
         xml.attribute("action", action);
 
-        // 如果是 execute 命令，不包含表单数据
         if (ACTION_EXECUTE.equals(action)) {
             xml.rightAngleBracket();
             xml.closeElement("command");
             return xml.toString();
         }
 
-        // 提交表单
         xml.attribute("sessionid", sessionId);
         xml.rightAngleBracket();
 
@@ -99,7 +156,6 @@ public class ChangeUserPassword implements ExtensionElement {
         xml.attribute("type", "submit");
         xml.rightAngleBracket();
 
-        // FORM_TYPE 字段
         xml.element("field");
         xml.attribute("var", "FORM_TYPE");
         xml.attribute("type", "hidden");
@@ -107,7 +163,6 @@ public class ChangeUserPassword implements ExtensionElement {
         xml.textElement("value", "http://jabber.org/protocol/admin");
         xml.closeElement("field");
 
-        // accountjid 字段
         if (accountJid != null) {
             xml.element("field");
             xml.attribute("var", "accountjid");
@@ -116,7 +171,6 @@ public class ChangeUserPassword implements ExtensionElement {
             xml.closeElement("field");
         }
 
-        // password 字段
         if (newPassword != null) {
             xml.element("field");
             xml.attribute("var", "password");

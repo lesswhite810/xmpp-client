@@ -18,14 +18,20 @@ import lombok.Getter;
 @Builder
 public class SaslSuccess implements ExtensionElement {
 
+    /**
+     * SASL 命名空间。
+     */
     public static final String NAMESPACE = XmppConstants.NS_XMPP_SASL;
 
+    /**
+     * 可选的成功响应内容，通常为 Base64 编码的字符串。
+     */
     private final String content;
 
     /**
      * 获取元素名称。
      *
-     * @return 元素名称
+     * @return 固定返回 {@code success}
      */
     @Override
     public String getElementName() {
@@ -35,7 +41,7 @@ public class SaslSuccess implements ExtensionElement {
     /**
      * 获取命名空间。
      *
-     * @return 命名空间
+     * @return SASL 命名空间
      */
     @Override
     public String getNamespace() {
@@ -45,7 +51,7 @@ public class SaslSuccess implements ExtensionElement {
     /**
      * 转换为 XML 字符串。
      *
-     * @return XML 字符串
+     * @return 成功元素 XML 字符串
      */
     @Override
     public String toXml() {

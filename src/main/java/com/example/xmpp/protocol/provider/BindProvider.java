@@ -16,8 +16,14 @@ import javax.xml.stream.events.XMLEvent;
  */
 public final class BindProvider extends AbstractProvider<Bind> {
 
+    /**
+     * 绑定元素名称。
+     */
     public static final String ELEMENT = "bind";
 
+    /**
+     * 绑定命名空间。
+     */
     public static final String NAMESPACE = "urn:ietf:params:xml:ns:xmpp-bind";
 
     private static final String ELEMENT_JID = "jid";
@@ -26,7 +32,7 @@ public final class BindProvider extends AbstractProvider<Bind> {
     /**
      * 获取元素名称。
      *
-     * @return 元素名称 "bind"
+     * @return 固定返回 {@code bind}
      */
     @Override
     public String getElementName() {
@@ -36,7 +42,7 @@ public final class BindProvider extends AbstractProvider<Bind> {
     /**
      * 获取命名空间。
      *
-     * @return 命名空间 "urn:ietf:params:xml:ns:xmpp-bind"
+     * @return 绑定命名空间
      */
     @Override
     public String getNamespace() {
@@ -87,7 +93,7 @@ public final class BindProvider extends AbstractProvider<Bind> {
      * 序列化 Bind 对象为 XML。
      *
      * @param bind Bind 对象，要序列化的绑定信息
-     * @param xml  XmlStringBuilder，用于构建 XML 输出
+     * @param xml XmlStringBuilder，用于构建 XML 输出
      */
     @Override
     protected void serializeInstance(Bind bind, XmlStringBuilder xml) {

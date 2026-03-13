@@ -69,22 +69,22 @@ public class XmppClientConfig {
         MUTUAL
     }
 
-    // ==================== 连接配置 ====================
-
     /**
-     * XMPP 服务域名
+     * XMPP 服务域名。
      */
     @Builder.Default
     private String xmppServiceDomain = "";
 
     /**
-     * XMPP 服务器主机名
+     * XMPP 服务器主机名。
      */
     @Builder.Default
     private String host = "";
 
     /**
-     * XMPP 服务器 IP 地址（优先于 host）
+     * XMPP 服务器 IP 地址。
+     *
+     * <p>如果同时配置了 {@link #host} 和 {@link #hostAddress}，优先使用 IP 地址。</p>
      */
     @Builder.Default
     private InetAddress hostAddress = null;
@@ -99,13 +99,15 @@ public class XmppClientConfig {
     private int port = 0;
 
     /**
-     * XMPP 资源标识
+     * XMPP 资源标识。
      */
     @Builder.Default
     private String resource = "xmpp";
 
     /**
-     * 启用的 SASL 认证机制
+     * 启用的 SASL 认证机制集合。
+     *
+     * <p>为空集合时表示由客户端根据服务端能力自动选择最优机制。</p>
      */
     @Builder.Default
     private Set<String> enabledSaslMechanisms = Set.of();
@@ -131,41 +133,41 @@ public class XmppClientConfig {
     private int readTimeout = 0;
 
     /**
-     * 是否在连接成功后发送 Presence 节
+     * 是否在连接成功后发送初始 Presence 节。
      */
     @Builder.Default
     private boolean sendPresence = true;
 
-    // ==================== 认证配置 ====================
-
     /**
-     * 用户名
+     * 用户名。
      */
     @Builder.Default
     private String username = "";
 
     /**
-     * 密码
+     * 密码。
      */
     @Builder.Default
     private char[] password = null;
 
     /**
-     * 授权标识符（可选）
+     * 授权标识符。
+     *
+     * <p>该字段为可选配置，通常用于 SASL 授权身份与认证身份分离的场景。</p>
      */
     @Builder.Default
     private String authzid = "";
 
-    // ==================== 安全配置 ====================
-
     /**
-     * 安全模式
+     * 安全模式。
      */
     @Builder.Default
     private SecurityMode securityMode = SecurityMode.REQUIRED;
 
     /**
-     * 自定义 TrustManager（可选）
+     * 自定义 TrustManager。
+     *
+     * <p>如果未配置，则使用 JVM 默认信任配置或自定义 SSLContext 中的信任配置。</p>
      */
     @Builder.Default
     private TrustManager[] customTrustManager = null;
@@ -187,19 +189,21 @@ public class XmppClientConfig {
     private TlsAuthenticationMode tlsAuthenticationMode = TlsAuthenticationMode.ONE_WAY;
 
     /**
-     * 自定义 SSLContext（可选）
+     * 自定义 SSLContext。
+     *
+     * <p>如果配置该项，则优先使用该上下文创建 TLS 连接。</p>
      */
     @Builder.Default
     private SSLContext customSslContext = null;
 
     /**
-     * 启用的 SSL 协议数组
+     * 显式启用的 SSL/TLS 协议数组。
      */
     @Builder.Default
     private String[] enabledSSLProtocols = null;
 
     /**
-     * 启用的 SSL 密码套件数组
+     * 显式启用的 SSL 密码套件数组。
      */
     @Builder.Default
     private String[] enabledSSLCiphers = null;
@@ -222,42 +226,38 @@ public class XmppClientConfig {
     @Builder.Default
     private int handshakeTimeoutMs = 0;
 
-    // ==================== 心跳/重连配置 ====================
-
     /**
-     * 是否启用自动重连
+     * 是否启用自动重连。
      */
     @Builder.Default
     private boolean reconnectionEnabled = false;
 
     /**
-     * 重连基础延迟（秒）
+     * 重连基础延迟，单位为秒。
      */
     @Builder.Default
     private int reconnectionBaseDelay = 5;
 
     /**
-     * 重连最大延迟（秒）
+     * 重连最大延迟，单位为秒。
      */
     @Builder.Default
     private int reconnectionMaxDelay = 300;
 
     /**
-     * 是否启用 Ping 心跳
+     * 是否启用 Ping 心跳。
      */
     @Builder.Default
     private boolean pingEnabled = false;
 
     /**
-     * Ping 间隔（秒）
+     * Ping 间隔，单位为秒。
      */
     @Builder.Default
     private int pingInterval = 60;
 
-    // ==================== 其他配置 ====================
-
     /**
-     * 语言区域设置
+     * 语言区域设置。
      */
     @Builder.Default
     private Locale language = Locale.getDefault();

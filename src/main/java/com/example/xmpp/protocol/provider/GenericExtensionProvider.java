@@ -21,17 +21,20 @@ import javax.xml.stream.events.XMLEvent;
 public class GenericExtensionProvider {
 
     /**
-     * 单例实例。
+     * 创建通用扩展元素 Provider。
      */
-    public static final GenericExtensionProvider INSTANCE = new GenericExtensionProvider();
-
     private GenericExtensionProvider() {
     }
 
     /**
+     * 单例实例。
+     */
+    public static final GenericExtensionProvider INSTANCE = new GenericExtensionProvider();
+
+    /**
      * 解析 XML 元素为 GenericExtensionElement。
      *
-     * @param reader     XML 事件读取器，已定位到开始元素
+     * @param reader XML 事件读取器，已定位到开始元素
      * @param startEvent 开始元素事件
      * @return 解析后的 GenericExtensionElement
      * @throws XmppParseException 如果解析过程中发生错误，如 XML 格式错误
@@ -49,7 +52,7 @@ public class GenericExtensionProvider {
      * 解析当前元素及其所有子元素。
      *
      * @param reader XML 事件读取器
-     * @param start 开始元素
+     * @param start 开始元素事件
      * @return 解析后的 GenericExtensionElement
      * @throws XMLStreamException 如果解析过程中发生 XML 错误
      */

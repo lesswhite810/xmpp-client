@@ -19,26 +19,57 @@ import java.util.List;
 @Setter
 public class ListUsers implements ExtensionElement {
 
-    // XEP-0133 标准命令节点：获取已注册用户列表
+    /**
+     * 已注册用户列表命令节点。
+     */
     public static final String COMMAND_NODE = "http://jabber.org/protocol/admin#get-registered-users-list";
+
+    /**
+     * Ad-Hoc Commands 命名空间。
+     */
     public static final String NAMESPACE = "http://jabber.org/protocol/commands";
+
+    /**
+     * Data Forms 命名空间。
+     */
     public static final String DATA_FORMS_NS = "jabber:x:data";
 
+    /**
+     * 提交命令时使用的域过滤条件。
+     */
     private List<String> searchDomains;
+
+    /**
+     * Ad-Hoc Commands 会话标识。
+     */
     private String sessionId;
+
+    /**
+     * 当前命令动作。
+     */
     private String action;
 
+    /**
+     * 创建一个默认执行阶段的列出用户命令。
+     */
     public ListUsers() {
         this.action = "execute";
     }
 
+    /**
+     * 创建一个带域过滤条件的列出用户命令。
+     *
+     * @param searchDomains 搜索域列表
+     */
     public ListUsers(List<String> searchDomains) {
         this.searchDomains = searchDomains;
         this.action = "execute";
     }
 
     /**
-     * 创建执行命令（第一阶段）
+     * 创建执行阶段的列出用户命令。
+     *
+     * @return 仅用于请求表单的命令对象
      */
     public static ListUsers createExecuteCommand() {
         ListUsers cmd = new ListUsers();
@@ -47,7 +78,11 @@ public class ListUsers implements ExtensionElement {
     }
 
     /**
-     * 创建提交表单命令（第二阶段）
+     * 创建提交表单阶段的列出用户命令。
+     *
+     * @param sessionId 命令会话标识
+     * @param domains 搜索域列表
+     * @return 可直接提交的命令对象
      */
     public static ListUsers createSubmitForm(String sessionId, List<String> domains) {
         ListUsers cmd = new ListUsers(domains);
@@ -56,16 +91,31 @@ public class ListUsers implements ExtensionElement {
         return cmd;
     }
 
+    /**
+     * 获取扩展元素名称。
+     *
+     * @return 固定返回 {@code command}
+     */
     @Override
     public String getElementName() {
         return "command";
     }
 
+    /**
+     * 获取扩展元素命名空间。
+     *
+     * @return Ad-Hoc Commands 命名空间
+     */
     @Override
     public String getNamespace() {
         return NAMESPACE;
     }
 
+    /**
+     * 将列出用户命令序列化为 XML。
+     *
+     * @return 命令 XML 字符串
+     */
     @Override
     public String toXml() {
         XmlStringBuilder xml = new XmlStringBuilder();
@@ -74,14 +124,12 @@ public class ListUsers implements ExtensionElement {
         xml.attribute("node", COMMAND_NODE);
         xml.attribute("action", action);
 
-        // 如果是 execute 命令，不包含表单数据
         if ("execute".equals(action)) {
             xml.rightAngleBracket();
             xml.closeElement("command");
             return xml.toString();
         }
 
-        // 如果是 complete 命令，包含会话ID和表单数据
         if (sessionId != null) {
             xml.attribute("sessionid", sessionId);
         }
@@ -92,10 +140,8 @@ public class ListUsers implements ExtensionElement {
         xml.attribute("type", "submit");
         xml.rightAngleBracket();
 
-        // 添加 FORM_TYPE 字段
         appendHiddenField(xml, "FORM_TYPE", "http://jabber.org/protocol/admin");
 
-        // 如果有搜索域限制
         if (searchDomains != null && !searchDomains.isEmpty()) {
             for (String domain : searchDomains) {
                 appendField(xml, "domain", domain);
@@ -107,6 +153,13 @@ public class ListUsers implements ExtensionElement {
         return xml.toString();
     }
 
+    /**
+     * 追加隐藏字段。
+     *
+     * @param xml XML 构建器
+     * @param var 字段名称
+     * @param value 字段值
+     */
     private void appendHiddenField(XmlStringBuilder xml, String var, String value) {
         xml.element("field");
         xml.attribute("var", var);
@@ -116,6 +169,13 @@ public class ListUsers implements ExtensionElement {
         xml.closeElement("field");
     }
 
+    /**
+     * 追加普通文本字段。
+     *
+     * @param xml XML 构建器
+     * @param var 字段名称
+     * @param value 字段值
+     */
     private void appendField(XmlStringBuilder xml, String var, String value) {
         if (value != null) {
             xml.element("field");

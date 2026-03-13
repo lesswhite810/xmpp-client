@@ -26,19 +26,45 @@ import lombok.Getter;
 @Builder
 public class StreamHeader implements ExtensionElement {
 
+    /**
+     * 流命名空间。
+     */
     private static final String NAMESPACE_STREAM = XmppConstants.NS_XMPP_STREAMS;
 
+    /**
+     * 发送方域名。
+     */
     private final String from;
+
+    /**
+     * 接收方域名。
+     */
     private final String to;
+
+    /**
+     * 流标识。
+     */
     private final String id;
+
+    /**
+     * XMPP 版本。
+     */
     private final String version;
+
+    /**
+     * 首选语言。
+     */
     private final String lang;
+
+    /**
+     * 默认 XML 命名空间。
+     */
     private final String namespace;
 
     /**
      * 获取元素名称。
      *
-     * @return 元素名称 "stream"
+     * @return 固定返回 {@code stream}
      */
     @Override
     public String getElementName() {
@@ -48,7 +74,7 @@ public class StreamHeader implements ExtensionElement {
     /**
      * 获取命名空间。
      *
-     * @return 命名空间
+     * @return 流命名空间
      */
     @Override
     public String getNamespace() {
@@ -58,7 +84,7 @@ public class StreamHeader implements ExtensionElement {
     /**
      * 序列化为 XML 字符串。
      *
-     * @return XML 字符串表示
+     * @return 流头元素 XML 字符串
      */
     @Override
     public String toXml() {

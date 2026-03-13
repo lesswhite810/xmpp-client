@@ -43,6 +43,8 @@ import java.util.function.Consumer;
  *
  * <p>负责从 Netty {@link ByteBuf} 中切分出完整 XML 帧，并解析为对应的
  * XMPP 协议对象。</p>
+ *
+ * @since 2026-02-09
  */
 @Slf4j
 public class XmppStreamDecoder extends ByteToMessageDecoder {
@@ -66,6 +68,8 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     /**
      * 提取 Stanza 共有属性，便于构建具体的协议对象。
+     *
+     * <p>该记录用于减少 IQ、Message 和 Presence 解析时的重复属性读取逻辑。</p>
      */
     private record StanzaAttrs(String type, String id, String from, String to) {
         static StanzaAttrs from(StartElement element) {

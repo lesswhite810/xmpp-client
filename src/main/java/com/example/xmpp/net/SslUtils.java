@@ -29,7 +29,7 @@ public class SslUtils {
     private static final int DEFAULT_HANDSHAKE_TIMEOUT_MS = XmppConstants.SSL_HANDSHAKE_TIMEOUT_MS;
 
     /**
-     * 创建 SslHandler。
+     * 根据客户端配置创建 {@link SslHandler}。
      *
      * @param config XMPP 客户端配置
      * @return 配置好的 SslHandler 实例
@@ -41,7 +41,7 @@ public class SslUtils {
     }
 
     /**
-     * 创建 SslHandler。
+     * 根据目标地址和客户端配置创建 {@link SslHandler}。
      *
      * @param host   目标主机
      * @param port   目标端口
