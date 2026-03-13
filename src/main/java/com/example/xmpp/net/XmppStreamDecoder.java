@@ -607,7 +607,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     private XmppError parseError(XMLEventReader reader, StartElement element) throws XMLStreamException {
         String typeStr = getAttributeValue(element, "type");
         Optional<XmppError.Type> type = typeStr != null ? parseErrorType(typeStr) : Optional.empty();
-        XmppError.Condition condition = XmppError.Condition.undefined_condition;
+        XmppError.Condition condition = XmppError.Condition.UNDEFINED_CONDITION;
         String text = null;
 
         while (reader.hasNext()) {

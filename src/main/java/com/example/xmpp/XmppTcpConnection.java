@@ -25,7 +25,6 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.timeout.ReadTimeoutHandler;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -218,7 +217,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
                         throw new IllegalStateException("Failed to initialize Direct TLS pipeline", e);
                     }
                 }
-                ch.pipeline().addLast(new ReadTimeoutHandler(config.getReadTimeout(), TimeUnit.MILLISECONDS));
                 ch.pipeline().addLast(new XmppStreamDecoder());
                 ch.pipeline().addLast(nettyHandler);
             }
