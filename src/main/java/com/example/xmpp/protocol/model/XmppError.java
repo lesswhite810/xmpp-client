@@ -202,7 +202,7 @@ public class XmppError implements XmppExtension {
          */
         public static Condition fromString(String name) {
             if (name == null) {
-                return undefined_condition;
+                return UNDEFINED_CONDITION;
             }
             String normalized = name.toUpperCase().replace('-', '_');
             try {

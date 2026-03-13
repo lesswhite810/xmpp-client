@@ -125,8 +125,8 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         boolean knownNamespace = iqRequestHandlers.keySet().stream()
                 .anyMatch(registeredKey -> registeredKey.iqType() == key.iqType()
                         && registeredKey.namespace().equals(key.namespace()));
-        return knownNamespace ? XmppError.Condition.feature_not_implemented
-                : XmppError.Condition.service_unavailable;
+        return knownNamespace ? XmppError.Condition.FEATURE_NOT_IMPLEMENTED
+                : XmppError.Condition.SERVICE_UNAVAILABLE;
     }
 
     private void sendUnsupportedIqError(Iq iq, XmppError.Condition condition) {
