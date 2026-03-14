@@ -198,6 +198,9 @@ public class ReconnectionManager {
             log.info("Reconnecting in {} seconds (Attempt {}/{})...", delay, currentAttempt, MAX_RECONNECT_ATTEMPTS);
 
             currentTask = XmppScheduler.getScheduler().schedule(() -> {
+                synchronized (ReconnectionManager.this) {
+                    currentTask = null;
+                }
                 try {
                     if (connection.isConnected()) {
                         attemptCount.set(0);

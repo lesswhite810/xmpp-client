@@ -11,6 +11,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -98,5 +102,28 @@ class ReconnectionManagerTest {
 
         assertDoesNotThrow(() -> reconnectionManager.onEvent(
                 new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("Test error"))));
+    }
+
+    @Test
+    @DisplayName("重连失败后应继续调度下一次重试")
+    void testReconnectFailureSchedulesNextAttempt() throws Exception {
+        CountDownLatch attemptsLatch = new CountDownLatch(2);
+        AtomicInteger attempts = new AtomicInteger();
+
+        when(connection.isConnected()).thenReturn(false);
+        doAnswer(invocation -> {
+            attempts.incrementAndGet();
+            attemptsLatch.countDown();
+            throw new com.example.xmpp.exception.XmppNetworkException("connect failed");
+        }).when(connection).connect();
+
+        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom")));
+
+        try {
+            assertTrue(attemptsLatch.await(9, TimeUnit.SECONDS), "失败后应继续触发下一次重连");
+            assertTrue(attempts.get() >= 2, "至少应发生两次重连尝试");
+        } finally {
+            reconnectionManager.shutdown();
+        }
     }
 }
