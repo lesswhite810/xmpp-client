@@ -31,9 +31,8 @@ public class SslUtils {
     /**
      * 根据客户端配置创建 {@link SslHandler}。
      *
-     * <p>此重载仅适用于配置中已显式给出 TLS 对端主机名的场景。
-     * 若连接目标来自 SRV 解析结果或运行时选定的实际地址，应优先调用
-     * {@link #createSslHandler(String, int, XmppClientConfig)} 以确保 SNI 和主机名校验使用真实对端。</p>
+     * <p>当前实现不会启用 TLS 主机名校验。
+     * 若业务需要证书主机名校验或自定义 SNI，需要在外层显式扩展。</p>
      *
      * @param config XMPP 客户端配置
      * @return 配置好的 SslHandler 实例
@@ -49,6 +48,9 @@ public class SslUtils {
 
     /**
      * 根据目标地址和客户端配置创建 {@link SslHandler}。
+     *
+     * <p>当前实现不会使用 {@code host}/{@code port} 启用主机名校验；
+     * 这两个参数仅用于日志与兼容现有调用方。</p>
      *
      * @param host   目标主机
      * @param port   目标端口
@@ -74,12 +76,7 @@ public class SslUtils {
                 sslContext.init(keyManagers, trustManagers, new SecureRandom());
             }
 
-            SSLEngine sslEngine;
-            if (host != null && !host.isEmpty()) {
-                sslEngine = sslContext.createSSLEngine(host, port);
-            } else {
-                sslEngine = sslContext.createSSLEngine();
-            }
+            SSLEngine sslEngine = sslContext.createSSLEngine();
 
             sslEngine.setUseClientMode(true);
 

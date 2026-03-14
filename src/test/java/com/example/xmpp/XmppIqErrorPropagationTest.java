@@ -13,8 +13,10 @@ import org.junit.jupiter.api.Test;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -136,6 +138,40 @@ class XmppIqErrorPropagationTest {
         assertTrue(disconnectableConnection.getCollectors().isEmpty());
     }
 
+    @Test
+    @DisplayName("sendIqPacketAsync 超时后应清理 collector")
+    void testSendIqPacketAsyncTimeoutCleansCollector() {
+        Iq request = new Iq.Builder(Iq.Type.GET)
+                .id("iq-timeout-cleanup-1")
+                .to("server@example.com")
+                .build();
+
+        CompletableFuture<XmppStanza> future = connection.sendIqPacketAsync(request, 50, TimeUnit.MILLISECONDS);
+
+        CompletionException exception = assertThrows(CompletionException.class, future::join);
+        assertInstanceOf(TimeoutException.class, exception.getCause());
+        assertTrue(connection.getCollectors().isEmpty());
+    }
+
+    @Test
+    @DisplayName("底层发送未完成时连接关闭也应立即结束 pending IQ")
+    void testPendingIqFailsImmediatelyWhenConnectionClosesBeforeDispatchCompletes() {
+        PendingDispatchXmppConnection pendingConnection =
+                new PendingDispatchXmppConnection(connection.getConfig());
+        Iq request = new Iq.Builder(Iq.Type.GET)
+                .id("iq-disconnect-pending-dispatch-1")
+                .to("server@example.com")
+                .build();
+
+        CompletableFuture<XmppStanza> future = pendingConnection.sendIqPacketAsync(request);
+        pendingConnection.closeWithError(new XmppNetworkException("Connection closed"));
+
+        CompletionException exception = assertThrows(CompletionException.class, future::join);
+        assertInstanceOf(XmppNetworkException.class, exception.getCause());
+        assertTrue(pendingConnection.getCollectors().isEmpty());
+        assertFalse(pendingConnection.getDispatchFuture().isDone());
+    }
+
     private static class TestXmppConnection extends AbstractXmppConnection {
 
         private final XmppClientConfig config;
@@ -185,13 +221,13 @@ class XmppIqErrorPropagationTest {
         }
     }
 
-    private static final class DisconnectableTestXmppConnection extends TestXmppConnection {
+    private static class DisconnectableTestXmppConnection extends TestXmppConnection {
 
         private DisconnectableTestXmppConnection(XmppClientConfig config) {
             super(config);
         }
 
-        private void closeWithError(Exception exception) {
+        protected void closeWithError(Exception exception) {
             failPendingCollectors(exception);
             cleanupCollectors();
         }
@@ -206,6 +242,24 @@ class XmppIqErrorPropagationTest {
         @Override
         protected CompletableFuture<Void> dispatchStanza(XmppStanza stanza) {
             return CompletableFuture.failedFuture(new XmppNetworkException("Channel is not active"));
+        }
+    }
+
+    private static final class PendingDispatchXmppConnection extends DisconnectableTestXmppConnection {
+
+        private final CompletableFuture<Void> dispatchFuture = new CompletableFuture<>();
+
+        private PendingDispatchXmppConnection(XmppClientConfig config) {
+            super(config);
+        }
+
+        @Override
+        protected CompletableFuture<Void> dispatchStanza(XmppStanza stanza) {
+            return dispatchFuture;
+        }
+
+        private CompletableFuture<Void> getDispatchFuture() {
+            return dispatchFuture;
         }
     }
 }

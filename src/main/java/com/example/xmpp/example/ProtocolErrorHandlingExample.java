@@ -1,9 +1,7 @@
 package com.example.xmpp.example;
 
 import com.example.xmpp.XmppTcpConnection;
-import com.example.xmpp.config.SystemService;
 import com.example.xmpp.config.XmppClientConfig;
-import com.example.xmpp.config.XmppConfigKeys;
 import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppSaslFailureException;
@@ -13,8 +11,6 @@ import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppStanza;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.concurrent.CompletionException;
 
 /**
@@ -36,8 +32,7 @@ public final class ProtocolErrorHandlingExample {
      * @param args 命令行参数
      */
     public static void main(String[] args) {
-        SystemService systemService = createSystemServiceBean();
-        XmppClientConfig config = XmppClientConfig.fromSystemService(systemService, "192.168.10.11");
+        XmppClientConfig config = createConfig();
 
         handleSynchronousConnect(config);
         handleAsynchronousConnect(config);
@@ -132,19 +127,20 @@ public final class ProtocolErrorHandlingExample {
                 : error;
     }
 
-    private static SystemService createSystemServiceBean() {
-        Map<String, String> values = new LinkedHashMap<>();
-        values.put(XmppConfigKeys.XMPP_SERVICE_DOMAIN, "example.com");
-        values.put(XmppConfigKeys.USERNAME, "admin");
-        values.put(XmppConfigKeys.PASSWORD, "admin-password");
-        values.put(XmppConfigKeys.RESOURCE, "error-console");
-        values.put(XmppConfigKeys.SECURITY_MODE, XmppClientConfig.SecurityMode.REQUIRED.name());
-        values.put(XmppConfigKeys.PORT, "5222");
-        values.put(XmppConfigKeys.CONNECT_TIMEOUT, "15000");
-        values.put(XmppConfigKeys.READ_TIMEOUT, "60000");
-        values.put(XmppConfigKeys.SEND_PRESENCE, "true");
-        values.put(XmppConfigKeys.DIRECT_TLS, "false");
-        values.put(XmppConfigKeys.ENABLED_SASL_MECHANISMS, "SCRAM-SHA-256,PLAIN");
-        return values::get;
+    private static XmppClientConfig createConfig() {
+        return XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .host("192.168.10.11")
+                .username("admin")
+                .password("admin-password".toCharArray())
+                .resource("error-console")
+                .securityMode(XmppClientConfig.SecurityMode.REQUIRED)
+                .port(5222)
+                .connectTimeout(15000)
+                .readTimeout(60000)
+                .sendPresence(true)
+                .usingDirectTLS(false)
+                .enabledSaslMechanisms(java.util.Set.of("SCRAM-SHA-256", "PLAIN"))
+                .build();
     }
 }

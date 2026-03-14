@@ -10,9 +10,7 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import java.net.InetAddress;
-import java.util.LinkedHashSet;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -261,132 +259,6 @@ public class XmppClientConfig {
      */
     @Builder.Default
     private Locale language = Locale.getDefault();
-
-    /**
-     * 从 SystemService 创建配置。
-     *
-     * <p>适用于单连接场景，所有配置项均从 {@link SystemService} 中读取。</p>
-     *
-     * @param systemService 配置服务 Bean
-     * @return XMPP 客户端配置
-     */
-    public static XmppClientConfig fromSystemService(SystemService systemService) {
-        return fromSystemService(systemService, null);
-    }
-
-    /**
-     * 从 SystemService 创建配置，并允许按连接覆盖 IP。
-     *
-     * <p>适用于多连接场景：公共配置统一从 {@link SystemService} 获取，仅通过 {@code nodeIp}
-     * 覆盖不同连接的目标 IP。</p>
-     *
-     * @param systemService 配置服务 Bean
-     * @param nodeIp        节点 IP；如果为 {@code null} 或空白，则回退到系统配置
-     * @return XMPP 客户端配置
-     */
-    public static XmppClientConfig fromSystemService(SystemService systemService, String nodeIp) {
-        Objects.requireNonNull(systemService, "systemService must not be null");
-
-        String serviceDomain = requireValue(systemService, XmppConfigKeys.XMPP_SERVICE_DOMAIN);
-        String username = requireValue(systemService, XmppConfigKeys.USERNAME);
-        String password = requireValue(systemService, XmppConfigKeys.PASSWORD);
-        String resolvedIp = trimToNull(nodeIp);
-        String resolvedHost = resolvedIp != null ? resolvedIp : trimToNull(systemService.getValue(XmppConfigKeys.HOST));
-
-        XmppClientConfigBuilder builder = XmppClientConfig.builder()
-                .xmppServiceDomain(serviceDomain)
-                .host(defaultString(resolvedHost))
-                .hostAddress(resolveHostAddress(systemService, resolvedIp).orElse(null))
-                .port(getInt(systemService, XmppConfigKeys.PORT, 0))
-                .resource(defaultString(trimToNull(systemService.getValue(XmppConfigKeys.RESOURCE)), "xmpp"))
-                .username(username)
-                .password(password.toCharArray())
-                .authzid(defaultString(trimToNull(systemService.getValue(XmppConfigKeys.AUTHZID))))
-                .securityMode(getSecurityMode(systemService))
-                .connectTimeout(getInt(systemService, XmppConfigKeys.CONNECT_TIMEOUT, 0))
-                .readTimeout(getInt(systemService, XmppConfigKeys.READ_TIMEOUT, 0))
-                .sendPresence(getBoolean(systemService, XmppConfigKeys.SEND_PRESENCE, true))
-                .reconnectionEnabled(getBoolean(systemService, XmppConfigKeys.RECONNECTION_ENABLED, false))
-                .reconnectionBaseDelay(getInt(systemService, XmppConfigKeys.RECONNECTION_BASE_DELAY, 5))
-                .reconnectionMaxDelay(getInt(systemService, XmppConfigKeys.RECONNECTION_MAX_DELAY, 300))
-                .pingEnabled(getBoolean(systemService, XmppConfigKeys.PING_ENABLED, false))
-                .pingInterval(getInt(systemService, XmppConfigKeys.PING_INTERVAL, 60))
-                .usingDirectTLS(getBoolean(systemService, XmppConfigKeys.DIRECT_TLS, false))
-                .handshakeTimeoutMs(getInt(systemService, XmppConfigKeys.HANDSHAKE_TIMEOUT, 0))
-                .tlsAuthenticationMode(getTlsAuthenticationMode(systemService))
-                .enabledSaslMechanisms(getSaslMechanisms(systemService));
-
-        return builder.build();
-    }
-
-    private static String requireValue(SystemService systemService, String key) {
-        String value = trimToNull(systemService.getValue(key));
-        if (value == null) {
-            throw new IllegalArgumentException("Missing required config value: " + key);
-        }
-        return value;
-    }
-
-    private static Optional<InetAddress> resolveHostAddress(SystemService systemService, String nodeIp) {
-        String value = nodeIp != null ? nodeIp : trimToNull(systemService.getValue(XmppConfigKeys.HOST_ADDRESS));
-        if (value == null) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(InetAddress.getByName(value));
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid host address: " + value, e);
-        }
-    }
-
-    private static SecurityMode getSecurityMode(SystemService systemService) {
-        String value = trimToNull(systemService.getValue(XmppConfigKeys.SECURITY_MODE));
-        if (value == null) {
-            return SecurityMode.REQUIRED;
-        }
-        return SecurityMode.valueOf(value.trim().toUpperCase(Locale.ROOT));
-    }
-
-    private static TlsAuthenticationMode getTlsAuthenticationMode(SystemService systemService) {
-        String value = trimToNull(systemService.getValue(XmppConfigKeys.TLS_AUTHENTICATION_MODE));
-        if (value == null) {
-            return TlsAuthenticationMode.ONE_WAY;
-        }
-        return TlsAuthenticationMode.valueOf(value.trim().toUpperCase(Locale.ROOT));
-    }
-
-    private static Set<String> getSaslMechanisms(SystemService systemService) {
-        String value = trimToNull(systemService.getValue(XmppConfigKeys.ENABLED_SASL_MECHANISMS));
-        if (value == null) {
-            return Set.of();
-        }
-        LinkedHashSet<String> mechanisms = new LinkedHashSet<>();
-        for (String item : value.split(",")) {
-            String mechanism = trimToNull(item);
-            if (mechanism != null) {
-                mechanisms.add(mechanism);
-            }
-        }
-        return mechanisms.isEmpty() ? Set.of() : Set.copyOf(mechanisms);
-    }
-
-    private static int getInt(SystemService systemService, String key, int defaultValue) {
-        String value = trimToNull(systemService.getValue(key));
-        return value == null ? defaultValue : Integer.parseInt(value);
-    }
-
-    private static boolean getBoolean(SystemService systemService, String key, boolean defaultValue) {
-        String value = trimToNull(systemService.getValue(key));
-        return value == null ? defaultValue : Boolean.parseBoolean(value);
-    }
-
-    private static String defaultString(String value) {
-        return value == null ? "" : value;
-    }
-
-    private static String defaultString(String value, String defaultValue) {
-        return value == null ? defaultValue : value;
-    }
 
     private static String trimToNull(String value) {
         return Optional.ofNullable(value)

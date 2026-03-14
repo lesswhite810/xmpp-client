@@ -1,5 +1,6 @@
 package com.example.xmpp.logic;
 
+import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
@@ -11,7 +12,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Field;
+import java.util.concurrent.ScheduledFuture;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * PingManager 单元测试。
@@ -75,5 +84,116 @@ class PingManagerTest {
     void testConnectionClosedEventShutsDown() {
         assertDoesNotThrow(() -> pingManager.onEvent(
                 new ConnectionEvent(connection, ConnectionEventType.CLOSED)));
+    }
+
+    @Test
+    @DisplayName("shutdown 后不应被 AUTHENTICATED 事件重新启动")
+    void testShutdownPreventsRestartOnAuthenticatedEvent() throws Exception {
+        pingManager.setPingInterval(1);
+        pingManager.shutdown();
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+
+        Thread.sleep(1200);
+
+        verify(connection, never()).sendIqPacketAsync(any());
+    }
+
+    @Test
+    @DisplayName("shutdown 后修改间隔不应重新启动保活任务")
+    void testShutdownPreventsRestartOnIntervalUpdate() throws Exception {
+        pingManager.setPingInterval(1);
+        pingManager.shutdown();
+        pingManager.setPingInterval(1);
+
+        Thread.sleep(1200);
+
+        verify(connection, never()).sendIqPacketAsync(any());
+    }
+
+    @Test
+    @DisplayName("shutdown 后应清空事件订阅")
+    void testShutdownClearsEventSubscriptions() {
+        assertTrue(XmppEventBus.getInstance().getTotalSubscriberCount(connection) > 0);
+
+        pingManager.shutdown();
+
+        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+    }
+
+    @Test
+    @DisplayName("关闭事件后收到认证事件应重新启动保活任务")
+    void testClosedEventAllowsRestartOnAuthenticatedEvent() throws Exception {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .build();
+        when(connection.getConfig()).thenReturn(config);
+        when(connection.isConnected()).thenReturn(true);
+        when(connection.isAuthenticated()).thenReturn(true);
+        when(connection.sendIqPacketAsync(any())).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+
+        pingManager.setPingInterval(1);
+        pingManager.startKeepAlive();
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CLOSED));
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+
+        Thread.sleep(1200);
+
+        verify(connection, atLeastOnce()).sendIqPacketAsync(any());
+    }
+
+    @Test
+    @DisplayName("重复认证事件应替换旧保活任务而不是叠加多个任务")
+    void testRepeatedAuthenticatedEventReplacesPreviousKeepAliveTask() throws Exception {
+        pingManager.setPingInterval(30);
+
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+        ScheduledFuture<?> firstTask = getKeepAliveTask();
+
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+        ScheduledFuture<?> secondTask = getKeepAliveTask();
+
+        assertNotNull(firstTask);
+        assertNotNull(secondTask);
+        assertNotSame(firstTask, secondTask);
+        assertTrue(firstTask.isCancelled(), "重复认证后旧保活任务应被取消");
+
+        pingManager.shutdown();
+    }
+
+    @Test
+    @DisplayName("未连接时保活任务不应发送 Ping")
+    void testKeepAliveDoesNotSendPingWhenDisconnected() throws Exception {
+        when(connection.isConnected()).thenReturn(false);
+
+        pingManager.setPingInterval(1);
+        pingManager.startKeepAlive();
+
+        Thread.sleep(1200);
+
+        verify(connection, never()).sendIqPacketAsync(any());
+        pingManager.shutdown();
+    }
+
+    @Test
+    @DisplayName("未认证时保活任务不应发送 Ping")
+    void testKeepAliveDoesNotSendPingWhenUnauthenticated() throws Exception {
+        when(connection.isConnected()).thenReturn(true);
+        when(connection.isAuthenticated()).thenReturn(false);
+
+        pingManager.setPingInterval(1);
+        pingManager.startKeepAlive();
+
+        Thread.sleep(1200);
+
+        verify(connection, never()).sendIqPacketAsync(any());
+        pingManager.shutdown();
+    }
+
+    private ScheduledFuture<?> getKeepAliveTask() throws Exception {
+        Field field = PingManager.class.getDeclaredField("keepAliveTask");
+        field.setAccessible(true);
+        return (ScheduledFuture<?>) field.get(pingManager);
     }
 }

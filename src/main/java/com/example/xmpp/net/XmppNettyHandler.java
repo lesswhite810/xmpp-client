@@ -75,12 +75,13 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     public void channelActive(ChannelHandlerContext ctx) {
         log.info("Channel active - Remote: {}", ctx.channel().remoteAddress());
         initStateContext(ctx);
+        connection.notifyConnected();
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         log.info("Channel inactive - Connection closed");
-        connection.notifyConnectionClosed();
+        connection.handleChannelInactive();
         super.channelInactive(ctx);
     }
 

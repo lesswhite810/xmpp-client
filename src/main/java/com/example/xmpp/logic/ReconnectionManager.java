@@ -4,7 +4,9 @@ import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.XmppConnection;
+import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppException;
+import com.example.xmpp.exception.XmppProtocolException;
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmppScheduler;
 
@@ -90,6 +92,8 @@ public class ReconnectionManager {
      */
     public void disable() {
         this.enabled = false;
+        this.reconnectionScheduledDueToError = false;
+        this.attemptCount.set(0);
         stopReconnectTask();
     }
 
@@ -100,6 +104,8 @@ public class ReconnectionManager {
      */
     public void shutdown() {
         this.enabled = false;
+        this.reconnectionScheduledDueToError = false;
+        this.attemptCount.set(0);
         stopReconnectTask();
         if (unsubscribe != null) {
             unsubscribe.run();
@@ -151,10 +157,23 @@ public class ReconnectionManager {
             log.debug("Reconnection disabled, not attempting to reconnect");
             return;
         }
+        if (isNonRecoverableError(e)) {
+            reconnectionScheduledDueToError = false;
+            attemptCount.set(0);
+            stopReconnectTask();
+            log.info("Connection closed on non-recoverable error. Skipping reconnection: {}",
+                    e != null ? e.getClass().getSimpleName() : "unknown");
+            log.debug("Non-recoverable error detail", e);
+            return;
+        }
         reconnectionScheduledDueToError = true;
         log.info("Connection closed on error. Starting reconnection.");
         log.debug("Connection closed on error detail", e);
         scheduleReconnect(0);
+    }
+
+    private boolean isNonRecoverableError(Exception error) {
+        return error instanceof XmppAuthException || error instanceof XmppProtocolException;
     }
 
     /**
@@ -185,10 +204,11 @@ public class ReconnectionManager {
                 return;
             }
 
-            int currentAttempt = attemptCount.updateAndGet(curr -> curr >= MAX_RECONNECT_ATTEMPTS ? curr : curr + 1);
+            int currentAttempt = attemptCount.incrementAndGet();
             if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {
                 log.error("Max reconnection attempts ({}) reached, stopping reconnection", MAX_RECONNECT_ATTEMPTS);
                 attemptCount.set(0);
+                reconnectionScheduledDueToError = false;
                 return;
             }
 
@@ -202,6 +222,10 @@ public class ReconnectionManager {
                     currentTask = null;
                 }
                 try {
+                    if (!enabled) {
+                        log.debug("Reconnection disabled before scheduled attempt executed");
+                        return;
+                    }
                     if (connection.isConnected()) {
                         attemptCount.set(0);
                         log.debug("Already connected, skipping reconnection");
@@ -213,10 +237,18 @@ public class ReconnectionManager {
                     log.info("Reconnection successful");
                 } catch (XmppException e) {
                     log.error("Reconnection failed: {}", e.getMessage());
-                    scheduleReconnect(attempt + 1);
+                    if (enabled) {
+                        scheduleReconnect(attempt + 1);
+                    } else {
+                        log.debug("Reconnection disabled after failed attempt, not scheduling retry");
+                    }
                 } catch (RuntimeException e) {
                     log.error("Unexpected runtime error during reconnection: {}", e.getMessage(), e);
-                    scheduleReconnect(attempt + 1);
+                    if (enabled) {
+                        scheduleReconnect(attempt + 1);
+                    } else {
+                        log.debug("Reconnection disabled after runtime failure, not scheduling retry");
+                    }
                 }
             }, delay, TimeUnit.SECONDS);
         }

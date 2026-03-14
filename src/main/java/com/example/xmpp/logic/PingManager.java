@@ -58,6 +58,11 @@ public class PingManager {
     private Runnable unsubscribe;
 
     /**
+     * 关闭标记。
+     */
+    private volatile boolean shutdown;
+
+    /**
      * 构造 PingManager。
      *
      * @param connection XMPP 连接实例
@@ -69,8 +74,8 @@ public class PingManager {
 
         unsubscribe = eventBus.subscribeAll(connection, Map.of(
                 ConnectionEventType.AUTHENTICATED, event -> startKeepAlive(),
-                ConnectionEventType.CLOSED, event -> shutdown(),
-                ConnectionEventType.ERROR, event -> shutdown()
+                ConnectionEventType.CLOSED, event -> stopKeepAlive(),
+                ConnectionEventType.ERROR, event -> stopKeepAlive()
         ));
     }
 
@@ -84,7 +89,7 @@ public class PingManager {
     public void onEvent(ConnectionEvent event) {
         switch (event.eventType()) {
             case AUTHENTICATED -> startKeepAlive();
-            case CLOSED, ERROR -> shutdown();
+            case CLOSED, ERROR -> stopKeepAlive();
         }
     }
 
@@ -103,6 +108,10 @@ public class PingManager {
         taskLock.lock();
         try {
             this.pingIntervalSeconds = seconds;
+            if (shutdown) {
+                log.debug("PingManager already shutdown, skipping interval reschedule");
+                return;
+            }
             if (keepAliveTask != null && !keepAliveTask.isCancelled()) {
                 stopKeepAliveInternal();
                 keepAliveTask = XmppScheduler.getScheduler().scheduleWithFixedDelay(
@@ -121,6 +130,10 @@ public class PingManager {
     public void startKeepAlive() {
         taskLock.lock();
         try {
+            if (shutdown) {
+                log.debug("PingManager already shutdown, skipping keepalive start");
+                return;
+            }
             stopKeepAliveInternal();
 
             keepAliveTask = XmppScheduler.getScheduler().scheduleWithFixedDelay(
@@ -163,6 +176,7 @@ public class PingManager {
     public void shutdown() {
         taskLock.lock();
         try {
+            shutdown = true;
             if (unsubscribe != null) {
                 unsubscribe.run();
                 unsubscribe = null;

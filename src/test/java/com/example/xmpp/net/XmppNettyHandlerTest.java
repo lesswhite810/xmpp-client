@@ -2,9 +2,13 @@ package com.example.xmpp.net;
 
 import com.example.xmpp.XmppTcpConnection;
 import com.example.xmpp.config.XmppClientConfig;
+import com.example.xmpp.event.ConnectionEventType;
+import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.exception.XmppAuthException;
+import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.extension.Ping;
+import com.example.xmpp.protocol.model.extension.Bind;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -18,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -30,6 +35,37 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * XmppNettyHandler 状态机测试。
  */
 class XmppNettyHandlerTest {
+
+    @Test
+    void testBindSuccessPublishesAuthenticatedEventOnce() {
+        XmppEventBus.getInstance().clear();
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        EmbeddedChannel channel = new EmbeddedChannel(new XmppNettyHandler(config, connection));
+        AtomicInteger authenticatedCount = new AtomicInteger();
+
+        XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.AUTHENTICATED,
+                event -> authenticatedCount.incrementAndGet());
+
+        connection.resetHandlerState();
+        channel.writeInbound(StreamFeatures.builder()
+                .bindAvailable(true)
+                .build());
+        channel.writeInbound(new Iq.Builder(Iq.Type.RESULT)
+                .id("bind-1")
+                .childElement(Bind.builder().jid("user@example.com/resource").build())
+                .build());
+
+        assertEquals(1, authenticatedCount.get());
+        assertTrue(connection.getConnectionReadyFuture().isDone());
+
+        channel.finishAndReleaseAll();
+    }
 
     @Test
     void testStreamHeaderParsing() {
@@ -152,6 +188,36 @@ class XmppNettyHandlerTest {
         } finally {
             channel.finishAndReleaseAll();
         }
+    }
+
+    @Test
+    void testExceptionCaughtPublishesErrorOnlyOnce() {
+        XmppEventBus.getInstance().clear();
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        EmbeddedChannel channel = new EmbeddedChannel(new XmppNettyHandler(config, connection));
+        AtomicInteger errorCount = new AtomicInteger();
+        AtomicInteger closedCount = new AtomicInteger();
+
+        XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.ERROR, event -> errorCount.incrementAndGet());
+        XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.CLOSED, event -> closedCount.incrementAndGet());
+
+        channel.pipeline().fireExceptionCaught(new IllegalStateException("boom"));
+        channel.runPendingTasks();
+        channel.runScheduledPendingTasks();
+
+        CompletionException exception = assertThrows(CompletionException.class,
+                () -> connection.getConnectionReadyFuture().join());
+        assertInstanceOf(XmppException.class, exception.getCause());
+        assertEquals(1, errorCount.get());
+        assertEquals(0, closedCount.get());
+
+        channel.finishAndReleaseAll();
     }
 
     private void sendXml(EmbeddedChannel channel, String xml) {

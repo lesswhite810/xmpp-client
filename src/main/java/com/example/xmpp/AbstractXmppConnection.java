@@ -289,10 +289,18 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         };
 
         AsyncStanzaCollector collector = createStanzaCollector(filter);
-        return dispatchStanza(iq)
-                .thenCompose(ignored -> collector.getFuture()
-                        .orTimeout(timeout, unit)
-                        .thenCompose(this::mapIqErrorResponse))
+        CompletableFuture<XmppStanza> responseFuture = collector.getFuture()
+                .orTimeout(timeout, unit)
+                .thenCompose(this::mapIqErrorResponse);
+        CompletableFuture<Void> dispatchFuture = dispatchStanza(iq);
+
+        dispatchFuture.whenComplete((ignored, dispatchError) -> {
+            if (dispatchError != null) {
+                collector.getFuture().completeExceptionally(dispatchError);
+            }
+        });
+
+        return responseFuture
                 .whenComplete((result, ex) -> {
                     collectors.remove(collector);
                     if (ex != null) {

@@ -228,12 +228,7 @@ public enum XmppHandlerState implements HandlerState {
             try {
                 log.info("TLS proceed received, starting SSL handshake");
 
-                String hostname = context.getConfig().getHost() != null
-                        ? context.getConfig().getHost()
-                        : context.getConfig().getXmppServiceDomain();
-                int port = context.getConfig().getPort();
-
-                var sslHandler = SslUtils.createSslHandler(hostname, port, context.getConfig());
+                var sslHandler = SslUtils.createSslHandler(context.getConfig());
 
                 ctx.pipeline().addFirst(sslHandler);
                 log.debug("SSL handler added to pipeline, handshake starting");

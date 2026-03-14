@@ -64,6 +64,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     private volatile CompletableFuture<Void> connectionReadyFuture = new CompletableFuture<>();
 
+    private volatile boolean disconnectRequested;
+
     /**
      * 创建 TCP XMPP 连接。
      *
@@ -109,12 +111,22 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     public synchronized CompletableFuture<Void> connectAsync() throws XmppException {
         CompletableFuture<Void> currentFuture = connectionReadyFuture;
-        if (currentFuture != null && !currentFuture.isDone()
-                && (workerGroup != null || (channel != null && channel.isActive()))) {
-            return currentFuture;
+        Channel currentChannel = channel;
+        if (currentFuture != null && !currentFuture.isCompletedExceptionally() && !currentFuture.isCancelled()) {
+            if (currentChannel != null && currentChannel.isActive()) {
+                return currentFuture;
+            }
+            if (!currentFuture.isDone() && workerGroup != null) {
+                return currentFuture;
+            }
+        }
+        if (currentFuture != null && (currentFuture.isCompletedExceptionally() || currentFuture.isCancelled())
+                && (currentChannel != null && currentChannel.isActive() || workerGroup != null)) {
+            disconnect();
         }
 
         resetConnectionLifecycleEvents();
+        disconnectRequested = false;
         connectionReadyFuture = new CompletableFuture<>();
         workerGroup = new NioEventLoopGroup();
         nettyHandler = new XmppNettyHandler(config, this);
@@ -294,7 +306,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * <p>该方法会完成 {@code connectionReadyFuture}，用于唤醒同步 {@link #connect()}
      * 和异步 {@link #connectAsync()} 的等待方，表明资源绑定与会话激活已经完成。</p>
      */
-    public void markConnectionReady() {
+    public synchronized void markConnectionReady() {
         CompletableFuture<Void> future = connectionReadyFuture;
         if (future != null && !future.isDone()) {
             future.complete(null);
@@ -308,13 +320,46 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      *
      * @param exception 失败原因
      */
-    public void failConnection(Exception exception) {
+    public synchronized void failConnection(Exception exception) {
+        disconnectRequested = false;
         CompletableFuture<Void> future = connectionReadyFuture;
         if (future != null && !future.isDone()) {
             future.completeExceptionally(exception);
         }
         failPendingCollectors(exception);
         notifyConnectionClosedOnError(exception);
+    }
+
+    /**
+     * 处理底层通道关闭后的资源收尾。
+     *
+     * <p>该方法在 Netty 通知通道失活时调用，用于释放旧通道和事件循环资源，
+     * 并确保所有等待中的请求立即失败，而不是悬挂到超时。</p>
+     */
+    public synchronized void handleChannelInactive() {
+        boolean manualDisconnect = disconnectRequested;
+        disconnectRequested = false;
+
+        XmppNetworkException closeException = new XmppNetworkException(
+                manualDisconnect ? "Connection closed" : "Connection closed unexpectedly");
+        failPendingCollectors(closeException);
+        cleanupCollectors();
+
+        CompletableFuture<Void> future = connectionReadyFuture;
+        if (future != null && !future.isDone()) {
+            future.completeExceptionally(new XmppNetworkException(
+                    manualDisconnect
+                            ? "Connection closed before session became ready"
+                            : "Connection closed unexpectedly before session became ready"));
+        }
+
+        channel = null;
+        shutdownWorkerGroup();
+        if (manualDisconnect) {
+            notifyConnectionClosed();
+        } else {
+            notifyConnectionClosedOnError(closeException);
+        }
     }
 
     private List<SrvRecord> resolveSrvRecords(String domain) {
@@ -332,7 +377,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * <p>该方法会停止心跳与重连逻辑、清理 collector，并关闭底层 Netty 资源。</p>
      */
     @Override
-    public void disconnect() {
+    public synchronized void disconnect() {
+        disconnectRequested = true;
         shutdownLifecycleManagers();
 
         failPendingCollectors(new XmppNetworkException("Connection closed"));
