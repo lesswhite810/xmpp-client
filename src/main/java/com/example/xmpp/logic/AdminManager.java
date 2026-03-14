@@ -8,8 +8,6 @@ import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.extension.*;
-import com.example.xmpp.protocol.StanzaFilter;
-import com.example.xmpp.protocol.AsyncStanzaCollector;
 import com.example.xmpp.util.StanzaIdGenerator;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -27,8 +24,6 @@ import java.util.function.Supplier;
  * <p>提供 XMPP 服务管理功能，包括用户管理、在线用户管理等操作。使用此管理器需要管理员权限。</p>
  *
  * <p>管理员命令通过 Ad-Hoc Commands (XEP-0050) 发送到服务器。</p>
- *
- * <p>注意：此实现针对 Openfire 服务器进行了优化，使用 from 地址匹配响应。</p>
  *
  * <p>使用示例：</p>
  * <pre>{@code
@@ -92,13 +87,6 @@ public class AdminManager {
     private final String adminUsername;
 
     /**
-     * 预计算的管理员 JID 前缀。
-     *
-     * <p>用于快速匹配来自管理员账户的响应地址，避免重复拼接字符串。</p>
-     */
-    private final String adminJidPrefix;
-
-    /**
      * 命令超时时间，单位为毫秒。
      */
     private final long timeoutMs;
@@ -136,56 +124,18 @@ public class AdminManager {
         this.connection = connection;
         this.serviceDomain = serviceDomain;
         this.adminUsername = adminUsername;
-        this.adminJidPrefix = adminUsername + JID_SEPARATOR;
         this.timeoutMs = timeoutMs;
     }
 
     /**
-     * 发送管理命令并等待响应（使用 ID + from 地址匹配，支持 Openfire）。
+     * 发送管理命令并等待响应。
      *
      * @param iq 要发送的 IQ
      * @return 响应 CompletableFuture
      */
     private CompletableFuture<XmppStanza> sendAdminCommand(Iq iq) {
-        final String requestId = iq.getId();
-        StanzaFilter filter = createAdminResponseFilter(requestId);
-
-        AsyncStanzaCollector collector = connection.createStanzaCollector(filter);
-        connection.sendStanza(iq);
-        log.debug("Sent admin command: id={}, to={}", requestId, iq.getTo());
-
-        return collector.getFuture()
-                .orTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-                .whenComplete((result, ex) -> connection.removeStanzaCollector(collector));
-    }
-
-    /**
-     * 创建管理命令响应过滤器。
-     *
-     * <p>匹配条件：IQ 类型为 RESULT/ERROR + ID 匹配 + from 地址来自管理员或服务器。</p>
-     *
-     * @param requestId 请求的 IQ ID
-     * @return StanzaFilter 实例
-     */
-    private StanzaFilter createAdminResponseFilter(String requestId) {
-        return stanza -> {
-            if (!(stanza instanceof Iq responseIq)) {
-                return false;
-            }
-            if (!requestId.equals(responseIq.getId())) {
-                return false;
-            }
-            Iq.Type type = responseIq.getType();
-            if (type != Iq.Type.RESULT && type != Iq.Type.ERROR) {
-                return false;
-            }
-
-            String from = responseIq.getFrom();
-            if (from == null) {
-                return false;
-            }
-            return from.startsWith(adminJidPrefix) || from.equals(serviceDomain);
-        };
+        log.debug("Sent admin command: id={}, to={}", iq.getId(), iq.getTo());
+        return connection.sendIqPacketAsync(iq, timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
     }
 
     /**

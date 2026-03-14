@@ -2,6 +2,7 @@ package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.AdminCommandException;
+import com.example.xmpp.exception.XmppStanzaErrorException;
 import com.example.xmpp.logic.AdminManager;
 import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.protocol.model.GenericExtensionElement;
@@ -208,10 +209,17 @@ public class Xep0133ComprehensiveTest {
             return future.get(20, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
+            if (cause instanceof XmppStanzaErrorException see) {
+                Iq errorIq = see.getErrorIq();
+                XmppError error = see.getXmppError();
+                boolean unsupported = error != null && error.getCondition() == XmppError.Condition.ITEM_NOT_FOUND;
+                assumeFalse(unsupported,
+                        () -> String.format("Server does not support admin command '%s': %s", commandName, errorIq.toXml()));
+            }
             if (cause instanceof AdminCommandException ace && ace.hasErrorResponse()) {
                 Iq errorIq = ace.getErrorResponse();
                 XmppError error = errorIq.getError();
-                boolean unsupported = error != null && error.getCondition() == XmppError.Condition.item_not_found;
+                boolean unsupported = error != null && error.getCondition() == XmppError.Condition.ITEM_NOT_FOUND;
                 assumeFalse(unsupported,
                         () -> String.format("Server does not support admin command '%s': %s", commandName, errorIq.toXml()));
             }

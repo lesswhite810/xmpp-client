@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -233,11 +234,198 @@ class XmppConnectionLifecycleErrorTest {
         }
     }
 
+    @Test
+    void testConnectAsyncFailureReleasesLifecycleManagerSubscriptions() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .host("127.0.0.1")
+                .port(1)
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .connectTimeout(200)
+                .pingEnabled(true)
+                .reconnectionEnabled(true)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+
+        assertThrows(Exception.class, connection::connectAsync);
+        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+    }
+
+    @Test
+    void testConnectAsyncWithNoTargetsReleasesLifecycleManagerSubscriptions() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("")
+                .host("")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .pingEnabled(true)
+                .reconnectionEnabled(true)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+
+        assertThrows(Exception.class, connection::connectAsync);
+        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+    }
+
+    @Test
+    void testRepeatedConnectFailuresDoNotAccumulateLifecycleManagerSubscriptions() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .host("127.0.0.1")
+                .port(1)
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .connectTimeout(200)
+                .pingEnabled(true)
+                .reconnectionEnabled(true)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+
+        assertThrows(Exception.class, connection::connectAsync);
+        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+
+        assertThrows(Exception.class, connection::connectAsync);
+        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+    }
+
+    @Test
+    void testConnectAsyncCreatesNewReadyFutureAfterFailure() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .host("127.0.0.1")
+                .port(1)
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .connectTimeout(200)
+                .pingEnabled(true)
+                .reconnectionEnabled(true)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+
+        CompletableFuture<Void> initialFuture = connection.getConnectionReadyFuture();
+        assertThrows(Exception.class, connection::connectAsync);
+        CompletableFuture<Void> failedFuture = connection.getConnectionReadyFuture();
+
+        assertNotSame(initialFuture, failedFuture);
+        assertTrue(failedFuture.isCompletedExceptionally());
+
+        assertThrows(Exception.class, connection::connectAsync);
+        CompletableFuture<Void> retriedFuture = connection.getConnectionReadyFuture();
+
+        assertNotSame(failedFuture, retriedFuture);
+        assertTrue(retriedFuture.isCompletedExceptionally());
+        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+    }
+
+    @Test
+    void testDisconnectDuringInProgressConnectFailsReadyFutureAndClearsSubscriptions() throws Exception {
+        try (ServerSocket serverSocket = new ServerSocket(0);
+             ExecutorService executor = Executors.newSingleThreadExecutor()) {
+            CountDownLatch acceptedLatch = new CountDownLatch(1);
+            executor.submit(() -> acceptAndHoldSocket(serverSocket, acceptedLatch));
+
+            XmppClientConfig config = XmppClientConfig.builder()
+                    .xmppServiceDomain("example.com")
+                    .host("127.0.0.1")
+                    .port(serverSocket.getLocalPort())
+                    .username("user")
+                    .password("pass".toCharArray())
+                    .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                    .readTimeout(1000)
+                    .pingEnabled(true)
+                    .reconnectionEnabled(true)
+                    .build();
+            XmppTcpConnection connection = new XmppTcpConnection(config);
+
+            CompletableFuture<Void> readyFuture = connection.connectAsync();
+            assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
+
+            connection.disconnect();
+
+            CompletionException exception = assertThrows(CompletionException.class, readyFuture::join);
+            assertInstanceOf(XmppNetworkException.class, exception.getCause());
+            assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+            assertFalse(connection.isConnected());
+        }
+    }
+
+    @Test
+    void testDisconnectIsIdempotentAfterConnectFailure() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .host("127.0.0.1")
+                .port(1)
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .connectTimeout(200)
+                .pingEnabled(true)
+                .reconnectionEnabled(true)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+
+        assertThrows(Exception.class, connection::connectAsync);
+
+        connection.disconnect();
+        connection.disconnect();
+
+        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+        assertFalse(connection.isConnected());
+    }
+
+    @Test
+    void testConnectAsyncCanRetryAfterDisconnectingInProgressConnection() throws Exception {
+        try (ServerSocket serverSocket = new ServerSocket(0);
+             ExecutorService executor = Executors.newSingleThreadExecutor()) {
+            CountDownLatch firstAcceptedLatch = new CountDownLatch(1);
+            CountDownLatch secondAcceptedLatch = new CountDownLatch(1);
+            executor.submit(() -> acceptAndHoldSockets(serverSocket, firstAcceptedLatch, secondAcceptedLatch));
+
+            XmppClientConfig config = XmppClientConfig.builder()
+                    .xmppServiceDomain("example.com")
+                    .host("127.0.0.1")
+                    .port(serverSocket.getLocalPort())
+                    .username("user")
+                    .password("pass".toCharArray())
+                    .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                    .readTimeout(1000)
+                    .pingEnabled(true)
+                    .reconnectionEnabled(true)
+                    .build();
+            XmppTcpConnection connection = new XmppTcpConnection(config);
+
+            CompletableFuture<Void> firstFuture = connection.connectAsync();
+            assertTrue(firstAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
+            connection.disconnect();
+            assertThrows(CompletionException.class, firstFuture::join);
+
+            CompletableFuture<Void> secondFuture = connection.connectAsync();
+            assertTrue(secondAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
+
+            assertNotSame(firstFuture, secondFuture);
+            connection.disconnect();
+            assertThrows(CompletionException.class, secondFuture::join);
+            assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+        }
+    }
+
     private void acceptAndHoldSocket(ServerSocket serverSocket, CountDownLatch acceptedLatch) {
         try (Socket socket = serverSocket.accept()) {
             acceptedLatch.countDown();
             socket.getInputStream().read();
         } catch (IOException ignored) {
         }
+    }
+
+    private void acceptAndHoldSockets(ServerSocket serverSocket,
+                                      CountDownLatch firstAcceptedLatch,
+                                      CountDownLatch secondAcceptedLatch) {
+        acceptAndHoldSocket(serverSocket, firstAcceptedLatch);
+        acceptAndHoldSocket(serverSocket, secondAcceptedLatch);
     }
 }

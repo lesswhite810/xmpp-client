@@ -1,16 +1,28 @@
 package com.example.xmpp.logic;
 
 import com.example.xmpp.XmppConnection;
+import com.example.xmpp.exception.AdminCommandException;
+import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.XmppError;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * 测试 extractSessionId 方法是否能正确从 GenericExtensionElement 中提取 sessionid。
@@ -77,5 +89,171 @@ class AdminManagerSessionIdTest {
         String xml = responseIq.toXml();
         log.info("Generated XML: {}", xml);
         assertTrue(xml.contains("sessionid=\"test-session-123\""));
+    }
+
+    @Test
+    void testSendAdminCommandFailsImmediatelyWhenIqDispatchFails() throws Exception {
+        XmppConnection connection = mock(XmppConnection.class);
+        AdminManager manager = new AdminManager(connection, "admin", "example.com", 3000);
+        Iq requestIq = new Iq.Builder(Iq.Type.SET)
+                .id("admin-cmd-1")
+                .to("example.com")
+                .build();
+
+        when(connection.sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS)))
+                .thenReturn(CompletableFuture.failedFuture(new XmppNetworkException("Channel is not active")));
+
+        Method method = AdminManager.class.getDeclaredMethod("sendAdminCommand", Iq.class);
+        method.setAccessible(true);
+        Object invocationResult = method.invoke(manager, requestIq);
+        assertInstanceOf(CompletableFuture.class, invocationResult);
+        CompletableFuture<?> result = (CompletableFuture<?>) invocationResult;
+
+        CompletionException exception = assertThrows(CompletionException.class, result::join);
+        assertInstanceOf(XmppNetworkException.class, exception.getCause());
+    }
+
+    @Test
+    void testSendAdminCommandUsesConfiguredTimeout() throws Exception {
+        XmppConnection connection = mock(XmppConnection.class);
+        AdminManager manager = new AdminManager(connection, "admin", "example.com", 4500);
+        Iq requestIq = new Iq.Builder(Iq.Type.SET)
+                .id("admin-cmd-timeout")
+                .to("example.com")
+                .build();
+        CompletableFuture<com.example.xmpp.protocol.model.XmppStanza> expectedFuture = CompletableFuture.completedFuture(requestIq);
+
+        when(connection.sendIqPacketAsync(any(Iq.class), eq(4500L), eq(TimeUnit.MILLISECONDS)))
+                .thenReturn(expectedFuture);
+
+        Method method = AdminManager.class.getDeclaredMethod("sendAdminCommand", Iq.class);
+        method.setAccessible(true);
+        Object invocationResult = method.invoke(manager, requestIq);
+
+        assertSame(expectedFuture, invocationResult);
+        verify(connection).sendIqPacketAsync(requestIq, 4500L, TimeUnit.MILLISECONDS);
+    }
+
+    @Test
+    void testAddUserDoesNotEnterSubmitPhaseWhenExecutePhaseFails() {
+        XmppConnection connection = mock(XmppConnection.class);
+        AdminManager manager = new AdminManager(connection, "admin", "example.com", 3000);
+
+        when(connection.sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS)))
+                .thenReturn(CompletableFuture.failedFuture(new XmppNetworkException("execute phase failed")));
+
+        CompletionException exception = assertThrows(CompletionException.class,
+                () -> manager.addUser("u1", "p1").join());
+
+        assertInstanceOf(XmppNetworkException.class, exception.getCause());
+        verify(connection, times(1)).sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    void testAddUserDoesNotEnterSubmitPhaseWhenExecuteResponseIsIqError() {
+        XmppConnection connection = mock(XmppConnection.class);
+        AdminManager manager = new AdminManager(connection, "admin", "example.com", 3000);
+        Iq executeError = Iq.createErrorResponse(
+                new Iq.Builder(Iq.Type.SET).id("exec-error").to("example.com").build(),
+                new XmppError.Builder(XmppError.Condition.SERVICE_UNAVAILABLE).build());
+
+        when(connection.sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS)))
+                .thenReturn(CompletableFuture.completedFuture(executeError));
+
+        CompletionException exception = assertThrows(CompletionException.class,
+                () -> manager.addUser("u1", "p1").join());
+
+        assertInstanceOf(AdminCommandException.class, exception.getCause());
+        verify(connection, times(1)).sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    void testAddUserStopsAfterCompletedExecuteResponse() {
+        XmppConnection connection = mock(XmppConnection.class);
+        AdminManager manager = new AdminManager(connection, "admin", "example.com", 3000);
+        GenericExtensionElement completedCommand = GenericExtensionElement.builder(
+                        "command", "http://jabber.org/protocol/commands")
+                .addAttribute("status", "completed")
+                .build();
+        Iq completedResponse = new Iq.Builder(Iq.Type.RESULT)
+                .id("exec-completed")
+                .to("example.com")
+                .childElement(completedCommand)
+                .build();
+
+        when(connection.sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS)))
+                .thenReturn(CompletableFuture.completedFuture(completedResponse));
+
+        assertSame(completedResponse, manager.addUser("u1", "p1").join());
+        verify(connection, times(1)).sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    void testAddUserFailsWhenExecuteResponseHasNoSessionId() {
+        XmppConnection connection = mock(XmppConnection.class);
+        AdminManager manager = new AdminManager(connection, "admin", "example.com", 3000);
+        GenericExtensionElement executingCommand = GenericExtensionElement.builder(
+                        "command", "http://jabber.org/protocol/commands")
+                .addAttribute("status", "executing")
+                .build();
+        Iq executeResponse = new Iq.Builder(Iq.Type.RESULT)
+                .id("exec-no-session")
+                .to("example.com")
+                .childElement(executingCommand)
+                .build();
+
+        when(connection.sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS)))
+                .thenReturn(CompletableFuture.completedFuture(executeResponse));
+
+        CompletionException exception = assertThrows(CompletionException.class,
+                () -> manager.addUser("u1", "p1").join());
+
+        assertInstanceOf(AdminCommandException.class, exception.getCause());
+        verify(connection, times(1)).sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    void testAddUserFailsWhenSubmitPhaseReturnsIqError() {
+        XmppConnection connection = mock(XmppConnection.class);
+        AdminManager manager = new AdminManager(connection, "admin", "example.com", 3000);
+        GenericExtensionElement executingCommand = GenericExtensionElement.builder(
+                        "command", "http://jabber.org/protocol/commands")
+                .addAttribute("status", "executing")
+                .addAttribute("sessionid", "session-1")
+                .build();
+        Iq executeResponse = new Iq.Builder(Iq.Type.RESULT)
+                .id("exec-ok")
+                .to("example.com")
+                .childElement(executingCommand)
+                .build();
+        Iq submitError = Iq.createErrorResponse(
+                new Iq.Builder(Iq.Type.SET).id("submit-error").to("example.com").build(),
+                new XmppError.Builder(XmppError.Condition.SERVICE_UNAVAILABLE).build());
+
+        when(connection.sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS)))
+                .thenReturn(CompletableFuture.completedFuture(executeResponse))
+                .thenReturn(CompletableFuture.completedFuture(submitError));
+
+        CompletionException exception = assertThrows(CompletionException.class,
+                () -> manager.addUser("u1", "p1").join());
+
+        assertInstanceOf(AdminCommandException.class, exception.getCause());
+        verify(connection, times(2)).sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    void testListUsersWithDomainsUsesSinglePhaseRequest() {
+        XmppConnection connection = mock(XmppConnection.class);
+        AdminManager manager = new AdminManager(connection, "admin", "example.com", 3000);
+        Iq resultIq = new Iq.Builder(Iq.Type.RESULT)
+                .id("list-users-result")
+                .to("example.com")
+                .build();
+
+        when(connection.sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS)))
+                .thenReturn(CompletableFuture.completedFuture(resultIq));
+
+        assertSame(resultIq, manager.listUsers(List.of("example.com")).join());
+        verify(connection, times(1)).sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS));
     }
 }

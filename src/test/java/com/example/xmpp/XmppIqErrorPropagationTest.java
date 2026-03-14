@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -48,7 +49,7 @@ class XmppIqErrorPropagationTest {
 
         Iq errorResponse = Iq.createErrorResponse(
                 request,
-                new XmppError.Builder(XmppError.Condition.service_unavailable)
+                new XmppError.Builder(XmppError.Condition.SERVICE_UNAVAILABLE)
                         .text("service unavailable")
                         .build()
         );
@@ -59,7 +60,7 @@ class XmppIqErrorPropagationTest {
         assertEquals("iq-error-1", cause.getErrorIq().getId());
         assertEquals(Iq.Type.ERROR, cause.getErrorIq().getType());
         assertNotNull(cause.getXmppError());
-        assertEquals(XmppError.Condition.service_unavailable, cause.getXmppError().getCondition());
+        assertEquals(XmppError.Condition.SERVICE_UNAVAILABLE, cause.getXmppError().getCondition());
     }
 
     @Test
@@ -76,6 +77,63 @@ class XmppIqErrorPropagationTest {
 
         assertInstanceOf(XmppNetworkException.class, exception.getCause());
         assertTrue(connection.getCollectors().isEmpty());
+    }
+
+    @Test
+    @DisplayName("sendIqPacketAsync 传入 null IQ 时应拒绝")
+    void testSendIqPacketAsyncRejectsNullIq() {
+        assertThrows(IllegalArgumentException.class, () -> connection.sendIqPacketAsync(null));
+    }
+
+    @Test
+    @DisplayName("sendIqPacketAsync 传入空 ID 时应拒绝")
+    void testSendIqPacketAsyncRejectsBlankIqId() {
+        Iq request = new Iq.Builder(Iq.Type.GET)
+                .id(" ")
+                .to("server@example.com")
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> connection.sendIqPacketAsync(request));
+    }
+
+    @Test
+    @DisplayName("sendIqPacketAsync 传入非正超时时间时应拒绝")
+    void testSendIqPacketAsyncRejectsNonPositiveTimeout() {
+        Iq request = new Iq.Builder(Iq.Type.GET)
+                .id("iq-timeout-1")
+                .to("server@example.com")
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> connection.sendIqPacketAsync(request, 0, TimeUnit.SECONDS));
+    }
+
+    @Test
+    @DisplayName("sendIqPacketAsync 传入空时间单位时应拒绝")
+    void testSendIqPacketAsyncRejectsNullTimeUnit() {
+        Iq request = new Iq.Builder(Iq.Type.GET)
+                .id("iq-unit-1")
+                .to("server@example.com")
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> connection.sendIqPacketAsync(request, 1, null));
+    }
+
+    @Test
+    @DisplayName("连接关闭时 pending IQ 应立即异常完成并清理 collector")
+    void testPendingIqFailsImmediatelyWhenConnectionCloses() {
+        DisconnectableTestXmppConnection disconnectableConnection =
+                new DisconnectableTestXmppConnection(connection.getConfig());
+        Iq request = new Iq.Builder(Iq.Type.GET)
+                .id("iq-disconnect-1")
+                .to("server@example.com")
+                .build();
+
+        CompletableFuture<XmppStanza> future = disconnectableConnection.sendIqPacketAsync(request);
+        disconnectableConnection.closeWithError(new XmppNetworkException("Connection closed"));
+
+        CompletionException exception = assertThrows(CompletionException.class, future::join);
+        assertInstanceOf(XmppNetworkException.class, exception.getCause());
+        assertTrue(disconnectableConnection.getCollectors().isEmpty());
     }
 
     private static class TestXmppConnection extends AbstractXmppConnection {
@@ -124,6 +182,18 @@ class XmppIqErrorPropagationTest {
 
         protected java.util.Queue<?> getCollectors() {
             return collectors;
+        }
+    }
+
+    private static final class DisconnectableTestXmppConnection extends TestXmppConnection {
+
+        private DisconnectableTestXmppConnection(XmppClientConfig config) {
+            super(config);
+        }
+
+        private void closeWithError(Exception exception) {
+            failPendingCollectors(exception);
+            cleanupCollectors();
         }
     }
 

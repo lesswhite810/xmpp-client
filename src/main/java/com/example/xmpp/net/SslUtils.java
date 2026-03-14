@@ -31,6 +31,10 @@ public class SslUtils {
     /**
      * 根据客户端配置创建 {@link SslHandler}。
      *
+     * <p>此重载仅适用于配置中已显式给出 TLS 对端主机名的场景。
+     * 若连接目标来自 SRV 解析结果或运行时选定的实际地址，应优先调用
+     * {@link #createSslHandler(String, int, XmppClientConfig)} 以确保 SNI 和主机名校验使用真实对端。</p>
+     *
      * @param config XMPP 客户端配置
      * @return 配置好的 SslHandler 实例
      * @throws XmppNetworkException 如果创建失败

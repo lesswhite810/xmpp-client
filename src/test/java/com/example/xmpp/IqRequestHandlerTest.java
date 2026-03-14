@@ -112,7 +112,7 @@ class IqRequestHandlerTest {
         assertEquals(Iq.Type.ERROR, errorResponse.getType());
         assertEquals("unsupported-1", errorResponse.getId());
         assertNotNull(errorResponse.getError());
-        assertEquals(XmppError.Condition.service_unavailable, errorResponse.getError().getCondition());
+        assertEquals(XmppError.Condition.SERVICE_UNAVAILABLE, errorResponse.getError().getCondition());
         assertNull(errorResponse.getError().getText());
     }
 
@@ -136,7 +136,7 @@ class IqRequestHandlerTest {
         Iq errorResponse = (Iq) sentStanza;
         assertEquals(Iq.Type.ERROR, errorResponse.getType());
         assertNotNull(errorResponse.getError());
-        assertEquals(XmppError.Condition.feature_not_implemented, errorResponse.getError().getCondition());
+        assertEquals(XmppError.Condition.FEATURE_NOT_IMPLEMENTED, errorResponse.getError().getCondition());
         assertNull(errorResponse.getError().getText());
     }
 

@@ -5,6 +5,7 @@ import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.exception.AdminCommandException;
 import com.example.xmpp.exception.XmppException;
+import com.example.xmpp.exception.XmppStanzaErrorException;
 import com.example.xmpp.logic.AdminManager;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppError;
@@ -92,10 +93,10 @@ class XmppRealServerEdgeCaseTest {
     void testUnsupportedAdminCommandReturnsItemNotFound() throws Exception {
         AdminManager adminManager = connectAsAdmin();
 
-        AdminCommandException exception = awaitAdminFailure(adminManager.getOnlineUsers());
-        assertTrue(exception.hasErrorResponse(), "未实现命令应返回服务器错误 IQ");
-        assertEquals(XmppError.Condition.item_not_found,
-                exception.getErrorResponse().getError().getCondition(),
+        Iq errorResponse = awaitAdminFailure(adminManager.getOnlineUsers());
+        assertNotNull(errorResponse, "未实现命令应返回服务器错误 IQ");
+        assertEquals(XmppError.Condition.ITEM_NOT_FOUND,
+                errorResponse.getError().getCondition(),
                 "本地服务器对未实现管理命令应返回 item-not-found");
     }
 
@@ -181,15 +182,18 @@ class XmppRealServerEdgeCaseTest {
      * @return 管理命令异常
      * @throws Exception 非预期异常
      */
-    private AdminCommandException awaitAdminFailure(CompletableFuture<XmppStanza> future) throws Exception {
+    private Iq awaitAdminFailure(CompletableFuture<XmppStanza> future) throws Exception {
         try {
             XmppStanza stanza = future.get(20, TimeUnit.SECONDS);
             fail("Expected admin command to fail, but received: " + stanza);
             return null;
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
+            if (cause instanceof XmppStanzaErrorException see) {
+                return see.getErrorIq();
+            }
             if (cause instanceof AdminCommandException ace) {
-                return ace;
+                return ace.getErrorResponse();
             }
             throw e;
         }

@@ -134,8 +134,8 @@ class XmppRealServerAdvancedScenarioTest {
         assertInstanceOf(XmppStanzaErrorException.class, exception.getCause(), "应返回标准 stanza error");
         XmppStanzaErrorException stanzaErrorException = (XmppStanzaErrorException) exception.getCause();
         assertNotNull(stanzaErrorException.getXmppError(), "错误 IQ 应包含 xmpp error");
-        assertTrue(stanzaErrorException.getXmppError().getCondition() == XmppError.Condition.service_unavailable
-                        || stanzaErrorException.getXmppError().getCondition() == XmppError.Condition.feature_not_implemented,
+                assertTrue(stanzaErrorException.getXmppError().getCondition() == XmppError.Condition.SERVICE_UNAVAILABLE
+                        || stanzaErrorException.getXmppError().getCondition() == XmppError.Condition.FEATURE_NOT_IMPLEMENTED,
                 "未知查询应返回标准协议错误");
 
         Iq pingResponse = sendPing(adminConnection, "post-error-ping-" + System.nanoTime(), XMPP_DOMAIN);
@@ -296,6 +296,6 @@ class XmppRealServerAdvancedScenarioTest {
         }
         return adminCommandException.hasErrorResponse()
                 && adminCommandException.getErrorResponse().getError() != null
-                && adminCommandException.getErrorResponse().getError().getCondition() == XmppError.Condition.item_not_found;
+                        && adminCommandException.getErrorResponse().getError().getCondition() == XmppError.Condition.ITEM_NOT_FOUND;
     }
 }

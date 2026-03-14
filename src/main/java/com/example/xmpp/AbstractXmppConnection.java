@@ -267,8 +267,12 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @return 响应 Future，成功时返回匹配的结果节，失败时返回异常
      */
     public CompletableFuture<XmppStanza> sendIqPacketAsync(Iq iq, long timeout, TimeUnit unit) {
-        Validate.notNull(iq, "IQ must not be null");
-        Validate.notNull(unit, "TimeUnit must not be null");
+        if (iq == null) {
+            throw new IllegalArgumentException("IQ must not be null");
+        }
+        if (unit == null) {
+            throw new IllegalArgumentException("TimeUnit must not be null");
+        }
         Validate.isTrue(timeout > 0, "Timeout must be positive");
         Validate.notBlank(iq.getId(), "IQ must have a non-blank ID");
         if (!isConnected()) {

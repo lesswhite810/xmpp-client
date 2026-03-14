@@ -13,6 +13,6 @@ class XmppErrorTest {
     @Test
     @DisplayName("Condition.fromString 传入 null 时应返回 undefined_condition")
     void testConditionFromStringWithNull() {
-        assertEquals(XmppError.Condition.undefined_condition, XmppError.Condition.fromString(null));
+        assertEquals(XmppError.Condition.UNDEFINED_CONDITION, XmppError.Condition.fromString(null));
     }
 }

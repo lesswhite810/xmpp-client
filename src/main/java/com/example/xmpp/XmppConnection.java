@@ -73,8 +73,8 @@ public interface XmppConnection {
     /**
      * 发送 IQ 请求并异步等待响应。
      *
-     * <p>此方法会自动设置 IQ 节的 ID（如果未设置），
-     * 并等待服务器返回 RESULT 或 ERROR 类型的响应。</p>
+     * <p>调用方需要为 IQ 节预先设置非空 ID。
+     * 该方法会等待服务器返回 RESULT 或 ERROR 类型的响应。</p>
      *
      * @param iq 要发送的 IQ 节，不能为 {@code null}，必须包含非空 ID
      * @return {@link CompletableFuture}，完成时包含响应节；
@@ -82,6 +82,21 @@ public interface XmppConnection {
      * @throws IllegalArgumentException 如果 iq 为 null 或 ID 为空
      */
     CompletableFuture<XmppStanza> sendIqPacketAsync(Iq iq);
+
+    /**
+     * 发送 IQ 请求并在指定超时时间内异步等待响应。
+     *
+     * <p>调用方需要为 IQ 节预先设置非空 ID。
+     * 该方法会等待服务器返回 RESULT 或 ERROR 类型的响应。</p>
+     *
+     * @param iq 要发送的 IQ 节，不能为 {@code null}，必须包含非空 ID
+     * @param timeout 超时时间，必须大于 0
+     * @param unit 超时时间单位，不能为 {@code null}
+     * @return {@link CompletableFuture}，完成时包含响应节；
+     *         如果超时或出错则 exceptionally 完成
+     * @throws IllegalArgumentException 如果 iq 为 null、ID 为空、timeout 非法或 unit 为 null
+     */
+    CompletableFuture<XmppStanza> sendIqPacketAsync(Iq iq, long timeout, java.util.concurrent.TimeUnit unit);
 
     /**
      * 注册 IQ 请求处理器。

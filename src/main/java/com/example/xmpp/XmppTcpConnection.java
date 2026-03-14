@@ -118,15 +118,17 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         connectionReadyFuture = new CompletableFuture<>();
         workerGroup = new NioEventLoopGroup();
         nettyHandler = new XmppNettyHandler(config, this);
-        initializeLifecycleManagersIfNeeded();
 
         List<ConnectionTarget> targets = resolveConnectionTargets();
         if (targets.isEmpty()) {
             XmppNetworkException exception = new XmppNetworkException("No connection targets available");
             connectionReadyFuture.completeExceptionally(exception);
+            shutdownLifecycleManagers();
             shutdownWorkerGroup();
             throw exception;
         }
+
+        initializeLifecycleManagersIfNeeded();
 
         try {
             this.channel = connectToTargets(targets)
@@ -134,11 +136,13 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             return connectionReadyFuture;
         } catch (XmppException e) {
             connectionReadyFuture.completeExceptionally(e);
+            shutdownLifecycleManagers();
             shutdownWorkerGroup();
             throw e;
         } catch (RuntimeException e) {
             XmppNetworkException exception = new XmppNetworkException("Failed to establish XMPP connection", e);
             connectionReadyFuture.completeExceptionally(exception);
+            shutdownLifecycleManagers();
             shutdownWorkerGroup();
             throw exception;
         }
@@ -150,6 +154,17 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         }
         if (config.isReconnectionEnabled() && reconnectionManager == null) {
             reconnectionManager = new ReconnectionManager(this);
+        }
+    }
+
+    private void shutdownLifecycleManagers() {
+        if (pingManager != null) {
+            pingManager.shutdown();
+            pingManager = null;
+        }
+        if (reconnectionManager != null) {
+            reconnectionManager.shutdown();
+            reconnectionManager = null;
         }
     }
 
@@ -318,15 +333,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     @Override
     public void disconnect() {
-        if (pingManager != null) {
-            pingManager.shutdown();
-            pingManager = null;
-        }
-
-        if (reconnectionManager != null) {
-            reconnectionManager.shutdown();
-            reconnectionManager = null;
-        }
+        shutdownLifecycleManagers();
 
         failPendingCollectors(new XmppNetworkException("Connection closed"));
         cleanupCollectors();

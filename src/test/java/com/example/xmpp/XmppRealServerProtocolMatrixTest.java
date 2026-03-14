@@ -242,7 +242,7 @@ class XmppRealServerProtocolMatrixTest {
                     () -> sender.sendIqPacketAsync(unsupportedRequest).get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS));
             assertInstanceOf(XmppStanzaErrorException.class, exception.getCause(), "应收到标准 IQ error");
             XmppStanzaErrorException stanzaErrorException = (XmppStanzaErrorException) exception.getCause();
-            assertEquals(XmppError.Condition.service_unavailable,
+        assertEquals(XmppError.Condition.SERVICE_UNAVAILABLE,
                     stanzaErrorException.getXmppError().getCondition(),
                     "未知命名空间应返回 service-unavailable");
         } finally {

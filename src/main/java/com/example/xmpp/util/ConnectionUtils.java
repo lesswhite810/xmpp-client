@@ -51,6 +51,11 @@ public class ConnectionUtils {
             Thread.currentThread().interrupt();
             log.error("Connection interrupted for {}:{}", hostDesc, port);
             throw new XmppNetworkException("Connection interrupted", e);
+        } catch (XmppNetworkException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Connection failed for {}:{} - {}", hostDesc, port, e.getMessage());
+            throw new XmppNetworkException("Failed to connect to " + hostDesc + ":" + port, e);
         }
     }
 }

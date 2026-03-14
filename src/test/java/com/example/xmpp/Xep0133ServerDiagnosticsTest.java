@@ -2,6 +2,7 @@ package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.AdminCommandException;
+import com.example.xmpp.exception.XmppStanzaErrorException;
 import com.example.xmpp.logic.AdminManager;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppError;
@@ -99,6 +100,16 @@ class Xep0133ServerDiagnosticsTest {
             log.info("{} succeeded with non-IQ stanza: {}", commandName, stanza);
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
+            if (cause instanceof XmppStanzaErrorException see) {
+                Iq errorIq = see.getErrorIq();
+                XmppError error = see.getXmppError();
+                XmppError.Condition condition = error != null ? error.getCondition() : null;
+                XmppError.Type type = error != null ? error.getType() : null;
+                String text = error != null ? error.getText() : null;
+                log.warn("{} failed: condition={}, type={}, text={}, xml={}",
+                        commandName, condition, type, text, errorIq.toXml());
+                return;
+            }
             if (cause instanceof AdminCommandException ace && ace.hasErrorResponse()) {
                 Iq errorIq = ace.getErrorResponse();
                 XmppError error = errorIq.getError();
