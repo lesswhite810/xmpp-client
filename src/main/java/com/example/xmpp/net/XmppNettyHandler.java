@@ -14,11 +14,13 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
+import io.netty.util.concurrent.Future;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
+import java.io.IOException;
 
 /**
  * XMPP Netty 入站处理器。
@@ -62,6 +64,19 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     }
 
     /**
+     * 清空当前处理器状态。
+     *
+     * <p>用于连接关闭后的状态回收，确保外部不会继续读取到旧会话状态。</p>
+     */
+    public void clearState() {
+        StateContext currentStateContext = stateContext;
+        if (currentStateContext != null) {
+            currentStateContext.terminate();
+        }
+        stateContext = null;
+    }
+
+    /**
      * 判断连接是否已经完成认证。
      *
      * @return 如果已进入已认证状态则返回 {@code true}
@@ -71,8 +86,77 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
         return ctx != null && ctx.isAuthenticated();
     }
 
+    /**
+     * 判断当前通道是否已经不属于当前连接生命周期。
+     *
+     * @param ctx Netty 通道上下文
+     * @return 如果通道已陈旧或连接正在关闭则返回 {@code true}
+     */
+    private boolean isStaleChannel(ChannelHandlerContext ctx) {
+        return !connection.isCurrentChannel(ctx.channel());
+    }
+
+    /**
+     * 获取当前状态名称。
+     *
+     * @param currentStateContext 当前状态上下文
+     * @return 当前状态名称；如果不可用则返回 {@code unknown}
+     */
+    private String resolveStateName(StateContext currentStateContext) {
+        return currentStateContext != null ? currentStateContext.getCurrentStateName() : "unknown";
+    }
+
+    /**
+     * 判断状态上下文是否已经终止。
+     *
+     * @param currentStateContext 当前状态上下文
+     * @param ctx Netty 通道上下文
+     * @return 如果状态上下文不可用或通道已关闭则返回 {@code true}
+     */
+    private boolean isTerminated(StateContext currentStateContext, ChannelHandlerContext ctx) {
+        return currentStateContext == null || currentStateContext.isTerminated() || !ctx.channel().isActive();
+    }
+
+    /**
+     * 记录异常日志。
+     *
+     * @param stateName 当前状态名称
+     * @param remoteAddress 远端地址
+     * @param cause 捕获到的异常
+     * @param terminated 当前生命周期是否已终止
+     */
+    private void logCaughtException(String stateName, Object remoteAddress, Throwable cause, boolean terminated) {
+        if (terminated) {
+            log.debug("Ignoring exception for terminated channel - State: {}, Remote: {}, Error: {}",
+                    stateName, remoteAddress, cause.getMessage());
+            return;
+        }
+
+        if (cause instanceof XmppException) {
+            log.warn("XMPP exception caught - State: {}, Remote: {}, Error: {}",
+                    stateName, remoteAddress, cause.getMessage());
+            log.debug("XMPP exception detail", cause);
+            return;
+        }
+
+        if (cause instanceof IOException) {
+            log.warn("I/O exception caught - State: {}, Remote: {}, Error: {}",
+                    stateName, remoteAddress, cause.getMessage());
+            log.debug("I/O exception detail", cause);
+            return;
+        }
+
+        log.error("Exception caught - State: {}, Remote: {}, Error: {}",
+                stateName, remoteAddress, cause.getMessage(), cause);
+    }
+
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
+        if (!connection.bindActiveChannel(ctx.channel())) {
+            log.debug("Ignoring channelActive for stale or closing channel: {}", ctx.channel());
+            ctx.close();
+            return;
+        }
         log.info("Channel active - Remote: {}", ctx.channel().remoteAddress());
         initStateContext(ctx);
         connection.notifyConnected();
@@ -80,42 +164,56 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        log.info("Channel inactive - Connection closed");
-        connection.handleChannelInactive();
+        if (isStaleChannel(ctx)) {
+            log.debug("Ignoring channelInactive from stale channel: {}", ctx.channel());
+            super.channelInactive(ctx);
+            return;
+        }
+        if (connection.hasPublishedTerminalConnectionEvent()) {
+            log.debug("Channel inactive after terminal event was already published");
+        } else {
+            log.info("Channel inactive - Connection closed");
+        }
+        connection.handleChannelInactive(ctx.channel());
         super.channelInactive(ctx);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        log.error("Exception caught - State: {}, Remote: {}, Error: {}",
-                stateContext != null ? stateContext.getCurrentStateName() : "unknown",
-                ctx.channel().remoteAddress(),
-                cause.getMessage(),
-                cause);
+        if (isStaleChannel(ctx)) {
+            log.debug("Ignoring exception from stale channel - Remote: {}, Error: {}",
+                    ctx.channel().remoteAddress(), cause.getMessage());
+            ctx.close();
+            return;
+        }
+        StateContext currentStateContext = stateContext;
+        String stateName = resolveStateName(currentStateContext);
+        Object remoteAddress = ctx.channel().remoteAddress();
+        boolean terminated = isTerminated(currentStateContext, ctx);
+
+        logCaughtException(stateName, remoteAddress, cause, terminated);
 
         Exception connectionException = cause instanceof XmppException xmppException
                 ? xmppException
                 : new XmppException("Connection error: " + cause.getClass().getSimpleName(), cause);
-        connection.failConnection(connectionException);
+        connection.failConnection(ctx.channel(), connectionException);
         ctx.close();
     }
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
-        if (msg instanceof StreamHeader) {
-            log.debug("Stream header received, waiting for features");
+        if (isStaleChannel(ctx)) {
+            log.debug("Ignoring inbound {} from stale channel", msg.getClass().getSimpleName());
             return;
         }
 
-        if (msg instanceof StreamError streamError) {
-            log.error("Received stream error - condition: {}, text: {}",
-                    streamError.getCondition(), streamError.getText());
-            connection.failConnection(new com.example.xmpp.exception.XmppStreamErrorException(streamError));
-            ctx.close();
+        StateContext currentStateContext = stateContext;
+        if (currentStateContext == null) {
+            log.debug("Ignoring inbound {} because state context has been cleared", msg.getClass().getSimpleName());
             return;
         }
 
-        stateContext.handleMessage(ctx, msg);
+        handleInboundMessage(ctx, msg, currentStateContext);
     }
 
     @Override
@@ -133,20 +231,80 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
      * @param event SSL 握手完成事件
      */
     private void handleSslHandshakeComplete(ChannelHandlerContext ctx, SslHandshakeCompletionEvent event) {
-        if (event.isSuccess()) {
-            if (stateContext == null) {
-                log.error("StateContext is null during SSL handshake completion");
-                ctx.close();
-                return;
-            }
-            log.debug("SSL handshake completed successfully");
-            stateContext.openStreamAndResetDecoder(ctx);
-            stateContext.transitionTo(XmppHandlerState.AWAITING_FEATURES, ctx);
-        } else {
-            log.error("SSL handshake failed: ", event.cause());
-            connection.failConnection(new XmppException("SSL handshake failed", event.cause()));
-            ctx.close();
+        if (isStaleChannel(ctx)) {
+            log.debug("Ignoring SSL handshake event from stale channel: {}", ctx.channel());
+            return;
         }
+        if (!event.isSuccess()) {
+            handleTlsHandshakeFailure(ctx, event);
+            return;
+        }
+        handleTlsHandshakeSuccess(ctx);
+    }
+
+    private void handleInboundMessage(ChannelHandlerContext ctx, Object msg, StateContext currentStateContext) {
+        if (msg instanceof StreamHeader) {
+            log.debug("Stream header received, waiting for features");
+            return;
+        }
+        if (msg instanceof StreamError streamError) {
+            handleStreamError(ctx, streamError);
+            return;
+        }
+        currentStateContext.handleMessage(ctx, msg);
+    }
+
+    private void handleStreamError(ChannelHandlerContext ctx, StreamError streamError) {
+        log.warn("Received stream error - condition: {}, text: {}",
+                streamError.getCondition(), streamError.getText());
+        connection.failConnection(ctx.channel(), new com.example.xmpp.exception.XmppStreamErrorException(streamError));
+        ctx.close();
+    }
+
+    private void handleTlsHandshakeSuccess(ChannelHandlerContext ctx) {
+        StateContext currentStateContext = stateContext;
+        if (currentStateContext == null) {
+            log.debug("Ignoring SSL handshake completion because state context has been cleared");
+            return;
+        }
+        if (currentStateContext.isTerminated()) {
+            log.debug("Ignoring SSL handshake completion because state context is terminated");
+            return;
+        }
+        log.debug("SSL handshake completed successfully");
+        ChannelFuture openStreamFuture = currentStateContext.openStreamAndResetDecoder(ctx);
+        if (openStreamFuture == null) {
+            failTlsHandshakeRecovery(ctx, null);
+            return;
+        }
+        openStreamFuture.addListener(result -> handleTlsReopenResult(ctx, currentStateContext, result));
+    }
+
+    private void handleTlsReopenResult(ChannelHandlerContext ctx, StateContext currentStateContext, Future<? super Void> result) {
+        if (!result.isSuccess()) {
+            failTlsHandshakeRecovery(ctx, result.cause());
+            return;
+        }
+        if (!ctx.channel().isActive()) {
+            log.debug("Skipping post-handshake state transition because channel is inactive");
+            return;
+        }
+        currentStateContext.transitionTo(XmppHandlerState.AWAITING_FEATURES, ctx);
+    }
+
+    private void failTlsHandshakeRecovery(ChannelHandlerContext ctx, Throwable cause) {
+        XmppException exception = cause == null
+                ? new XmppException("Failed to reopen stream after TLS handshake")
+                : new XmppException("Failed to reopen stream after TLS handshake", cause);
+        connection.failConnection(ctx.channel(), exception);
+        ctx.close();
+    }
+
+    private void handleTlsHandshakeFailure(ChannelHandlerContext ctx, SslHandshakeCompletionEvent event) {
+        log.warn("SSL handshake failed: {}", event.cause() != null ? event.cause().getMessage() : "unknown");
+        log.debug("SSL handshake failure detail", event.cause());
+        connection.failConnection(ctx.channel(), new XmppException("SSL handshake failed", event.cause()));
+        ctx.close();
     }
 
     /**

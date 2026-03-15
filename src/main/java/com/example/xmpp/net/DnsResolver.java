@@ -164,7 +164,8 @@ public class DnsResolver implements AutoCloseable {
         try {
             return resolver.query(question).get(XmppConstants.DNS_QUERY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            throw new RuntimeException("DNS query interrupted", e);
+            Thread.currentThread().interrupt();
+            throw new ExecutionException("DNS query interrupted", e);
         }
     }
 
@@ -187,7 +188,7 @@ public class DnsResolver implements AutoCloseable {
         }
         if (code != DnsResponseCode.NOERROR) {
             String errorMsg = "DNS query failed with response code: " + code;
-            log.error(errorMsg);
+            log.warn("{} for domain {}", errorMsg, domain);
             throw new ExecutionException(errorMsg, new IllegalStateException(errorMsg));
         }
 
@@ -335,6 +336,7 @@ public class DnsResolver implements AutoCloseable {
                 try {
                     group.shutdownGracefully(0, XmppConstants.SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS).sync();
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.warn("Interrupted while shutting down DNS resolver EventLoopGroup");
                 }
             } else {

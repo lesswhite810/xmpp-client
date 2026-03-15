@@ -19,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -61,7 +62,8 @@ class XmppConnectionLifecycleErrorTest {
                 .securityMode(XmppClientConfig.SecurityMode.DISABLED)
                 .build();
         XmppTcpConnection connection = new XmppTcpConnection(config);
-        EmbeddedChannel channel = new EmbeddedChannel(new XmppNettyHandler(config, connection));
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
 
         channel.writeInbound(StreamFeatures.builder()
                 .mechanisms(List.of("SCRAM-SHA-1"))
@@ -87,7 +89,8 @@ class XmppConnectionLifecycleErrorTest {
                 .securityMode(XmppClientConfig.SecurityMode.DISABLED)
                 .build();
         XmppTcpConnection connection = new XmppTcpConnection(config);
-        EmbeddedChannel channel = new EmbeddedChannel(new XmppNettyHandler(config, connection));
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
 
         channel.writeInbound(StreamError.builder()
                 .condition(StreamError.Condition.NOT_AUTHORIZED)
@@ -111,7 +114,8 @@ class XmppConnectionLifecycleErrorTest {
                 .securityMode(XmppClientConfig.SecurityMode.DISABLED)
                 .build();
         XmppTcpConnection connection = new XmppTcpConnection(config);
-        EmbeddedChannel channel = new EmbeddedChannel(new XmppNettyHandler(config, connection));
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
         AtomicInteger errorCount = new AtomicInteger();
         AtomicInteger closedCount = new AtomicInteger();
 
@@ -137,7 +141,8 @@ class XmppConnectionLifecycleErrorTest {
                 .securityMode(XmppClientConfig.SecurityMode.DISABLED)
                 .build();
         XmppTcpConnection connection = new XmppTcpConnection(config);
-        EmbeddedChannel channel = new EmbeddedChannel(new XmppNettyHandler(config, connection));
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
         AtomicInteger errorCount = new AtomicInteger();
         AtomicInteger closedCount = new AtomicInteger();
 
@@ -157,7 +162,8 @@ class XmppConnectionLifecycleErrorTest {
         try (ServerSocket serverSocket = new ServerSocket(0);
              ExecutorService executor = Executors.newSingleThreadExecutor()) {
             CountDownLatch acceptedLatch = new CountDownLatch(1);
-            executor.submit(() -> acceptAndHoldSocket(serverSocket, acceptedLatch));
+            CountDownLatch releaseLatch = new CountDownLatch(1);
+            executor.submit(() -> acceptAndHoldSocketUntilRelease(serverSocket, acceptedLatch, releaseLatch));
 
             XmppClientConfig config = XmppClientConfig.builder()
                     .xmppServiceDomain("example.com")
@@ -180,9 +186,40 @@ class XmppConnectionLifecycleErrorTest {
 
             connection.disconnect();
             Thread.sleep(200);
+            releaseLatch.countDown();
 
             assertEquals(0, errorCount.get());
             assertEquals(1, closedCount.get());
+        }
+    }
+
+    @Test
+    void testFailConnectionClosesActiveChannelAndReleasesWorkerGroup() throws Exception {
+        try (ServerSocket serverSocket = new ServerSocket(0);
+             ExecutorService executor = Executors.newSingleThreadExecutor()) {
+            CountDownLatch acceptedLatch = new CountDownLatch(1);
+            executor.submit(() -> acceptAndHoldSocket(serverSocket, acceptedLatch));
+
+            XmppClientConfig config = XmppClientConfig.builder()
+                    .xmppServiceDomain("example.com")
+                    .host("127.0.0.1")
+                    .port(serverSocket.getLocalPort())
+                    .username("user")
+                    .password("pass".toCharArray())
+                    .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                    .readTimeout(1000)
+                    .build();
+            XmppTcpConnection connection = new XmppTcpConnection(config);
+
+            connection.connectAsync();
+            assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
+            assertTrue(connection.getChannel().isActive());
+            assertTrue(getWorkerGroup(connection) != null);
+
+            connection.failConnection(new XmppNetworkException("boom"));
+            waitFor(() -> connection.getChannel() == null, 2000, "failConnection 应关闭当前通道");
+            waitFor(() -> getWorkerGroup(connection) == null, 2000, "failConnection 应释放 workerGroup");
+            assertFalse(connection.isConnected());
         }
     }
 
@@ -225,7 +262,8 @@ class XmppConnectionLifecycleErrorTest {
         try (ServerSocket serverSocket = new ServerSocket(0);
              ExecutorService executor = Executors.newSingleThreadExecutor()) {
             CountDownLatch acceptedLatch = new CountDownLatch(1);
-            executor.submit(() -> acceptAndHoldSocket(serverSocket, acceptedLatch));
+            CountDownLatch releaseLatch = new CountDownLatch(1);
+            executor.submit(() -> acceptAndHoldSocketUntilRelease(serverSocket, acceptedLatch, releaseLatch));
 
             XmppClientConfig config = XmppClientConfig.builder()
                     .xmppServiceDomain("example.com")
@@ -255,6 +293,7 @@ class XmppConnectionLifecycleErrorTest {
             assertEquals(1, connectedCount.get());
 
             connection.disconnect();
+            releaseLatch.countDown();
         }
     }
 
@@ -332,7 +371,8 @@ class XmppConnectionLifecycleErrorTest {
                 .securityMode(XmppClientConfig.SecurityMode.DISABLED)
                 .build();
         XmppTcpConnection connection = new XmppTcpConnection(config);
-        EmbeddedChannel channel = new EmbeddedChannel(new XmppNettyHandler(config, connection));
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
         StateContext stateContext = new StateContext(config, connection, channel.pipeline().lastContext());
 
         stateContext.closeConnectionOnError(channel.pipeline().lastContext(),
@@ -428,6 +468,149 @@ class XmppConnectionLifecycleErrorTest {
 
         assertThrows(Exception.class, connection::connectAsync);
         assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+    }
+
+    @Test
+    void testDisconnectClearsAuthenticatedStateImmediately() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        channel.writeInbound(StreamFeatures.builder()
+                .bindAvailable(true)
+                .build());
+        channel.writeInbound(new Iq.Builder(Iq.Type.RESULT)
+                .id("bind-1")
+                .childElement(com.example.xmpp.protocol.model.extension.Bind.builder()
+                        .jid("user@example.com/resource")
+                        .build())
+                .build());
+
+        assertTrue(connection.isAuthenticated());
+
+        connection.disconnect();
+
+        assertFalse(connection.isAuthenticated());
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void testStaleChannelExceptionDoesNotFailCurrentLifecycle() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler staleHandler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel staleChannel = new EmbeddedChannel(staleHandler);
+        XmppNettyHandler currentHandler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel currentChannel = new EmbeddedChannel(currentHandler);
+
+        bindNettyHandler(connection, currentHandler);
+        bindChannel(connection, currentChannel);
+
+        staleChannel.pipeline().fireExceptionCaught(new IllegalStateException("stale boom"));
+        staleChannel.runPendingTasks();
+        staleChannel.runScheduledPendingTasks();
+
+        assertSame(currentChannel, connection.getChannel());
+        assertFalse(connection.getConnectionReadyFuture().isDone());
+
+        staleChannel.finishAndReleaseAll();
+        currentChannel.finishAndReleaseAll();
+    }
+
+    @Test
+    void testStaleChannelInactiveDoesNotClearCurrentLifecycle() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler staleHandler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel staleChannel = new EmbeddedChannel(staleHandler);
+        XmppNettyHandler currentHandler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel currentChannel = new EmbeddedChannel(currentHandler);
+
+        bindNettyHandler(connection, currentHandler);
+        bindChannel(connection, currentChannel);
+
+        staleChannel.close();
+        staleChannel.runPendingTasks();
+        staleChannel.runScheduledPendingTasks();
+
+        assertSame(currentChannel, connection.getChannel());
+        assertFalse(connection.getConnectionReadyFuture().isDone());
+
+        staleChannel.finishAndReleaseAll();
+        currentChannel.finishAndReleaseAll();
+    }
+
+    @Test
+    void testStaleStreamErrorDoesNotFailCurrentLifecycle() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler staleHandler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel staleChannel = new EmbeddedChannel(staleHandler);
+        XmppNettyHandler currentHandler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel currentChannel = new EmbeddedChannel(currentHandler);
+
+        bindNettyHandler(connection, currentHandler);
+        bindChannel(connection, currentChannel);
+
+        staleChannel.writeInbound(StreamError.builder()
+                .condition(StreamError.Condition.NOT_AUTHORIZED)
+                .text("stale stream error")
+                .build());
+
+        assertSame(currentChannel, connection.getChannel());
+        assertFalse(connection.getConnectionReadyFuture().isDone());
+
+        staleChannel.finishAndReleaseAll();
+        currentChannel.finishAndReleaseAll();
+    }
+
+    @Test
+    void testStaleStateContextCloseConnectionOnErrorDoesNotFailCurrentLifecycle() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler staleHandler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel staleChannel = new EmbeddedChannel(staleHandler);
+        XmppNettyHandler currentHandler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel currentChannel = new EmbeddedChannel(currentHandler);
+        StateContext staleStateContext = new StateContext(config, connection, staleChannel.pipeline().lastContext());
+
+        bindNettyHandler(connection, currentHandler);
+        bindChannel(connection, currentChannel);
+
+        staleStateContext.closeConnectionOnError(staleChannel.pipeline().lastContext(),
+                new IllegalStateException("stale state failure"));
+
+        assertSame(currentChannel, connection.getChannel());
+        assertFalse(connection.getConnectionReadyFuture().isDone());
+
+        staleChannel.finishAndReleaseAll();
+        currentChannel.finishAndReleaseAll();
     }
 
     @Test
@@ -527,6 +710,7 @@ class XmppConnectionLifecycleErrorTest {
             CompletionException exception = assertThrows(CompletionException.class, readyFuture::join);
             assertInstanceOf(XmppNetworkException.class, exception.getCause());
             assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+            waitUntilDisconnected(connection);
             assertFalse(connection.isConnected());
         }
     }
@@ -910,6 +1094,18 @@ class XmppConnectionLifecycleErrorTest {
         }
     }
 
+    private void acceptAndHoldSocketUntilRelease(ServerSocket serverSocket,
+                                                 CountDownLatch acceptedLatch,
+                                                 CountDownLatch releaseLatch) {
+        try (Socket socket = serverSocket.accept()) {
+            acceptedLatch.countDown();
+            releaseLatch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (IOException ignored) {
+        }
+    }
+
     private void acceptAndCloseSocket(ServerSocket serverSocket, CountDownLatch acceptedLatch) {
         try (Socket socket = serverSocket.accept()) {
             acceptedLatch.countDown();
@@ -950,6 +1146,28 @@ class XmppConnectionLifecycleErrorTest {
         }
     }
 
+    private Object getWorkerGroup(XmppTcpConnection connection) throws Exception {
+        Field field = XmppTcpConnection.class.getDeclaredField("workerGroup");
+        field.setAccessible(true);
+        return field.get(connection);
+    }
+
+    private void waitFor(Check check, long timeoutMs, String message) throws Exception {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            if (check.evaluate()) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        assertTrue(check.evaluate(), message);
+    }
+
+    @FunctionalInterface
+    private interface Check {
+        boolean evaluate() throws Exception;
+    }
+
     private void acceptAndHoldThenTimeoutSecondSocket(ServerSocket serverSocket,
                                                       CountDownLatch firstAcceptedLatch,
                                                       CountDownLatch secondAcceptedLatch) {
@@ -972,5 +1190,32 @@ class XmppConnectionLifecycleErrorTest {
             Thread.sleep(100);
         }
         throw new AssertionError("连接未在预期时间内进入断开状态");
+    }
+
+    private void bindNettyHandler(XmppTcpConnection connection, XmppNettyHandler handler) {
+        try {
+            Field field = XmppTcpConnection.class.getDeclaredField("nettyHandler");
+            field.setAccessible(true);
+            field.set(connection, handler);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("无法绑定测试用 nettyHandler", e);
+        }
+    }
+
+    private EmbeddedChannel newBoundChannel(XmppTcpConnection connection, XmppNettyHandler handler) {
+        EmbeddedChannel channel = new EmbeddedChannel(handler);
+        bindNettyHandler(connection, handler);
+        bindChannel(connection, channel);
+        return channel;
+    }
+
+    private void bindChannel(XmppTcpConnection connection, io.netty.channel.Channel channel) {
+        try {
+            Field field = XmppTcpConnection.class.getDeclaredField("channel");
+            field.setAccessible(true);
+            field.set(connection, channel);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("无法绑定测试用 channel", e);
+        }
     }
 }

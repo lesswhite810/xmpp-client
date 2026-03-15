@@ -40,28 +40,8 @@ public class SslUtils {
      */
     public static SslHandler createSslHandler(XmppClientConfig config)
             throws XmppNetworkException {
-        String host = config.getHost() != null && !config.getHost().isBlank()
-                ? config.getHost()
-                : config.getXmppServiceDomain();
-        return createSslHandler(host, config.getPort(), config);
-    }
-
-    /**
-     * 根据目标地址和客户端配置创建 {@link SslHandler}。
-     *
-     * <p>当前实现不会使用 {@code host}/{@code port} 启用主机名校验；
-     * 这两个参数仅用于日志与兼容现有调用方。</p>
-     *
-     * @param host   目标主机
-     * @param port   目标端口
-     * @param config XMPP 客户端配置
-     * @return 配置好的 SslHandler 实例
-     * @throws XmppNetworkException 如果创建失败
-     */
-    public static SslHandler createSslHandler(String host, int port, XmppClientConfig config)
-            throws XmppNetworkException {
         try {
-            log.debug("Creating SslHandler for {}:{}", host, port);
+            log.debug("Creating SslHandler");
             validateTlsAuthenticationConfig(config);
 
             SSLContext sslContext = SSLContext.getInstance("TLS");
@@ -91,7 +71,7 @@ public class SslUtils {
                     : DEFAULT_HANDSHAKE_TIMEOUT_MS;
             sslHandler.setHandshakeTimeoutMillis(handshakeTimeout);
 
-            log.debug("SslHandler created successfully for {}:{}", host, port);
+            log.debug("SslHandler created successfully");
 
             return sslHandler;
 

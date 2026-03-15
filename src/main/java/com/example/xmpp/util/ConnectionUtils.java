@@ -49,12 +49,14 @@ public class ConnectionUtils {
             return channel;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.error("Connection interrupted for {}:{}", hostDesc, port);
+            log.warn("Connection interrupted for {}:{}", hostDesc, port);
+            log.debug("Connection interrupt detail", e);
             throw new XmppNetworkException("Connection interrupted", e);
         } catch (XmppNetworkException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Connection failed for {}:{} - {}", hostDesc, port, e.getMessage());
+            log.warn("Connection failed for {}:{} - {}", hostDesc, port, e.getMessage());
+            log.debug("Connection failure detail", e);
             throw new XmppNetworkException("Failed to connect to " + hostDesc + ":" + port, e);
         }
     }

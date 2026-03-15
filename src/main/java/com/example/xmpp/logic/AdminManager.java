@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -244,6 +245,18 @@ public class AdminManager {
     }
 
     /**
+     * 发送单阶段管理命令。
+     *
+     * @param commandName 命令名称
+     * @param request 命令载荷
+     * @return 服务端响应
+     */
+    private CompletableFuture<XmppStanza> executeSinglePhaseCommand(String commandName, ExtensionElement request) {
+        log.debug("Sending single-phase {} command", commandName);
+        return sendAdminCommand(buildAdminIq(request));
+    }
+
+    /**
      * 执行两阶段命令的通用模板。
      */
     private <T extends ExtensionElement> CompletableFuture<XmppStanza> executeTwoPhaseCommand(
@@ -261,6 +274,30 @@ public class AdminManager {
                     log.info("{} command completed successfully", commandName);
                     return response;
                 });
+    }
+
+    /**
+     * 执行账户作用域的两阶段管理命令。
+     *
+     * @param commandName 命令名称
+     * @param username 用户名或完整 JID
+     * @param executeCmdFactory execute 阶段命令工厂
+     * @param submitCmdFactory submit 阶段命令工厂
+     * @param <T> 命令载荷类型
+     * @return 服务端响应
+     */
+    private <T extends ExtensionElement> CompletableFuture<XmppStanza> executeAccountCommand(
+            String commandName,
+            String username,
+            Supplier<T> executeCmdFactory,
+            BiFunction<String, String, T> submitCmdFactory) {
+
+        String accountJid = buildAccountJid(username);
+        return executeTwoPhaseCommand(
+                commandName,
+                executeCmdFactory,
+                sessionId -> submitCmdFactory.apply(sessionId, accountJid)
+        );
     }
 
     /**
@@ -304,12 +341,11 @@ public class AdminManager {
      * 添加用户。
      */
     public CompletableFuture<XmppStanza> addUser(String username, String password, String email) {
-        String accountJid = buildAccountJid(username);
-
-        return executeTwoPhaseCommand(
+        return executeAccountCommand(
                 "add-user",
+                username,
                 AddUser::createExecuteCommand,
-                sessionId -> AddUser.createSubmitForm(sessionId, accountJid, password, email)
+                (sessionId, accountJid) -> AddUser.createSubmitForm(sessionId, accountJid, password, email)
         );
     }
 
@@ -324,12 +360,11 @@ public class AdminManager {
      * 删除用户。
      */
     public CompletableFuture<XmppStanza> deleteUser(String username) {
-        String accountJid = buildAccountJid(username);
-
-        return executeTwoPhaseCommand(
+        return executeAccountCommand(
                 "delete-user",
+                username,
                 DeleteUser::createExecuteCommand,
-                sessionId -> DeleteUser.createSubmitForm(sessionId, accountJid)
+                DeleteUser::createSubmitForm
         );
     }
 
@@ -355,12 +390,11 @@ public class AdminManager {
      * 修改用户密码。
      */
     public CompletableFuture<XmppStanza> changePassword(String username, String newPassword) {
-        String accountJid = buildAccountJid(username);
-
-        return executeTwoPhaseCommand(
+        return executeAccountCommand(
                 "change-password",
+                username,
                 ChangeUserPassword::createExecuteCommand,
-                sessionId -> ChangeUserPassword.createSubmitForm(sessionId, accountJid, newPassword)
+                (sessionId, accountJid) -> ChangeUserPassword.createSubmitForm(sessionId, accountJid, newPassword)
         );
     }
 
@@ -368,12 +402,11 @@ public class AdminManager {
      * 获取用户信息。
      */
     public CompletableFuture<XmppStanza> getUser(String username) {
-        String accountJid = buildAccountJid(username);
-
-        return executeTwoPhaseCommand(
+        return executeAccountCommand(
                 "get-user",
+                username,
                 GetUser::createExecuteCommand,
-                sessionId -> GetUser.createSubmitForm(sessionId, accountJid)
+                GetUser::createSubmitForm
         );
     }
 
@@ -400,13 +433,7 @@ public class AdminManager {
      * 列出指定域下的用户。
      */
     public CompletableFuture<XmppStanza> listUsers(List<String> domains) {
-        ListUsers request = new ListUsers(domains);
-        Iq iq = new Iq.Builder(Iq.Type.SET)
-                .id(StanzaIdGenerator.newId())
-                .to(serviceDomain)
-                .childElement(request)
-                .build();
-        return sendAdminCommand(iq);
+        return executeSinglePhaseCommand("list-users", new ListUsers(domains));
     }
 
     /**

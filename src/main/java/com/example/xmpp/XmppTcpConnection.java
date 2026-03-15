@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -110,54 +111,89 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * @throws XmppException 如果连接目标解析或连接初始化失败
      */
     public synchronized CompletableFuture<Void> connectAsync() throws XmppException {
-        CompletableFuture<Void> currentFuture = connectionReadyFuture;
-        Channel currentChannel = channel;
-        if (currentFuture != null && !currentFuture.isCompletedExceptionally() && !currentFuture.isCancelled()) {
-            if (currentChannel != null && currentChannel.isActive()) {
-                return currentFuture;
-            }
-            if (!currentFuture.isDone() && workerGroup != null) {
-                return currentFuture;
-            }
-        }
-        if (currentFuture != null && (currentFuture.isCompletedExceptionally() || currentFuture.isCancelled())
-                && (currentChannel != null && currentChannel.isActive() || workerGroup != null)) {
-            disconnect();
+        CompletableFuture<Void> reusableFuture = findReusableReadyFuture();
+        if (reusableFuture != null) {
+            return reusableFuture;
         }
 
-        resetConnectionLifecycleEvents();
-        disconnectRequested = false;
-        connectionReadyFuture = new CompletableFuture<>();
-        workerGroup = new NioEventLoopGroup();
-        nettyHandler = new XmppNettyHandler(config, this);
+        cleanupFailedConnectionAttemptIfNeeded();
+        prepareNewConnectionAttempt();
 
         List<ConnectionTarget> targets = resolveConnectionTargets();
-        if (targets.isEmpty()) {
-            XmppNetworkException exception = new XmppNetworkException("No connection targets available");
-            connectionReadyFuture.completeExceptionally(exception);
-            shutdownLifecycleManagers();
-            shutdownWorkerGroup();
-            throw exception;
-        }
-
-        initializeLifecycleManagersIfNeeded();
+        ensureConnectionTargetsAvailable(targets);
 
         try {
-            this.channel = connectToTargets(targets)
-                    .orElseThrow(() -> new XmppNetworkException("All connection attempts failed"));
+            startConnectionAttempt(targets);
             return connectionReadyFuture;
         } catch (XmppException e) {
-            connectionReadyFuture.completeExceptionally(e);
-            shutdownLifecycleManagers();
-            shutdownWorkerGroup();
+            rollbackFailedConnectionAttempt(e);
             throw e;
         } catch (RuntimeException e) {
             XmppNetworkException exception = new XmppNetworkException("Failed to establish XMPP connection", e);
-            connectionReadyFuture.completeExceptionally(exception);
-            shutdownLifecycleManagers();
-            shutdownWorkerGroup();
+            rollbackFailedConnectionAttempt(exception);
             throw exception;
         }
+    }
+
+    private CompletableFuture<Void> findReusableReadyFuture() {
+        CompletableFuture<Void> currentFuture = connectionReadyFuture;
+        Channel currentChannel = channel;
+        if (currentFuture == null || currentFuture.isCompletedExceptionally() || currentFuture.isCancelled()) {
+            return null;
+        }
+        if (currentChannel != null && currentChannel.isActive()) {
+            return currentFuture;
+        }
+        if (!currentFuture.isDone() && workerGroup != null) {
+            return currentFuture;
+        }
+        return null;
+    }
+
+    private void cleanupFailedConnectionAttemptIfNeeded() {
+        CompletableFuture<Void> currentFuture = connectionReadyFuture;
+        Channel currentChannel = channel;
+        boolean failedFuture = currentFuture != null
+                && (currentFuture.isCompletedExceptionally() || currentFuture.isCancelled());
+        boolean hasActiveResources = (currentChannel != null && currentChannel.isActive()) || workerGroup != null;
+        if (failedFuture && hasActiveResources) {
+            disconnect();
+        }
+    }
+
+    private void prepareNewConnectionAttempt() {
+        resetConnectionLifecycleEvents();
+        disconnectRequested = false;
+        connectionReadyFuture = new CompletableFuture<>();
+    }
+
+    private void ensureConnectionTargetsAvailable(List<ConnectionTarget> targets) throws XmppNetworkException {
+        if (!targets.isEmpty()) {
+            return;
+        }
+        XmppNetworkException exception = new XmppNetworkException("No connection targets available");
+        connectionReadyFuture.completeExceptionally(exception);
+        shutdownLifecycleManagers();
+        shutdownWorkerGroup();
+        throw exception;
+    }
+
+    private void startConnectionAttempt(List<ConnectionTarget> targets) throws XmppException {
+        initializeConnectionInfrastructure();
+        this.channel = connectToTargets(targets)
+                .orElseThrow(() -> new XmppNetworkException("All connection attempts failed"));
+    }
+
+    private void rollbackFailedConnectionAttempt(Exception exception) {
+        connectionReadyFuture.completeExceptionally(exception);
+        shutdownLifecycleManagers();
+        shutdownWorkerGroup();
+    }
+
+    private void initializeConnectionInfrastructure() {
+        workerGroup = new NioEventLoopGroup();
+        nettyHandler = new XmppNettyHandler(config, this);
+        initializeLifecycleManagersIfNeeded();
     }
 
     private void initializeLifecycleManagersIfNeeded() {
@@ -221,11 +257,19 @@ public class XmppTcpConnection extends AbstractXmppConnection {
                 : XmppConstants.DEFAULT_XMPP_PORT;
         int port = config.getPort() > 0 ? config.getPort() : basePort;
 
-        Optional<ConnectionTarget> configTarget = ConnectionTarget.of(config.getHostAddress(), config.getHost(), port);
+        Optional<ConnectionTarget> configTarget = resolveConfiguredTarget(port);
         if (configTarget.isPresent()) {
             return List.of(configTarget.get());
         }
 
+        return resolveSrvOrDomainTargets(port);
+    }
+
+    private Optional<ConnectionTarget> resolveConfiguredTarget(int port) {
+        return ConnectionTarget.of(config.getHostAddress(), config.getHost(), port);
+    }
+
+    private List<ConnectionTarget> resolveSrvOrDomainTargets(int port) {
         List<SrvRecord> srvRecords = resolveSrvRecords(config.getXmppServiceDomain());
         if (!srvRecords.isEmpty()) {
             return ConnectionTarget.fromSrvRecords(srvRecords);
@@ -236,7 +280,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
                 .orElse(List.of());
     }
 
-    private Bootstrap createBootstrap(ConnectionTarget target) {
+    private Bootstrap createBootstrap() {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(workerGroup);
         bootstrap.channel(NioSocketChannel.class);
@@ -249,9 +293,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             @Override
             protected void initChannel(SocketChannel ch) {
                 if (config.isUsingDirectTLS()) {
-                    String tlsPeerHost = resolveTlsPeerHost(target);
                     try {
-                        SslHandler sslHandler = SslUtils.createSslHandler(tlsPeerHost, target.port(), config);
+                        SslHandler sslHandler = SslUtils.createSslHandler(config);
                         ch.pipeline().addLast(sslHandler);
                     } catch (XmppNetworkException e) {
                         throw new IllegalStateException("Failed to initialize Direct TLS pipeline", e);
@@ -264,29 +307,26 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         return bootstrap;
     }
 
-    private String resolveTlsPeerHost(ConnectionTarget target) {
-        if (target.host() != null && !target.host().isBlank()) {
-            return target.host();
-        }
-        if (config.getHost() != null && !config.getHost().isBlank()) {
-            return config.getHost();
-        }
-        return config.getXmppServiceDomain();
-    }
-
     private Optional<Channel> connectToTargets(List<ConnectionTarget> targets) {
         for (ConnectionTarget target : targets) {
-            try {
-                log.info("Connecting to {}...", target);
-                Bootstrap bootstrap = createBootstrap(target);
-                Channel channel = ConnectionUtils.connectSync(bootstrap, target.toSocketAddress());
-                log.info("Connected to {}", target);
-                return Optional.of(channel);
-            } catch (XmppNetworkException e) {
-                log.warn("Connection failed to {}: {}", target, e.getMessage());
+            Optional<Channel> channel = attemptConnectionTarget(target);
+            if (channel.isPresent()) {
+                return channel;
             }
         }
         return Optional.empty();
+    }
+
+    private Optional<Channel> attemptConnectionTarget(ConnectionTarget target) {
+        try {
+            log.debug("Attempting connection target {}", target);
+            Channel connectedChannel = ConnectionUtils.connectSync(createBootstrap(), target.toSocketAddress());
+            log.debug("Connection target {} established", target);
+            return Optional.of(connectedChannel);
+        } catch (XmppNetworkException e) {
+            log.warn("Connection failed to {}: {}", target, e.getMessage());
+            return Optional.empty();
+        }
     }
 
     private XmppException unwrapXmppException(Throwable cause) {
@@ -322,12 +362,25 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     public synchronized void failConnection(Exception exception) {
         disconnectRequested = false;
-        CompletableFuture<Void> future = connectionReadyFuture;
-        if (future != null && !future.isDone()) {
-            future.completeExceptionally(exception);
-        }
+        failReadyFuture(exception);
         failPendingCollectors(exception);
+        clearHandlerState();
         notifyConnectionClosedOnError(exception);
+        closeCurrentChannelOrShutdownWorkerGroup();
+    }
+
+    /**
+     * 仅在事件来自当前活动通道时结束当前连接生命周期。
+     *
+     * @param sourceChannel 触发失败的通道
+     * @param exception     失败原因
+     */
+    public synchronized void failConnection(Channel sourceChannel, Exception exception) {
+        if (!isCurrentChannel(sourceChannel)) {
+            log.debug("Ignoring failConnection from stale channel: {}", sourceChannel);
+            return;
+        }
+        failConnection(exception);
     }
 
     /**
@@ -337,6 +390,19 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * 并确保所有等待中的请求立即失败，而不是悬挂到超时。</p>
      */
     public synchronized void handleChannelInactive() {
+        handleChannelInactive(channel);
+    }
+
+    /**
+     * 仅在事件来自当前活动通道时处理通道失活。
+     *
+     * @param inactiveChannel 失活的通道
+     */
+    public synchronized void handleChannelInactive(Channel inactiveChannel) {
+        if (!isCurrentChannel(inactiveChannel)) {
+            log.debug("Ignoring inactive event from stale channel: {}", inactiveChannel);
+            return;
+        }
         boolean manualDisconnect = disconnectRequested;
         disconnectRequested = false;
 
@@ -344,16 +410,10 @@ public class XmppTcpConnection extends AbstractXmppConnection {
                 manualDisconnect ? "Connection closed" : "Connection closed unexpectedly");
         failPendingCollectors(closeException);
         cleanupCollectors();
-
-        CompletableFuture<Void> future = connectionReadyFuture;
-        if (future != null && !future.isDone()) {
-            future.completeExceptionally(new XmppNetworkException(
-                    manualDisconnect
-                            ? "Connection closed before session became ready"
-                            : "Connection closed unexpectedly before session became ready"));
-        }
+        failReadyFuture(createSessionNotReadyException(manualDisconnect));
 
         channel = null;
+        clearHandlerState();
         shutdownWorkerGroup();
         if (manualDisconnect) {
             notifyConnectionClosed();
@@ -362,11 +422,46 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         }
     }
 
+    /**
+     * 判断给定通道是否仍然属于当前连接生命周期。
+     *
+     * @param candidate 待检查的通道
+     * @return 如果通道仍为当前活动通道则返回 {@code true}
+     */
+    public synchronized boolean isCurrentChannel(Channel candidate) {
+        return candidate != null && candidate == channel;
+    }
+
+    /**
+     * 在通道激活时将其绑定到当前连接生命周期。
+     *
+     * <p>该方法用于覆盖 TCP 连接刚建立、但 {@link #connectAsync()} 尚未拿到返回值前的短暂窗口，
+     * 避免首个入站事件被误判为旧通道事件。</p>
+     *
+     * @param candidate 待绑定的活动通道
+     * @return 如果通道已成功绑定或本就属于当前生命周期，则返回 {@code true}
+     */
+    public synchronized boolean bindActiveChannel(Channel candidate) {
+        if (candidate == null) {
+            return false;
+        }
+        if (disconnectRequested) {
+            return false;
+        }
+        if (channel == null) {
+            channel = candidate;
+            return true;
+        }
+        return channel == candidate;
+    }
+
     private List<SrvRecord> resolveSrvRecords(String domain) {
         try (DnsResolver resolver = new DnsResolver()) {
             return resolver.resolveXmppService(domain);
         } catch (XmppDnsException e) {
-            log.error("DNS SRV lookup failed: {}", e.getMessage());
+            log.warn("DNS SRV lookup failed for {}, falling back to direct domain connection: {}",
+                    domain, e.getMessage());
+            log.debug("DNS SRV lookup failure detail", e);
         }
         return List.of();
     }
@@ -383,17 +478,42 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
         failPendingCollectors(new XmppNetworkException("Connection closed"));
         cleanupCollectors();
+        failReadyFuture(new XmppNetworkException("Connection closed before session became ready"));
+        clearHandlerState();
+        closeCurrentChannelOrShutdownWorkerGroup();
+    }
 
+    private void failReadyFuture(Exception exception) {
         CompletableFuture<Void> future = connectionReadyFuture;
         if (future != null && !future.isDone()) {
-            future.completeExceptionally(new XmppNetworkException("Connection closed before session became ready"));
+            future.completeExceptionally(exception);
         }
+    }
 
-        if (channel != null) {
-            channel.close();
-            channel = null;
+    private XmppNetworkException createSessionNotReadyException(boolean manualDisconnect) {
+        return new XmppNetworkException(
+                manualDisconnect
+                        ? "Connection closed before session became ready"
+                        : "Connection closed unexpectedly before session became ready");
+    }
+
+    private void clearHandlerState() {
+        if (nettyHandler != null) {
+            nettyHandler.clearState();
         }
+    }
 
+    private void closeCurrentChannelOrShutdownWorkerGroup() {
+        Channel currentChannel = channel;
+        if (currentChannel == null) {
+            shutdownWorkerGroup();
+            return;
+        }
+        if (currentChannel.isActive()) {
+            currentChannel.close();
+            return;
+        }
+        channel = null;
         shutdownWorkerGroup();
     }
 
@@ -441,9 +561,26 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
         dispatchStanza(stanza).whenComplete((unused, error) -> {
             if (error != null) {
-                log.error("Failed to send stanza: {}", error.getMessage());
+                logSendFailure(error);
             }
         });
+    }
+
+    private void logSendFailure(Throwable error) {
+        Throwable cause = unwrapCompletionError(error);
+        if (cause instanceof XmppNetworkException) {
+            log.warn("Failed to send stanza: {}", cause.getMessage());
+            log.debug("Stanza send failure detail", cause);
+            return;
+        }
+        log.error("Failed to send stanza: {}", cause.getMessage(), cause);
+    }
+
+    private Throwable unwrapCompletionError(Throwable error) {
+        if (error instanceof CompletionException completionException && completionException.getCause() != null) {
+            return completionException.getCause();
+        }
+        return error;
     }
 
     @Override

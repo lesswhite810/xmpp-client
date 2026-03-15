@@ -9,6 +9,7 @@ import com.example.xmpp.protocol.model.XmlSerializable;
 import com.example.xmpp.mechanism.SaslNegotiator;
 import com.example.xmpp.util.NettyUtils;
 import com.example.xmpp.util.XmlStringBuilder;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.Getter;
 import lombok.Setter;
@@ -32,6 +33,8 @@ public class StateContext {
     private final XmppTcpConnection connection;
 
     private volatile XmppHandlerState currentState = XmppHandlerState.INITIAL;
+
+    private volatile boolean terminated;
 
     @Setter
     private SaslNegotiator saslNegotiator;
@@ -83,6 +86,10 @@ public class StateContext {
      */
     public void transitionTo(XmppHandlerState newState, ChannelHandlerContext ctx) {
         synchronized (stateLock) {
+            if (terminated) {
+                log.debug("Ignoring transition to {} because state context is terminated", newState);
+                return;
+            }
             if (currentState == newState) {
                 return;
             }
@@ -114,6 +121,10 @@ public class StateContext {
      * @param msg 接收到的消息
      */
     public void handleMessage(ChannelHandlerContext ctx, Object msg) {
+        if (terminated) {
+            log.debug("Ignoring inbound message because state context is terminated");
+            return;
+        }
         currentState.handleMessage(this, ctx, msg);
     }
 
@@ -127,6 +138,17 @@ public class StateContext {
     public void reset(XmppHandlerState connectingState) {
         this.currentState = connectingState;
         this.saslNegotiator = null;
+        this.terminated = false;
+    }
+
+    /**
+     * 标记当前状态上下文已终止。
+     *
+     * <p>终止后会忽略后续状态切换与入站消息，避免旧连接上的异步回调继续推进状态机。</p>
+     */
+    public void terminate() {
+        this.terminated = true;
+        this.saslNegotiator = null;
     }
 
     /**
@@ -135,15 +157,16 @@ public class StateContext {
      * @param ctx    通道上下文
      * @param packet 要发送的对象；仅支持实现了 {@link XmlSerializable} 的协议对象
      */
-    public void sendStanza(ChannelHandlerContext ctx, Object packet) {
+    public ChannelFuture sendStanza(ChannelHandlerContext ctx, Object packet) {
         if (packet instanceof XmlSerializable serializable) {
             String xmlStr = serializable.toXml();
             if (!xmlStr.isEmpty()) {
-                NettyUtils.writeAndFlushString(ctx, xmlStr);
+                return NettyUtils.writeAndFlushStringAsync(ctx, xmlStr);
             }
         } else {
             log.warn("Unknown packet type: {}", packet != null ? packet.getClass().getName() : "null");
         }
+        return null;
     }
 
     /**
@@ -155,7 +178,7 @@ public class StateContext {
     public void closeConnectionOnError(ChannelHandlerContext ctx, Object cause) {
         Exception exception = toException(cause);
         if (connection != null) {
-            connection.failConnection(exception);
+            connection.failConnection(ctx.channel(), exception);
         }
         ctx.close();
     }
@@ -180,7 +203,7 @@ public class StateContext {
      *
      * @param ctx 通道上下文
      */
-    public void openStream(ChannelHandlerContext ctx) {
+    public ChannelFuture openStream(ChannelHandlerContext ctx) {
         XmlStringBuilder xml = new XmlStringBuilder(XmppConstants.DEFAULT_XML_BUILDER_CAPACITY);
         xml.append("<?xml version='1.0'?>");
         xml.element("stream", "stream", null)
@@ -193,7 +216,7 @@ public class StateContext {
         }
         xml.rightAngleBracket();
 
-        NettyUtils.writeAndFlushString(ctx, xml.toString());
+        return NettyUtils.writeAndFlushStringAsync(ctx, xml.toString());
     }
 
     /**
@@ -203,7 +226,7 @@ public class StateContext {
      *
      * @param ctx 通道上下文
      */
-    public void openStreamAndResetDecoder(ChannelHandlerContext ctx) {
-        openStream(ctx);
+    public ChannelFuture openStreamAndResetDecoder(ChannelHandlerContext ctx) {
+        return openStream(ctx);
     }
 }

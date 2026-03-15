@@ -22,6 +22,7 @@ import com.example.xmpp.protocol.model.stream.StreamHeader;
 import com.example.xmpp.protocol.model.stream.TlsElements.StartTls;
 import com.example.xmpp.protocol.model.stream.TlsElements.TlsProceed;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelFuture;
 import io.netty.handler.ssl.SslHandler;
 import lombok.extern.slf4j.Slf4j;
 
@@ -61,8 +62,10 @@ public enum XmppHandlerState implements HandlerState {
                 return;
             }
             log.debug("Opening initial XMPP stream");
-            context.openStreamAndResetDecoder(ctx);
-            context.transitionTo(AWAITING_FEATURES, ctx);
+            transitionAfterSuccessfulWrite(context, ctx,
+                    context.openStreamAndResetDecoder(ctx),
+                    "open initial XMPP stream",
+                    () -> context.transitionTo(AWAITING_FEATURES, ctx));
         }
 
         @Override
@@ -90,12 +93,11 @@ public enum XmppHandlerState implements HandlerState {
 
         private void handleFeatures(StateContext context, ChannelHandlerContext ctx, StreamFeatures features) {
             logFeaturesDebug(features);
-
             if (isSecureConnection(ctx, context.getConfig())) {
                 handleSecureConnectionFeatures(context, ctx, features);
-            } else {
-                handleInsecureConnectionFeatures(context, ctx, features);
+                return;
             }
+            handleInsecureConnectionFeatures(context, ctx, features);
         }
 
         private boolean isSecureConnection(ChannelHandlerContext ctx, XmppClientConfig config) {
@@ -110,31 +112,28 @@ public enum XmppHandlerState implements HandlerState {
         }
 
         private void handleSecureConnectionFeatures(StateContext context, ChannelHandlerContext ctx, StreamFeatures features) {
-            boolean hasSaslMechanisms = features.getMechanisms() != null && !features.getMechanisms().isEmpty();
-
-            if (hasSaslMechanisms) {
+            if (features.getMechanisms() != null && !features.getMechanisms().isEmpty()) {
                 startSaslAuthentication(context, ctx, features.getMechanisms());
             } else if (features.isBindAvailable()) {
                 handleBindRequest(context, ctx);
             } else {
-                log.error("Server features missing both SASL mechanisms and bind capability");
+                log.warn("Server features missing both SASL mechanisms and bind capability");
                 context.closeConnectionOnError(ctx, "Invalid server features after authentication");
             }
         }
 
         private void handleInsecureConnectionFeatures(StateContext context, ChannelHandlerContext ctx, StreamFeatures features) {
             XmppClientConfig.SecurityMode mode = context.getConfig().getSecurityMode();
-            boolean hasSaslMechanisms = features.getMechanisms() != null && !features.getMechanisms().isEmpty();
 
             if (mode == XmppClientConfig.SecurityMode.REQUIRED && !features.isStarttlsAvailable()) {
-                log.error("TLS required by configuration but not available on server");
+                log.warn("TLS required by configuration but not available on server");
                 context.closeConnectionOnError(ctx, "TLS required but not supported by server");
                 return;
             }
 
             if (features.isStarttlsAvailable() && mode != XmppClientConfig.SecurityMode.DISABLED) {
                 initiateStartTls(context, ctx);
-            } else if (hasSaslMechanisms) {
+            } else if (features.getMechanisms() != null && !features.getMechanisms().isEmpty()) {
                 startSaslAuthentication(context, ctx, features.getMechanisms());
             } else if (features.isBindAvailable()) {
                 handleBindRequest(context, ctx);
@@ -145,13 +144,15 @@ public enum XmppHandlerState implements HandlerState {
 
         private void initiateStartTls(StateContext context, ChannelHandlerContext ctx) {
             log.info("Initiating STARTTLS negotiation");
-            context.sendStanza(ctx, StartTls.INSTANCE);
-            context.transitionTo(TLS_NEGOTIATING, ctx);
+            transitionAfterSuccessfulWrite(context, ctx,
+                    context.sendStanza(ctx, StartTls.INSTANCE),
+                    "send STARTTLS request",
+                    () -> context.transitionTo(TLS_NEGOTIATING, ctx));
         }
 
         private void startSaslAuthentication(StateContext context, ChannelHandlerContext ctx, List<String> serverMechanisms) {
             if (serverMechanisms == null || serverMechanisms.isEmpty()) {
-                log.error("No SASL mechanisms available from server");
+                log.warn("No SASL mechanisms available from server");
                 context.closeConnectionOnError(ctx, "No SASL mechanisms available");
                 return;
             }
@@ -162,46 +163,50 @@ public enum XmppHandlerState implements HandlerState {
                             context.getConfig().getUsername(), context.getConfig().getPassword());
 
             if (best.isPresent()) {
-                SaslMechanism mech = best.get();
-
-                if ("PLAIN".equals(mech.getMechanismName()) && !isSecureConnection(ctx, context.getConfig())) {
-                    log.error("PLAIN SASL mechanism requires TLS encryption. Current connection is not secure.");
-                    context.closeConnectionOnError(ctx, "PLAIN mechanism requires TLS encryption");
-                    return;
-                }
-
-                log.info("Starting SASL authentication using mechanism: {}", mech.getMechanismName());
-                SaslNegotiator negotiator = new SaslNegotiator(mech, ctx);
-                context.setSaslNegotiator(negotiator);
-                try {
-                    negotiator.start();
-                    context.transitionTo(SASL_AUTH, ctx);
-                } catch (XmppAuthException e) {
-                    log.error("Authentication error", e);
-                        context.closeConnectionOnError(ctx, e);
-                }
+                startResolvedSaslAuthentication(context, ctx, best.get());
             } else {
-                log.error("No supported SASL mechanism - Server offered: {}, Client enabled: {}",
+                log.warn("No supported SASL mechanism - Server offered: {}, Client enabled: {}",
                         serverMechanisms, enabledMechanisms);
                 context.closeConnectionOnError(ctx, "No supported SASL mechanism");
             }
         }
 
+        private void startResolvedSaslAuthentication(StateContext context, ChannelHandlerContext ctx, SaslMechanism mechanism) {
+            if ("PLAIN".equals(mechanism.getMechanismName()) && !isSecureConnection(ctx, context.getConfig())) {
+                log.warn("PLAIN SASL mechanism requires TLS encryption. Current connection is not secure.");
+                context.closeConnectionOnError(ctx, "PLAIN mechanism requires TLS encryption");
+                return;
+            }
+
+            log.info("Starting SASL authentication using mechanism: {}", mechanism.getMechanismName());
+            SaslNegotiator negotiator = new SaslNegotiator(mechanism, ctx);
+            context.setSaslNegotiator(negotiator);
+            try {
+                transitionAfterSuccessfulWrite(context, ctx,
+                        negotiator.start(),
+                        "send SASL auth stanza",
+                        () -> context.transitionTo(SASL_AUTH, ctx));
+            } catch (XmppAuthException e) {
+                log.warn("Authentication error: {}", e.getMessage());
+                log.debug("Authentication error detail", e);
+                context.closeConnectionOnError(ctx, e);
+            }
+        }
+
         private void handleBindRequest(StateContext context, ChannelHandlerContext ctx) {
             log.debug("Sending resource bind request");
-            String resource = context.getConfig().getResource();
-
             Bind bind = Bind.builder()
-                    .resource(resource)
+                    .resource(context.getConfig().getResource())
                     .build();
 
             Iq bindIq = new Iq.Builder(Iq.Type.SET)
                     .id(context.generateId("bind"))
                     .childElement(bind)
                     .build();
-
-            context.sendStanza(ctx, bindIq);
-            context.transitionTo(BINDING, ctx);
+            transitionAfterSuccessfulWrite(context, ctx,
+                    context.sendStanza(ctx, bindIq),
+                    "send resource bind request",
+                    () -> context.transitionTo(BINDING, ctx));
         }
 
         @Override
@@ -234,10 +239,12 @@ public enum XmppHandlerState implements HandlerState {
                 log.debug("SSL handler added to pipeline, handshake starting");
 
             } catch (XmppNetworkException e) {
-                log.error("Network error while initializing SSL handler", e);
+                log.warn("Network error while initializing SSL handler: {}", e.getMessage());
+                log.debug("Network error while initializing SSL handler detail", e);
                 context.closeConnectionOnError(ctx, e);
             } catch (IllegalArgumentException e) {
-                log.error("Invalid SSL configuration", e);
+                log.warn("Invalid SSL configuration: {}", e.getMessage());
+                log.debug("Invalid SSL configuration detail", e);
                 context.closeConnectionOnError(ctx, e);
             }
         }
@@ -252,42 +259,55 @@ public enum XmppHandlerState implements HandlerState {
         @Override
         public void handleMessage(StateContext context, ChannelHandlerContext ctx, Object msg) {
             if (context.getSaslNegotiator() == null) {
-                log.error("SASL negotiator is null, cannot process authentication");
+                log.warn("SASL negotiator is null, cannot process authentication");
                 context.closeConnectionOnError(ctx, "SASL negotiator not initialized");
                 return;
             }
 
             try {
                 switch (msg) {
-                    case SaslChallenge challenge -> {
-                        log.debug("SASL challenge received");
-                        context.getSaslNegotiator().handleChallenge(challenge.getContent());
-                    }
-                    case SaslSuccess success -> {
-                        log.debug("SASL authentication successful");
-                        if (context.getSaslNegotiator().handleSuccess(success.getContent())) {
-                            log.debug("SASL negotiation completed, reopening stream");
-                            context.openStreamAndResetDecoder(ctx);
-                            context.transitionTo(AWAITING_FEATURES, ctx);
-                        }
-                    }
-                    case SaslFailure failure -> {
-                        log.error("SASL authentication failed - condition: {}, text: {}",
-                                failure.getCondition(), failure.getText());
-                        context.setSaslNegotiator(null);
-                        context.closeConnectionOnError(ctx, new XmppSaslFailureException(failure));
-                    }
+                    case SaslChallenge challenge -> handleSaslChallenge(context, challenge)
+                    ;
+                    case SaslSuccess success -> handleSaslSuccess(context, ctx, success);
+                    case SaslFailure failure -> handleSaslFailure(context, ctx, failure);
                     default -> log.debug("Received unexpected message during SASL auth: {}", msg.getClass().getSimpleName());
                 }
             } catch (XmppAuthException e) {
-                log.error("SASL authentication error", e);
+                log.warn("SASL authentication error: {}", e.getMessage());
+                log.debug("SASL authentication error detail", e);
                 context.setSaslNegotiator(null);
                 context.closeConnectionOnError(ctx, e);
             } catch (IllegalArgumentException e) {
-                log.error("Invalid SASL authentication data", e);
+                log.warn("Invalid SASL authentication data: {}", e.getMessage());
+                log.debug("Invalid SASL authentication data detail", e);
                 context.setSaslNegotiator(null);
                 context.closeConnectionOnError(ctx, e);
             }
+        }
+
+        private void handleSaslChallenge(StateContext context, SaslChallenge challenge) throws XmppAuthException {
+            log.debug("SASL challenge received");
+            context.getSaslNegotiator().handleChallenge(challenge.getContent());
+        }
+
+        private void handleSaslSuccess(StateContext context, ChannelHandlerContext ctx, SaslSuccess success)
+                throws XmppAuthException {
+            log.debug("SASL authentication successful");
+            if (!context.getSaslNegotiator().handleSuccess(success.getContent())) {
+                return;
+            }
+            log.debug("SASL negotiation completed, reopening stream");
+            transitionAfterSuccessfulWrite(context, ctx,
+                    context.openStreamAndResetDecoder(ctx),
+                    "reopen XMPP stream after SASL success",
+                    () -> context.transitionTo(AWAITING_FEATURES, ctx));
+        }
+
+        private void handleSaslFailure(StateContext context, ChannelHandlerContext ctx, SaslFailure failure) {
+            log.warn("SASL authentication failed - condition: {}, text: {}",
+                    failure.getCondition(), failure.getText());
+            context.setSaslNegotiator(null);
+            context.closeConnectionOnError(ctx, new XmppSaslFailureException(failure));
         }
 
         @Override
@@ -309,26 +329,40 @@ public enum XmppHandlerState implements HandlerState {
 
         private void handleBindResponse(StateContext context, ChannelHandlerContext ctx, Iq iq) {
             if (iq.getType() == Iq.Type.RESULT) {
-                log.info("Resource binding successful");
-                context.transitionTo(SESSION_ACTIVE, ctx);
-
-                if (context.getConfig().isSendPresence()) {
-                    log.debug("Sending initial presence");
-                    context.sendStanza(ctx, new Presence());
-                }
-
-                context.getConnection().markConnectionReady();
-                context.getConnection().notifyAuthenticated();
-            } else if (iq.getType() == Iq.Type.ERROR) {
-                XmppError error = iq.getError();
-                String errorDetail = error != null
-                        ? String.format("condition=%s, type=%s, text=%s",
-                        error.getCondition(), error.getType(), error.getText())
-                        : "unknown";
-                log.error("Resource binding failed - {}", errorDetail);
-                context.closeConnectionOnError(ctx,
-                        new XmppStanzaErrorException("Resource binding failed: " + errorDetail, iq));
+                handleSuccessfulBind(context, ctx);
+                return;
             }
+
+            if (iq.getType() == Iq.Type.ERROR) {
+                handleFailedBind(context, ctx, iq);
+            }
+        }
+
+        private void handleSuccessfulBind(StateContext context, ChannelHandlerContext ctx) {
+            log.info("Resource binding successful");
+            if (!context.getConfig().isSendPresence()) {
+                activateSession(context, ctx);
+                return;
+            }
+            log.debug("Sending initial presence");
+            transitionAfterSuccessfulWrite(context, ctx,
+                    context.sendStanza(ctx, new Presence()),
+                    "send initial presence",
+                    () -> activateSession(context, ctx));
+        }
+
+        private void handleFailedBind(StateContext context, ChannelHandlerContext ctx, Iq iq) {
+            String errorDetail = formatBindErrorDetail(iq.getError());
+            log.warn("Resource binding failed - {}", errorDetail);
+            context.closeConnectionOnError(ctx,
+                    new XmppStanzaErrorException("Resource binding failed: " + errorDetail, iq));
+        }
+
+        private String formatBindErrorDetail(XmppError error) {
+            return error != null
+                    ? String.format("condition=%s, type=%s, text=%s",
+                    error.getCondition(), error.getType(), error.getText())
+                    : "unknown";
         }
 
         @Override
@@ -393,4 +427,57 @@ public enum XmppHandlerState implements HandlerState {
      * @return 如果允许切换则返回 {@code true}
      */
     public abstract boolean canTransitionTo(XmppHandlerState target);
+
+    private static void failOnWriteFailure(StateContext context,
+                                           ChannelHandlerContext ctx,
+                                           ChannelFuture future,
+                                           String action) {
+        if (future == null) {
+            context.closeConnectionOnError(ctx, "Failed to " + action);
+            return;
+        }
+        future.addListener(result -> {
+            if (!result.isSuccess()) {
+                context.closeConnectionOnError(ctx,
+                        new XmppNetworkException("Failed to " + action, result.cause()));
+            }
+        });
+    }
+
+    private static void transitionAfterSuccessfulWrite(StateContext context,
+                                                       ChannelHandlerContext ctx,
+                                                       ChannelFuture future,
+                                                       String action,
+                                                       Runnable onSuccess) {
+        if (future == null) {
+            context.closeConnectionOnError(ctx, "Failed to " + action);
+            return;
+        }
+        future.addListener(result -> {
+            if (!result.isSuccess()) {
+                context.closeConnectionOnError(ctx,
+                        new XmppNetworkException("Failed to " + action, result.cause()));
+                return;
+            }
+            if (context.isTerminated()) {
+                log.debug("Skipping state follow-up for {} because state context is terminated", action);
+                return;
+            }
+            if (!ctx.channel().isActive()) {
+                log.debug("Skipping state follow-up for {} because channel is inactive", action);
+                return;
+            }
+            onSuccess.run();
+        });
+    }
+
+    private static void notifySessionReady(StateContext context) {
+        context.getConnection().markConnectionReady();
+        context.getConnection().notifyAuthenticated();
+    }
+
+    private static void activateSession(StateContext context, ChannelHandlerContext ctx) {
+        context.transitionTo(SESSION_ACTIVE, ctx);
+        notifySessionReady(context);
+    }
 }

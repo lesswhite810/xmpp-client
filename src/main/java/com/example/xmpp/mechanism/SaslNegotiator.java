@@ -7,6 +7,7 @@ import com.example.xmpp.protocol.model.sasl.SaslResponse;
 import com.example.xmpp.util.SecurityUtils;
 import com.example.xmpp.util.XmppConstants;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
 import lombok.RequiredArgsConstructor;
@@ -54,7 +55,7 @@ public class SaslNegotiator {
      *
      * @throws XmppAuthException 如果认证启动失败
      */
-    public void start() throws XmppAuthException {
+    public ChannelFuture start() throws XmppAuthException {
         if ("PLAIN".equals(mechanism.getMechanismName()) && !isTlsEncrypted()) {
             throw new XmppAuthException("PLAIN authentication requires TLS encryption. Please enable TLS before authenticating.");
         }
@@ -75,7 +76,7 @@ public class SaslNegotiator {
             }
         }
         try {
-            sendStanza(new Auth(mechanism.getMechanismName(), content));
+            return sendStanza(new Auth(mechanism.getMechanismName(), content));
         } catch (IllegalArgumentException e) {
             throw new XmppAuthException("Invalid Auth stanza", e);
         }
@@ -131,7 +132,7 @@ public class SaslNegotiator {
      * @param packet 待发送的协议元素
      * @throws XmppAuthException 如果发送失败
      */
-    private void sendStanza(Object packet) throws XmppAuthException {
+    private ChannelFuture sendStanza(Object packet) throws XmppAuthException {
         if (packet instanceof ExtensionElement element) {
             String xmlString = element.toXml();
             log.debug("Sending SASL stanza: {}", SecurityUtils.filterSensitiveXml(xmlString));
@@ -140,17 +141,19 @@ public class SaslNegotiator {
             ByteBuf buf = ctx.alloc().buffer(bufferSize);
             buf.writeCharSequence(xmlString, StandardCharsets.UTF_8);
             final ByteBuf bufToWrite = buf;
-            ctx.writeAndFlush(bufToWrite).addListener(future -> {
-                if (future.isSuccess()) {
-                    log.info("SASL stanza sent successfully");
+            ChannelFuture future = ctx.writeAndFlush(bufToWrite);
+            future.addListener(result -> {
+                if (result.isSuccess()) {
+                    log.debug("SASL stanza sent successfully");
                 } else {
-                    log.error("Failed to send SASL stanza", future.cause());
+                    log.debug("Failed to send SASL stanza", result.cause());
                     if (bufToWrite.refCnt() > 0) {
                         bufToWrite.release();
                     }
-                    ctx.pipeline().fireExceptionCaught(new XmppAuthException("Failed to send SASL stanza", future.cause()));
+                    ctx.pipeline().fireExceptionCaught(new XmppAuthException("Failed to send SASL stanza", result.cause()));
                 }
             });
+            return future;
         } else {
             throw new IllegalArgumentException(
                     "Packet must implement ExtensionElement interface: " + packet.getClass().getName());
@@ -165,6 +168,7 @@ public class SaslNegotiator {
     private boolean isTlsEncrypted() {
         return ctx.pipeline().get(SslHandler.class) != null
                 && ctx.pipeline().get(SslHandler.class).handshakeFuture().isDone()
+                && ctx.pipeline().get(SslHandler.class).handshakeFuture().isSuccess()
                 && !ctx.pipeline().get(SslHandler.class).handshakeFuture().isCancelled();
     }
 }

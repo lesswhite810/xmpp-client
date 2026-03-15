@@ -167,7 +167,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
             fireEvent(ConnectionEventType.CLOSED);
             return;
         }
-        log.debug("Skipping duplicate terminal connection event: {}", ConnectionEventType.CLOSED);
+        log.trace("Skipping duplicate terminal connection event: {}", ConnectionEventType.CLOSED);
     }
 
     /**
@@ -180,7 +180,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
             fireEvent(ConnectionEventType.ERROR, e);
             return;
         }
-        log.debug("Skipping duplicate terminal connection event: {}", ConnectionEventType.ERROR);
+        log.trace("Skipping duplicate terminal connection event: {}", ConnectionEventType.ERROR);
     }
 
     /**
@@ -188,6 +188,15 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      */
     protected void resetConnectionLifecycleEvents() {
         terminalConnectionEventPublished.set(false);
+    }
+
+    /**
+     * 判断当前连接生命周期是否已经发布过终态事件。
+     *
+     * @return 如果已发布 CLOSED 或 ERROR 终态事件则返回 {@code true}
+     */
+    public boolean hasPublishedTerminalConnectionEvent() {
+        return terminalConnectionEventPublished.get();
     }
 
     /**
@@ -267,6 +276,19 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @return 响应 Future，成功时返回匹配的结果节，失败时返回异常
      */
     public CompletableFuture<XmppStanza> sendIqPacketAsync(Iq iq, long timeout, TimeUnit unit) {
+        validateIqSendArguments(iq, timeout, unit);
+        if (!isConnected()) {
+            return CompletableFuture.failedFuture(new XmppNetworkException("Channel is not active"));
+        }
+
+        AsyncStanzaCollector collector = createIqResponseCollector(iq);
+        CompletableFuture<XmppStanza> responseFuture = createIqResponseFuture(collector, timeout, unit);
+        CompletableFuture<Void> dispatchFuture = dispatchStanza(iq);
+        propagateDispatchFailure(dispatchFuture, collector);
+        return finalizeIqResponseFuture(responseFuture, collector);
+    }
+
+    private void validateIqSendArguments(Iq iq, long timeout, TimeUnit unit) {
         if (iq == null) {
             throw new IllegalArgumentException("IQ must not be null");
         }
@@ -275,31 +297,40 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         }
         Validate.isTrue(timeout > 0, "Timeout must be positive");
         Validate.notBlank(iq.getId(), "IQ must have a non-blank ID");
-        if (!isConnected()) {
-            return CompletableFuture.failedFuture(new XmppNetworkException("Channel is not active"));
+    }
+
+    private AsyncStanzaCollector createIqResponseCollector(Iq iq) {
+        String iqId = iq.getId();
+        StanzaFilter filter = stanza -> matchesIqResponse(stanza, iqId);
+        return createStanzaCollector(filter);
+    }
+
+    private boolean matchesIqResponse(XmppStanza stanza, String iqId) {
+        if (!(stanza instanceof Iq responseIq)) {
+            return false;
         }
+        return iqId.equals(stanza.getId())
+                && (responseIq.getType() == Iq.Type.RESULT || responseIq.getType() == Iq.Type.ERROR);
+    }
 
-        final String iqId = iq.getId();
-        StanzaFilter filter = stanza -> {
-            if (!(stanza instanceof Iq responseIq)) {
-                return false;
-            }
-            return iqId.equals(stanza.getId())
-                    && (responseIq.getType() == Iq.Type.RESULT || responseIq.getType() == Iq.Type.ERROR);
-        };
-
-        AsyncStanzaCollector collector = createStanzaCollector(filter);
-        CompletableFuture<XmppStanza> responseFuture = collector.getFuture()
+    private CompletableFuture<XmppStanza> createIqResponseFuture(AsyncStanzaCollector collector,
+                                                                 long timeout,
+                                                                 TimeUnit unit) {
+        return collector.getFuture()
                 .orTimeout(timeout, unit)
                 .thenCompose(this::mapIqErrorResponse);
-        CompletableFuture<Void> dispatchFuture = dispatchStanza(iq);
+    }
 
+    private void propagateDispatchFailure(CompletableFuture<Void> dispatchFuture, AsyncStanzaCollector collector) {
         dispatchFuture.whenComplete((ignored, dispatchError) -> {
             if (dispatchError != null) {
                 collector.getFuture().completeExceptionally(dispatchError);
             }
         });
+    }
 
+    private CompletableFuture<XmppStanza> finalizeIqResponseFuture(CompletableFuture<XmppStanza> responseFuture,
+                                                                   AsyncStanzaCollector collector) {
         return responseFuture
                 .whenComplete((result, ex) -> {
                     collectors.remove(collector);
@@ -331,28 +362,31 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @param exception 失败原因
      */
     protected void failPendingCollectors(Exception exception) {
-        collectors.removeIf(collector -> {
-            CompletableFuture<XmppStanza> future = collector.getFuture();
-            if (future.isDone()) {
-                return true;
-            }
-            future.completeExceptionally(exception);
-            return true;
-        });
+        collectors.removeIf(collector -> failCollector(collector, exception));
     }
 
     /**
      * 清理所有已完成的 stanza collector。
      */
     protected void cleanupCollectors() {
-        collectors.removeIf(collector -> {
-            if (collector.getFuture().isDone()) {
-                collector.getFuture().cancel(true);
-                return true;
-            }
-            return false;
-        });
+        collectors.removeIf(this::cleanupCollectorIfDone);
         log.debug("Completed collectors cleaned up, remaining: {}", collectors.size());
+    }
+
+    private boolean failCollector(AsyncStanzaCollector collector, Exception exception) {
+        CompletableFuture<XmppStanza> future = collector.getFuture();
+        if (!future.isDone()) {
+            future.completeExceptionally(exception);
+        }
+        return true;
+    }
+
+    private boolean cleanupCollectorIfDone(AsyncStanzaCollector collector) {
+        if (!collector.getFuture().isDone()) {
+            return false;
+        }
+        collector.getFuture().cancel(true);
+        return true;
     }
 
     /**
@@ -361,10 +395,6 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @param stanza 收到的 stanza
      */
     public void notifyStanzaReceived(XmppStanza stanza) {
-        dispatchToCollectors(stanza);
-    }
-
-    private void dispatchToCollectors(XmppStanza stanza) {
         collectors.forEach(collector -> {
             if (collector.processStanza(stanza)) {
                 log.debug("Stanza collected by collector");

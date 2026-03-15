@@ -6,7 +6,10 @@ import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.XmppConnection;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.exception.XmppSaslFailureException;
+import com.example.xmpp.exception.XmppStanzaErrorException;
 import com.example.xmpp.exception.XmppStreamErrorException;
+import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
 import com.example.xmpp.protocol.model.stream.StreamError;
 import org.junit.jupiter.api.BeforeEach;
@@ -122,12 +125,51 @@ class ReconnectionManagerTest {
     }
 
     @Test
+    @DisplayName("重连尝试中的认证失败不应继续调度下一次重试")
+    void testNonRecoverableReconnectFailureStopsRetryCycle() throws Exception {
+        AtomicInteger attempts = new AtomicInteger();
+
+        when(connection.isConnected()).thenReturn(false);
+        doAnswer(invocation -> {
+            attempts.incrementAndGet();
+            throw new XmppSaslFailureException(SaslFailure.builder().condition("not-authorized").build());
+        }).when(connection).connect();
+
+        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR,
+                new XmppNetworkException("temporary network issue")));
+
+        Thread.sleep(3500);
+
+        verify(connection, times(1)).connect();
+        assertEquals(1, attempts.get(), "遇到不可恢复的重连失败后不应继续调度下一次重试");
+        assertEquals(0, getAttemptCount().get(), "不可恢复失败后应重置重连计数");
+    }
+
+    @Test
     @DisplayName("协议流错误不应触发自动重连")
     void testStreamProtocolFailureDoesNotTriggerReconnect() throws Exception {
         reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR,
                 new XmppStreamErrorException(StreamError.builder()
                         .condition(StreamError.Condition.NOT_AUTHORIZED)
                         .build())));
+
+        Thread.sleep(3500);
+
+        verify(connection, never()).connect();
+    }
+
+    @Test
+    @DisplayName("节错误异常不应触发自动重连")
+    void testStanzaErrorDoesNotTriggerReconnect() throws Exception {
+        Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
+                .id("bind-1")
+                .error(new XmppError.Builder(XmppError.Condition.NOT_AUTHORIZED)
+                        .type(XmppError.Type.AUTH)
+                        .text("binding failed")
+                        .build())
+                .build();
+        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR,
+                new XmppStanzaErrorException("bind failed", errorIq)));
 
         Thread.sleep(3500);
 
@@ -193,6 +235,30 @@ class ReconnectionManagerTest {
         Thread.sleep(3500);
 
         assertEquals(1, attempts.get(), "关闭后不应再调度新的重连尝试");
+    }
+
+    @Test
+    @DisplayName("禁用重连时运行中的成功重连应立即关闭连接")
+    void testDisableClosesConnectionWhenRunningReconnectSucceeds() throws Exception {
+        CountDownLatch attemptStarted = new CountDownLatch(1);
+        CountDownLatch releaseAttempt = new CountDownLatch(1);
+
+        when(connection.isConnected()).thenReturn(false);
+        doAnswer(invocation -> {
+            attemptStarted.countDown();
+            assertTrue(releaseAttempt.await(3, TimeUnit.SECONDS), "测试应释放当前重连尝试");
+            return null;
+        }).when(connection).connect();
+
+        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom")));
+
+        assertTrue(attemptStarted.await(4, TimeUnit.SECONDS), "应启动一次重连尝试");
+        reconnectionManager.disable();
+        releaseAttempt.countDown();
+
+        Thread.sleep(500);
+
+        verify(connection, times(1)).disconnect();
     }
 
     @Test
@@ -267,6 +333,37 @@ class ReconnectionManagerTest {
         Thread.sleep(3500);
 
         verify(connection, never()).connect();
+    }
+
+    @Test
+    @DisplayName("仅 CONNECTED 事件不应重置重连计数")
+    void testConnectedEventDoesNotResetReconnectAttemptCount() throws Exception {
+        getAttemptCount().set(3);
+
+        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom")));
+        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
+
+        assertTrue(getAttemptCount().get() >= 3, "TCP 连接成功但未认证前，不应清空重连退避计数");
+    }
+
+    @Test
+    @DisplayName("CONNECTED 事件应清理错误触发的重连标记")
+    void testConnectedEventClearsReconnectScheduledDueToErrorFlag() throws Exception {
+        setReconnectionScheduledDueToError(true);
+
+        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
+
+        assertFalse(isReconnectionScheduledDueToError(), "TCP 已连接后不应继续保留旧的错误重连标记");
+    }
+
+    @Test
+    @DisplayName("AUTHENTICATED 事件应重置重连计数")
+    void testAuthenticatedEventResetsReconnectAttemptCount() throws Exception {
+        getAttemptCount().set(3);
+
+        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+
+        assertEquals(0, getAttemptCount().get());
     }
 
     @Test
@@ -347,5 +444,17 @@ class ReconnectionManagerTest {
         Field field = ReconnectionManager.class.getDeclaredField("MAX_RECONNECT_ATTEMPTS");
         field.setAccessible(true);
         return field.getInt(null);
+    }
+
+    private boolean isReconnectionScheduledDueToError() throws Exception {
+        Field field = ReconnectionManager.class.getDeclaredField("reconnectionScheduledDueToError");
+        field.setAccessible(true);
+        return field.getBoolean(reconnectionManager);
+    }
+
+    private void setReconnectionScheduledDueToError(boolean value) throws Exception {
+        Field field = ReconnectionManager.class.getDeclaredField("reconnectionScheduledDueToError");
+        field.setAccessible(true);
+        field.setBoolean(reconnectionManager, value);
     }
 }

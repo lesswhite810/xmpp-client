@@ -7,6 +7,7 @@ import com.example.xmpp.XmppConnection;
 import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppProtocolException;
+import com.example.xmpp.exception.XmppStanzaErrorException;
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmppScheduler;
 
@@ -92,8 +93,7 @@ public class ReconnectionManager {
      */
     public void disable() {
         this.enabled = false;
-        this.reconnectionScheduledDueToError = false;
-        this.attemptCount.set(0);
+        resetReconnectCycle();
         stopReconnectTask();
     }
 
@@ -104,8 +104,7 @@ public class ReconnectionManager {
      */
     public void shutdown() {
         this.enabled = false;
-        this.reconnectionScheduledDueToError = false;
-        this.attemptCount.set(0);
+        resetReconnectCycle();
         stopReconnectTask();
         if (unsubscribe != null) {
             unsubscribe.run();
@@ -131,15 +130,13 @@ public class ReconnectionManager {
     }
 
     private void onConnected() {
-        attemptCount.set(0);
         reconnectionScheduledDueToError = false;
         stopReconnectTask();
-        log.debug("Connection established, reconnection task stopped");
+        log.debug("TCP connection established, waiting for authenticated session before resetting reconnection cycle");
     }
 
     private void onAuthenticated() {
-        attemptCount.set(0);
-        reconnectionScheduledDueToError = false;
+        resetReconnectCycle();
         stopReconnectTask();
     }
 
@@ -158,22 +155,43 @@ public class ReconnectionManager {
             return;
         }
         if (isNonRecoverableError(e)) {
-            reconnectionScheduledDueToError = false;
-            attemptCount.set(0);
+            resetReconnectCycle();
             stopReconnectTask();
             log.info("Connection closed on non-recoverable error. Skipping reconnection: {}",
                     e != null ? e.getClass().getSimpleName() : "unknown");
-            log.debug("Non-recoverable error detail", e);
+            logReconnectErrorDetail("Non-recoverable error detail", e);
             return;
         }
         reconnectionScheduledDueToError = true;
         log.info("Connection closed on error. Starting reconnection.");
-        log.debug("Connection closed on error detail", e);
+        logReconnectErrorDetail("Connection closed on error detail", e);
         scheduleReconnect(0);
     }
 
     private boolean isNonRecoverableError(Exception error) {
-        return error instanceof XmppAuthException || error instanceof XmppProtocolException;
+        return error instanceof XmppAuthException
+                || error instanceof XmppProtocolException
+                || error instanceof XmppStanzaErrorException;
+    }
+
+    /**
+     * 重置当前重连周期状态。
+     */
+    private void resetReconnectCycle() {
+        this.reconnectionScheduledDueToError = false;
+        this.attemptCount.set(0);
+    }
+
+    /**
+     * 记录重连相关异常详情。
+     *
+     * @param message 日志前缀
+     * @param error 异常对象
+     */
+    private void logReconnectErrorDetail(String message, Exception error) {
+        if (error != null) {
+            log.debug("{}: {}", message, error.getMessage());
+        }
     }
 
     /**
@@ -206,51 +224,104 @@ public class ReconnectionManager {
 
             int currentAttempt = attemptCount.incrementAndGet();
             if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {
-                log.error("Max reconnection attempts ({}) reached, stopping reconnection", MAX_RECONNECT_ATTEMPTS);
-                attemptCount.set(0);
-                reconnectionScheduledDueToError = false;
+                log.warn("Max reconnection attempts ({}) reached, stopping reconnection", MAX_RECONNECT_ATTEMPTS);
+                resetReconnectCycle();
                 return;
             }
 
-            int delay = Math.min(BASE_DELAY_SECONDS * (1 << attempt), MAX_DELAY_SECONDS);
-            delay += random.nextInt(Math.max(1, delay / 4));
-
+            int delay = calculateReconnectDelay(attempt);
             log.info("Reconnecting in {} seconds (Attempt {}/{})...", delay, currentAttempt, MAX_RECONNECT_ATTEMPTS);
+            currentTask = XmppScheduler.getScheduler().schedule(
+                    () -> runReconnectAttempt(attempt),
+                    delay,
+                    TimeUnit.SECONDS
+            );
+        }
+    }
 
-            currentTask = XmppScheduler.getScheduler().schedule(() -> {
-                synchronized (ReconnectionManager.this) {
-                    currentTask = null;
-                }
-                try {
-                    if (!enabled) {
-                        log.debug("Reconnection disabled before scheduled attempt executed");
-                        return;
-                    }
-                    if (connection.isConnected()) {
-                        attemptCount.set(0);
-                        log.debug("Already connected, skipping reconnection");
-                        return;
-                    }
-                    log.info("Retrying connection...");
-                    connection.resetHandlerState();
-                    connection.connect();
-                    log.info("Reconnection successful");
-                } catch (XmppException e) {
-                    log.error("Reconnection failed: {}", e.getMessage());
-                    if (enabled) {
-                        scheduleReconnect(attempt + 1);
-                    } else {
-                        log.debug("Reconnection disabled after failed attempt, not scheduling retry");
-                    }
-                } catch (RuntimeException e) {
-                    log.error("Unexpected runtime error during reconnection: {}", e.getMessage(), e);
-                    if (enabled) {
-                        scheduleReconnect(attempt + 1);
-                    } else {
-                        log.debug("Reconnection disabled after runtime failure, not scheduling retry");
-                    }
-                }
-            }, delay, TimeUnit.SECONDS);
+    /**
+     * 计算重连延迟。
+     *
+     * @param attempt 当前重连轮次
+     * @return 延迟秒数
+     */
+    private int calculateReconnectDelay(int attempt) {
+        int delay = Math.min(BASE_DELAY_SECONDS * (1 << attempt), MAX_DELAY_SECONDS);
+        return delay + random.nextInt(Math.max(1, delay / 4));
+    }
+
+    /**
+     * 执行一次重连尝试。
+     *
+     * @param attempt 当前重连轮次
+     */
+    private void runReconnectAttempt(int attempt) {
+        synchronized (this) {
+            currentTask = null;
+        }
+        try {
+            if (!enabled) {
+                log.debug("Reconnection disabled before scheduled attempt executed");
+                return;
+            }
+            if (connection.isConnected()) {
+                resetReconnectCycle();
+                log.debug("Already connected, skipping reconnection");
+                return;
+            }
+
+            log.info("Retrying connection...");
+            connection.resetHandlerState();
+            connection.connect();
+            if (!enabled) {
+                log.debug("Reconnection disabled while connect attempt was running, closing reconnected session");
+                connection.disconnect();
+                return;
+            }
+            log.info("Reconnection successful");
+        } catch (XmppException e) {
+            handleXmppReconnectFailure(attempt, e);
+        } catch (RuntimeException e) {
+            handleRuntimeReconnectFailure(attempt, e);
+        }
+    }
+
+    /**
+     * 处理 XMPP 层重连失败。
+     *
+     * @param attempt 当前重连轮次
+     * @param error 失败异常
+     */
+    private void handleXmppReconnectFailure(int attempt, XmppException error) {
+        log.warn("Reconnection failed: {}", error.getMessage());
+        if (isNonRecoverableError(error)) {
+            resetReconnectCycle();
+            stopReconnectTask();
+            log.info("Stopping reconnection after non-recoverable reconnect failure: {}",
+                    error.getClass().getSimpleName());
+            logReconnectErrorDetail("Non-recoverable reconnect failure detail", error);
+            return;
+        }
+        if (enabled) {
+            scheduleReconnect(attempt + 1);
+        } else {
+            log.debug("Reconnection disabled after failed attempt, not scheduling retry");
+        }
+    }
+
+    /**
+     * 处理运行时重连失败。
+     *
+     * @param attempt 当前重连轮次
+     * @param error 失败异常
+     */
+    private void handleRuntimeReconnectFailure(int attempt, RuntimeException error) {
+        log.error("Unexpected runtime error during reconnection: {}", error.getMessage());
+        log.debug("Unexpected runtime reconnection failure detail", error);
+        if (enabled) {
+            scheduleReconnect(attempt + 1);
+        } else {
+            log.debug("Reconnection disabled after failed attempt, not scheduling retry");
         }
     }
 }
