@@ -39,7 +39,8 @@ public class Main {
         try {
             runClient(domain, username, password);
         } catch (XmppException e) {
-            log.error("XMPP error"); log.debug("Detail", e);
+            log.error("XMPP error");
+            log.debug("Detail", e);
             throw new RuntimeException("XMPP connection failed", e);
         }
     }

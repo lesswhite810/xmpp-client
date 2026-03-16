@@ -320,7 +320,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             log.debug("Connection target {} established", target);
             return Optional.of(connectedChannel);
         } catch (XmppNetworkException e) {
-            log.warn("Connection failed"); log.debug("Detail", e);
+            log.warn("Connection failed");
+            log.debug("Detail", e);
             return Optional.empty();
         }
     }
@@ -546,11 +547,13 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     private void logSendFailure(Throwable error) {
         Throwable cause = unwrapCompletionError(error);
         if (cause instanceof XmppNetworkException) {
-            log.warn("Failed to send stanza"); log.debug("Detail", cause);
+            log.warn("Failed to send stanza");
+            log.debug("Detail", cause);
             log.debug("Stanza send failure detail", cause);
             return;
         }
-        log.error("Failed to send stanza"); log.debug("Detail", cause);
+        log.error("Failed to send stanza");
+        log.debug("Detail", cause);
     }
 
     private Throwable unwrapCompletionError(Throwable error) {

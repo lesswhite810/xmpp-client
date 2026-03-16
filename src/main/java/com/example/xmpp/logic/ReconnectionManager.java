@@ -293,7 +293,8 @@ public class ReconnectionManager {
      * @param error 失败异常
      */
     private void handleXmppReconnectFailure(int attempt, XmppException error) {
-        log.warn("Reconnection failed"); log.debug("Detail", error);
+        log.warn("Reconnection failed");
+        log.debug("Detail", error);
         if (isNonRecoverableError(error)) {
             resetReconnectCycle();
             stopReconnectTask();
@@ -316,7 +317,8 @@ public class ReconnectionManager {
      * @param error 失败异常
      */
     private void handleRuntimeReconnectFailure(int attempt, RuntimeException error) {
-        log.error("Unexpected runtime error during reconnection"); log.debug("Detail", error);
+        log.error("Unexpected runtime error during reconnection");
+        log.debug("Detail", error);
         log.debug("Unexpected runtime reconnection failure detail", error);
         if (enabled) {
             scheduleReconnect(attempt + 1);

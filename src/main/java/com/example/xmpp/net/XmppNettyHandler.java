@@ -302,7 +302,8 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     }
 
     private void handleTlsHandshakeFailure(ChannelHandlerContext ctx, SslHandshakeCompletionEvent event) {
-        log.warn("SSL handshake failed"); log.debug("Detail", event.cause());
+        log.warn("SSL handshake failed");
+        log.debug("Detail", event.cause());
         log.debug("SSL handshake failure detail", event.cause());
         connection.failConnection(ctx.channel(), new XmppException("SSL handshake failed", event.cause()));
         ctx.close();

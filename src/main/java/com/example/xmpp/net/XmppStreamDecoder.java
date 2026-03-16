@@ -174,7 +174,8 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             reader = INPUT_FACTORY.createXMLEventReader(new StringReader(wrappedXml));
             return parseWrappedFrame(reader);
         } catch (XMLStreamException e) {
-            log.warn("XML parsing error"); log.debug("Detail", e);
+            log.warn("XML parsing error");
+            log.debug("Detail", e);
             return Optional.empty();
         } finally {
             if (reader != null) {
@@ -477,7 +478,8 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         try {
             return Optional.ofNullable(extProvider.get().parse(reader));
         } catch (XmppParseException e) {
-            log.warn("Extension provider failed to parse {}", localName); log.debug("Detail", e);
+            log.warn("Extension provider failed to parse {}", localName);
+            log.debug("Detail", e);
             return Optional.empty();
         }
     }
