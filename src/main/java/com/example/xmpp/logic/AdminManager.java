@@ -24,6 +24,8 @@ import java.util.function.Supplier;
  *
  * <p>提供 XMPP 服务管理功能，包括用户管理。使用此管理器需要管理员权限。</p>
  *
+ * @since 2026-02-09
+ *
  */
 @Slf4j
 @Getter
