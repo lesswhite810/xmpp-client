@@ -448,9 +448,6 @@ public class AdminManager {
      * @throws AdminCommandException 如果命令执行失败
      * @since 2026-02-09
      */
-    public CompletableFuture<XmppStanza> listUsers(List<String> domains) {
-        return executeSinglePhaseCommand("list-users", new ListUsers(domains));
-    }
 
     /**
      * 踢出用户。
