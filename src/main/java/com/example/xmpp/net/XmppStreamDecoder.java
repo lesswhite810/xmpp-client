@@ -174,7 +174,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             reader = INPUT_FACTORY.createXMLEventReader(new StringReader(wrappedXml));
             return parseWrappedFrame(reader);
         } catch (XMLStreamException e) {
-            log.warn("XML parsing error: {}", e.getMessage());
+            log.warn("XML parsing error"); log.debug("Detail", e);
             return Optional.empty();
         } finally {
             if (reader != null) {
@@ -477,7 +477,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         try {
             return Optional.ofNullable(extProvider.get().parse(reader));
         } catch (XmppParseException e) {
-            log.warn("Extension provider failed to parse {}: {}", localName, e.getMessage());
+            log.warn("Extension provider failed to parse {}", localName); log.debug("Detail", e);
             return Optional.empty();
         }
     }
@@ -723,7 +723,8 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                     addExtension.accept(ext);
                 }
             } catch (XmppParseException e) {
-                log.warn("Provider failed to parse <{} xmlns=\"{}\">: {}", name, namespace, e.getMessage());
+                log.warn("Provider failed to parse <{} xmlns=\"{}\">", name, namespace);
+                log.debug("Detail", e);
             }
         } else {
             log.debug("No provider for <{} xmlns=\"{}\">, using generic parser", name, namespace);
@@ -731,7 +732,8 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 GenericExtensionElement ext = GenericExtensionProvider.INSTANCE.parse(reader, start);
                 addExtension.accept(ext);
             } catch (XmppParseException e) {
-                log.warn("Generic parser failed for <{} xmlns=\"{}\">: {}", name, namespace, e.getMessage());
+                log.warn("Generic parser failed for <{} xmlns=\"{}\">", name, namespace);
+                log.debug("Detail", e);
             }
         }
     }

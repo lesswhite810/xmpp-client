@@ -187,7 +187,7 @@ public enum XmppHandlerState implements HandlerState {
                         "send SASL auth stanza",
                         () -> context.transitionTo(SASL_AUTH, ctx));
             } catch (XmppAuthException e) {
-                log.warn("Authentication error: {}", e.getMessage());
+                log.warn("Authentication error"); log.debug("Detail", e);
                 log.debug("Authentication error detail", e);
                 context.closeConnectionOnError(ctx, e);
             }
@@ -239,11 +239,11 @@ public enum XmppHandlerState implements HandlerState {
                 log.debug("SSL handler added to pipeline, handshake starting");
 
             } catch (XmppNetworkException e) {
-                log.warn("Network error while initializing SSL handler: {}", e.getMessage());
+                log.warn("Network error while initializing SSL handler"); log.debug("Detail", e);
                 log.debug("Network error while initializing SSL handler detail", e);
                 context.closeConnectionOnError(ctx, e);
             } catch (IllegalArgumentException e) {
-                log.warn("Invalid SSL configuration: {}", e.getMessage());
+                log.warn("Invalid SSL configuration"); log.debug("Detail", e);
                 log.debug("Invalid SSL configuration detail", e);
                 context.closeConnectionOnError(ctx, e);
             }
@@ -273,12 +273,12 @@ public enum XmppHandlerState implements HandlerState {
                     default -> log.debug("Received unexpected message during SASL auth: {}", msg.getClass().getSimpleName());
                 }
             } catch (XmppAuthException e) {
-                log.warn("SASL authentication error: {}", e.getMessage());
+                log.warn("SASL authentication error"); log.debug("Detail", e);
                 log.debug("SASL authentication error detail", e);
                 context.setSaslNegotiator(null);
                 context.closeConnectionOnError(ctx, e);
             } catch (IllegalArgumentException e) {
-                log.warn("Invalid SASL authentication data: {}", e.getMessage());
+                log.warn("Invalid SASL authentication data"); log.debug("Detail", e);
                 log.debug("Invalid SASL authentication data detail", e);
                 context.setSaslNegotiator(null);
                 context.closeConnectionOnError(ctx, e);

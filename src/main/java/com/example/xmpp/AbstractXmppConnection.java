@@ -36,7 +36,6 @@ public abstract class AbstractXmppConnection implements XmppConnection {
 
     private static final long DEFAULT_IQ_TIMEOUT_MS = XmppConstants.DEFAULT_IQ_TIMEOUT_MS;
 
-    private final AtomicBoolean terminalConnectionEventPublished = new AtomicBoolean(false);
 
     protected final Queue<AsyncStanzaCollector> collectors = new ConcurrentLinkedQueue<>();
 
@@ -163,11 +162,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * 发布正常关闭连接事件。
      */
     public void notifyConnectionClosed() {
-        if (terminalConnectionEventPublished.compareAndSet(false, true)) {
-            fireEvent(ConnectionEventType.CLOSED);
-            return;
-        }
-        log.trace("Skipping duplicate terminal connection event: {}", ConnectionEventType.CLOSED);
+        fireEvent(ConnectionEventType.CLOSED);
     }
 
     /**
@@ -176,27 +171,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * @param e 连接异常
      */
     public void notifyConnectionClosedOnError(Exception e) {
-        if (terminalConnectionEventPublished.compareAndSet(false, true)) {
-            fireEvent(ConnectionEventType.ERROR, e);
-            return;
-        }
-        log.trace("Skipping duplicate terminal connection event: {}", ConnectionEventType.ERROR);
-    }
-
-    /**
-     * 为新的连接生命周期重置终态事件标记。
-     */
-    protected void resetConnectionLifecycleEvents() {
-        terminalConnectionEventPublished.set(false);
-    }
-
-    /**
-     * 判断当前连接生命周期是否已经发布过终态事件。
-     *
-     * @return 如果已发布 CLOSED 或 ERROR 终态事件则返回 {@code true}
-     */
-    public boolean hasPublishedTerminalConnectionEvent() {
-        return terminalConnectionEventPublished.get();
+        fireEvent(ConnectionEventType.ERROR, e);
     }
 
     /**

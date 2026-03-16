@@ -205,7 +205,7 @@ public class PingManager {
         connection.sendIqPacketAsync(pingIq)
                 .whenComplete((res, ex) -> {
                     if (ex != null) {
-                        log.warn("Keepalive Ping failed: {}", ex.getMessage());
+                        log.warn("Keepalive Ping failed"); log.debug("Detail", ex);
                         return;
                     }
                     log.debug("Keepalive Pong received.");

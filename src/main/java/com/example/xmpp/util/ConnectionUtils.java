@@ -55,7 +55,7 @@ public class ConnectionUtils {
         } catch (XmppNetworkException e) {
             throw e;
         } catch (Exception e) {
-            log.warn("Connection failed for {}:{} - {}", hostDesc, port, e.getMessage());
+            log.warn("Connection failed"); log.debug("Connection failure detail", e);
             log.debug("Connection failure detail", e);
             throw new XmppNetworkException("Failed to connect to " + hostDesc + ":" + port, e);
         }

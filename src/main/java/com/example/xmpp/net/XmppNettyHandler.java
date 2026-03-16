@@ -169,11 +169,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
             super.channelInactive(ctx);
             return;
         }
-        if (connection.hasPublishedTerminalConnectionEvent()) {
-            log.debug("Channel inactive after terminal event was already published");
-        } else {
-            log.info("Channel inactive - Connection closed");
-        }
+        log.info("Channel inactive - Connection closed");
         connection.handleChannelInactive(ctx.channel());
         super.channelInactive(ctx);
     }
@@ -198,6 +194,11 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
                 : new XmppException("Connection error: " + cause.getClass().getSimpleName(), cause);
         connection.failConnection(ctx.channel(), connectionException);
         ctx.close();
+        try {
+            super.exceptionCaught(ctx, cause);
+        } catch (Exception ignored) {
+            // Ignore exceptions from super call after channel is closed
+        }
     }
 
     @Override
@@ -301,7 +302,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     }
 
     private void handleTlsHandshakeFailure(ChannelHandlerContext ctx, SslHandshakeCompletionEvent event) {
-        log.warn("SSL handshake failed: {}", event.cause() != null ? event.cause().getMessage() : "unknown");
+        log.warn("SSL handshake failed"); log.debug("Detail", event.cause());
         log.debug("SSL handshake failure detail", event.cause());
         connection.failConnection(ctx.channel(), new XmppException("SSL handshake failed", event.cause()));
         ctx.close();

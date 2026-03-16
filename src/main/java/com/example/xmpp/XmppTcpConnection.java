@@ -65,8 +65,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     private volatile CompletableFuture<Void> connectionReadyFuture = new CompletableFuture<>();
 
-    private volatile boolean disconnectRequested;
-
     /**
      * 创建 TCP XMPP 连接。
      *
@@ -162,8 +160,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     private void prepareNewConnectionAttempt() {
-        resetConnectionLifecycleEvents();
-        disconnectRequested = false;
         connectionReadyFuture = new CompletableFuture<>();
     }
 
@@ -324,7 +320,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             log.debug("Connection target {} established", target);
             return Optional.of(connectedChannel);
         } catch (XmppNetworkException e) {
-            log.warn("Connection failed to {}: {}", target, e.getMessage());
+            log.warn("Connection failed"); log.debug("Detail", e);
             return Optional.empty();
         }
     }
@@ -361,7 +357,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * @param exception 失败原因
      */
     public synchronized void failConnection(Exception exception) {
-        disconnectRequested = false;
         failReadyFuture(exception);
         failPendingCollectors(exception);
         clearHandlerState();
@@ -403,23 +398,16 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             log.debug("Ignoring inactive event from stale channel: {}", inactiveChannel);
             return;
         }
-        boolean manualDisconnect = disconnectRequested;
-        disconnectRequested = false;
 
-        XmppNetworkException closeException = new XmppNetworkException(
-                manualDisconnect ? "Connection closed" : "Connection closed unexpectedly");
+        XmppNetworkException closeException = new XmppNetworkException("Connection closed unexpectedly");
         failPendingCollectors(closeException);
         cleanupCollectors();
-        failReadyFuture(createSessionNotReadyException(manualDisconnect));
+        failReadyFuture(new XmppNetworkException("Connection closed unexpectedly before session became ready"));
 
         channel = null;
         clearHandlerState();
         shutdownWorkerGroup();
-        if (manualDisconnect) {
-            notifyConnectionClosed();
-        } else {
-            notifyConnectionClosedOnError(closeException);
-        }
+        notifyConnectionClosedOnError(closeException);
     }
 
     /**
@@ -443,9 +431,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     public synchronized boolean bindActiveChannel(Channel candidate) {
         if (candidate == null) {
-            return false;
-        }
-        if (disconnectRequested) {
             return false;
         }
         if (channel == null) {
@@ -473,7 +458,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     @Override
     public synchronized void disconnect() {
-        disconnectRequested = true;
         shutdownLifecycleManagers();
 
         failPendingCollectors(new XmppNetworkException("Connection closed"));
@@ -488,13 +472,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         if (future != null && !future.isDone()) {
             future.completeExceptionally(exception);
         }
-    }
-
-    private XmppNetworkException createSessionNotReadyException(boolean manualDisconnect) {
-        return new XmppNetworkException(
-                manualDisconnect
-                        ? "Connection closed before session became ready"
-                        : "Connection closed unexpectedly before session became ready");
     }
 
     private void clearHandlerState() {
@@ -569,11 +546,11 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     private void logSendFailure(Throwable error) {
         Throwable cause = unwrapCompletionError(error);
         if (cause instanceof XmppNetworkException) {
-            log.warn("Failed to send stanza: {}", cause.getMessage());
+            log.warn("Failed to send stanza"); log.debug("Detail", cause);
             log.debug("Stanza send failure detail", cause);
             return;
         }
-        log.error("Failed to send stanza: {}", cause.getMessage(), cause);
+        log.error("Failed to send stanza"); log.debug("Detail", cause);
     }
 
     private Throwable unwrapCompletionError(Throwable error) {
