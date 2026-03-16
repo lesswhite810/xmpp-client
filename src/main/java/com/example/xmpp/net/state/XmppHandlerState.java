@@ -464,8 +464,8 @@ public enum XmppHandlerState implements HandlerState {
                         new XmppNetworkException("Failed to " + action, result.cause()));
                 return;
             }
-            if (context.isTerminated()) {
-                log.debug("Skipping state follow-up for {} because state context is terminated", action);
+            if (context == null) {
+                log.debug("Skipping state follow-up for {} because state context is cleared", action);
                 return;
             }
             if (!ctx.channel().isActive()) {

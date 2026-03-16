@@ -34,7 +34,6 @@ public class StateContext {
 
     private volatile XmppHandlerState currentState = XmppHandlerState.INITIAL;
 
-    private volatile boolean terminated;
 
     @Setter
     private SaslNegotiator saslNegotiator;
@@ -86,8 +85,8 @@ public class StateContext {
      */
     public void transitionTo(XmppHandlerState newState, ChannelHandlerContext ctx) {
         synchronized (stateLock) {
-            if (terminated) {
-                log.debug("Ignoring transition to {} because state context is terminated", newState);
+            if (currentState == null) {
+                log.debug("Ignoring transition to {} because state context is cleared", newState);
                 return;
             }
             if (currentState == newState) {
@@ -121,8 +120,8 @@ public class StateContext {
      * @param msg 接收到的消息
      */
     public void handleMessage(ChannelHandlerContext ctx, Object msg) {
-        if (terminated) {
-            log.debug("Ignoring inbound message because state context is terminated");
+        if (currentState == null) {
+            log.debug("Ignoring inbound message because state context is cleared");
             return;
         }
         currentState.handleMessage(this, ctx, msg);
@@ -138,16 +137,15 @@ public class StateContext {
     public void reset(XmppHandlerState connectingState) {
         this.currentState = connectingState;
         this.saslNegotiator = null;
-        this.terminated = false;
     }
 
     /**
-     * 标记当前状态上下文已终止。
+     * 清除状态上下文。
      *
-     * <p>终止后会忽略后续状态切换与入站消息，避免旧连接上的异步回调继续推进状态机。</p>
+     * <p>清除后会忽略后续状态切换与入站消息，避免旧连接上的异步回调继续推进状态机。</p>
      */
     public void terminate() {
-        this.terminated = true;
+        this.currentState = null;
         this.saslNegotiator = null;
     }
 

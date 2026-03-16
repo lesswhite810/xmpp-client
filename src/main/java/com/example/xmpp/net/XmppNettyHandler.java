@@ -114,7 +114,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
      * @return 如果状态上下文不可用或通道已关闭则返回 {@code true}
      */
     private boolean isTerminated(StateContext currentStateContext, ChannelHandlerContext ctx) {
-        return currentStateContext == null || currentStateContext.isTerminated() || !ctx.channel().isActive();
+        return currentStateContext == null || !ctx.channel().isActive();
     }
 
     /**
@@ -268,8 +268,8 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
             log.debug("Ignoring SSL handshake completion because state context has been cleared");
             return;
         }
-        if (currentStateContext.isTerminated()) {
-            log.debug("Ignoring SSL handshake completion because state context is terminated");
+        if (currentStateContext == null) {
+            log.debug("Ignoring SSL handshake completion because state context is cleared");
             return;
         }
         log.debug("SSL handshake completed successfully");
