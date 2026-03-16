@@ -336,7 +336,6 @@ public class AdminManager {
      * @param password 密码
      * @param email 邮箱（可选）
      * @return 服务端响应
-     * @throws AdminCommandException 如果命令执行失败
      * 
      */
     public CompletableFuture<XmppStanza> addUser(String username, String password, String email) {
@@ -354,7 +353,6 @@ public class AdminManager {
      * @param username 用户名
      * @param password 密码
      * @return 服务端响应
-     * @throws AdminCommandException 如果命令执行失败
      * 
      */
     public CompletableFuture<XmppStanza> addUser(String username, String password) {
@@ -366,7 +364,6 @@ public class AdminManager {
      *
      * @param username 用户名
      * @return 服务端响应
-     * @throws AdminCommandException 如果命令执行失败
      * 
      */
     public CompletableFuture<XmppStanza> deleteUser(String username) {
@@ -384,7 +381,6 @@ public class AdminManager {
      * @param username 用户名
      * @param newPassword 新密码
      * @return 服务端响应
-     * @throws AdminCommandException 如果命令执行失败
      * 
      */
     public CompletableFuture<XmppStanza> editUser(String username, String newPassword) {
@@ -398,7 +394,6 @@ public class AdminManager {
      * @param newPassword 新密码
      * @param email 邮箱（可选）
      * @return 服务端响应
-     * @throws AdminCommandException 如果命令执行失败
      * 
      */
     public CompletableFuture<XmppStanza> editUser(String username, String newPassword, String email) {
@@ -415,7 +410,6 @@ public class AdminManager {
      * @param username 用户名
      * @param newPassword 新密码
      * @return 服务端响应
-     * @throws AdminCommandException 如果命令执行失败
      * 
      */
     public CompletableFuture<XmppStanza> changePassword(String username, String newPassword) {
@@ -444,7 +438,6 @@ public class AdminManager {
      *
      * @param domains 域名列表
      * @return 服务端响应
-     * @throws AdminCommandException 如果命令执行失败
      * 
      */
 
