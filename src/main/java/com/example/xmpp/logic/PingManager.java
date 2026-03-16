@@ -60,7 +60,6 @@ public class PingManager {
     /**
      * 关闭标记。
      */
-    private volatile boolean shutdown;
 
     /**
      * 构造 PingManager。
@@ -108,7 +107,7 @@ public class PingManager {
         taskLock.lock();
         try {
             this.pingIntervalSeconds = seconds;
-            if (shutdown) {
+            if (unsubscribe == null) {
                 log.debug("PingManager already shutdown, skipping interval reschedule");
                 return;
             }
@@ -130,7 +129,7 @@ public class PingManager {
     public void startKeepAlive() {
         taskLock.lock();
         try {
-            if (shutdown) {
+            if (unsubscribe == null) {
                 log.debug("PingManager already shutdown, skipping keepalive start");
                 return;
             }
@@ -176,7 +175,6 @@ public class PingManager {
     public void shutdown() {
         taskLock.lock();
         try {
-            shutdown = true;
             if (unsubscribe != null) {
                 unsubscribe.run();
                 unsubscribe = null;
