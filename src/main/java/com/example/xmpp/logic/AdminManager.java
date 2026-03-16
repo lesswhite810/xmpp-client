@@ -20,26 +20,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * XEP-0133: Service Administration 管理员管理器。
+ * 管理员管理器。
  *
- * <p>提供 XMPP 服务管理功能，包括用户管理、在线用户管理等操作。使用此管理器需要管理员权限。</p>
- *
- * <p>管理员命令通过 Ad-Hoc Commands (XEP-0050) 发送到服务器。</p>
- *
- * <p>使用示例：</p>
- * <pre>{@code
- * XmppClientConfig config = XmppClientConfig.builder()
- *     .xmppServiceDomain("example.com")
- *     .username("admin")  // 管理员账户
- *     .password("password".toCharArray())
- *     .build();
- *
- * XmppTcpConnection connection = new XmppTcpConnection(config);
- * connection.connect();
- *
- * AdminManager adminManager = new AdminManager(connection, config);
- * adminManager.addUser("newuser", "password");
- * }</pre>
+ * <p>提供 XMPP 服务管理功能，包括用户管理。使用此管理器需要管理员权限。</p>
  *
  * @since 2026-02-09
  */
@@ -47,56 +30,30 @@ import java.util.function.Supplier;
 @Getter
 public class AdminManager {
 
-    /**
-     * 默认命令超时时间，单位为毫秒。
-     */
     private static final long DEFAULT_TIMEOUT_MS = 15000;
 
-    /**
-     * XEP-0050 命令属性名。
-     */
     private static final String ATTR_SESSION_ID = "sessionid";
 
-    /**
-     * 命令状态属性名。
-     */
     private static final String ATTR_STATUS = "status";
 
-    /**
-     * 命令已完成状态值。
-     */
     private static final String STATUS_COMPLETED = "completed";
 
-    /**
-     * JID 分隔符。
-     */
     private static final String JID_SEPARATOR = "@";
 
-    /**
-     * 关联的 XMPP 连接。
-     */
     private final XmppConnection connection;
 
-    /**
-     * 管理命令发送的目标服务域名。
-     */
     private final String serviceDomain;
 
-    /**
-     * 管理员用户名。
-     */
     private final String adminUsername;
 
-    /**
-     * 命令超时时间，单位为毫秒。
-     */
     private final long timeoutMs;
 
     /**
      * 创建 AdminManager。
      *
      * @param connection XMPP 连接
-     * @param config     客户端配置，需要包含管理员账户的用户名
+     * @param config 客户端配置，需要包含管理员账户的用户名
+     * @since 2026-02-09
      */
     public AdminManager(XmppConnection connection, XmppClientConfig config) {
         this(connection, config.getUsername(), config.getXmppServiceDomain(), DEFAULT_TIMEOUT_MS);
@@ -105,9 +62,10 @@ public class AdminManager {
     /**
      * 创建 AdminManager（带自定义管理员用户名）。
      *
-     * @param connection    XMPP 连接
+     * @param connection XMPP 连接
      * @param adminUsername 管理员用户名
      * @param serviceDomain XMPP 服务域名
+     * @since 2026-02-09
      */
     public AdminManager(XmppConnection connection, String adminUsername, String serviceDomain) {
         this(connection, adminUsername, serviceDomain, DEFAULT_TIMEOUT_MS);
@@ -116,10 +74,11 @@ public class AdminManager {
     /**
      * 创建 AdminManager（完整构造器）。
      *
-     * @param connection    XMPP 连接
+     * @param connection XMPP 连接
      * @param adminUsername 管理员用户名
      * @param serviceDomain XMPP 服务域名
-     * @param timeoutMs     命令超时时间（毫秒）
+     * @param timeoutMs 命令超时时间（毫秒）
+     * @since 2026-02-09
      */
     public AdminManager(XmppConnection connection, String adminUsername, String serviceDomain, long timeoutMs) {
         this.connection = connection;
@@ -133,6 +92,7 @@ public class AdminManager {
      *
      * @param iq 要发送的 IQ
      * @return 响应 CompletableFuture
+     * @since 2026-02-09
      */
     private CompletableFuture<XmppStanza> sendAdminCommand(Iq iq) {
         log.debug("Sent admin command: id={}, to={}", iq.getId(), iq.getTo());
@@ -144,6 +104,7 @@ public class AdminManager {
      *
      * @param childElement 命令载荷
      * @return 发送到服务域名的管理命令 IQ
+     * @since 2026-02-09
      */
     private Iq buildAdminIq(ExtensionElement childElement) {
         return new Iq.Builder(Iq.Type.SET)
@@ -158,6 +119,7 @@ public class AdminManager {
      *
      * @param response 响应节
      * @return 会话 ID；如果不存在则返回 {@link Optional#empty()}
+     * @since 2026-02-09
      */
     private Optional<String> extractSessionId(XmppStanza response) {
         if (!(response instanceof Iq iq)) {
@@ -187,6 +149,7 @@ public class AdminManager {
      *
      * @param xml XML 字符串
      * @return 会话 ID；如果不存在则返回 {@link Optional#empty()}
+     * @since 2026-02-09
      */
     private Optional<String> extractSessionIdFromXml(String xml) {
         int sessionidIndex = xml.indexOf(ATTR_SESSION_ID + "=");
@@ -195,7 +158,7 @@ public class AdminManager {
             return Optional.empty();
         }
 
-        int valueStart = sessionidIndex + ATTR_SESSION_ID.length() + 1; // "sessionid=".length()
+        int valueStart = sessionidIndex + ATTR_SESSION_ID.length() + 1;
         if (valueStart >= xml.length()) {
             log.warn("Malformed sessionid attribute in XML");
             return Optional.empty();
@@ -218,6 +181,10 @@ public class AdminManager {
 
     /**
      * 检查响应是否为错误类型。
+     *
+     * @param response 响应节
+     * @return 是否为错误响应
+     * @since 2026-02-09
      */
     private boolean isErrorResponse(XmppStanza response) {
         return response instanceof Iq iq && iq.getType() == Iq.Type.ERROR;
@@ -225,6 +192,10 @@ public class AdminManager {
 
     /**
      * 检查响应是否已直接完成（status=completed）。
+     *
+     * @param response 响应节
+     * @return 是否已完成
+     * @since 2026-02-09
      */
     private boolean isCompletedResponse(XmppStanza response) {
         if (!(response instanceof Iq iq) || iq.getType() != Iq.Type.RESULT) {
@@ -239,6 +210,12 @@ public class AdminManager {
 
     /**
      * 创建命令异常。
+     *
+     * @param commandName 命令名称
+     * @param message 异常消息
+     * @param response 响应节
+     * @return 命令异常
+     * @since 2026-02-09
      */
     private AdminCommandException createCommandException(String commandName, String message, XmppStanza response) {
         return new AdminCommandException(commandName, message, response instanceof Iq iq ? iq : null);
@@ -250,6 +227,7 @@ public class AdminManager {
      * @param commandName 命令名称
      * @param request 命令载荷
      * @return 服务端响应
+     * @since 2026-02-09
      */
     private CompletableFuture<XmppStanza> executeSinglePhaseCommand(String commandName, ExtensionElement request) {
         log.debug("Sending single-phase {} command", commandName);
@@ -258,6 +236,13 @@ public class AdminManager {
 
     /**
      * 执行两阶段命令的通用模板。
+     *
+     * @param commandName 命令名称
+     * @param executeCmdFactory execute 阶段命令工厂
+     * @param submitCmdFactory submit 阶段命令工厂
+     * @param <T> 命令载荷类型
+     * @return 服务端响应
+     * @since 2026-02-09
      */
     private <T extends ExtensionElement> CompletableFuture<XmppStanza> executeTwoPhaseCommand(
             String commandName,
@@ -285,6 +270,7 @@ public class AdminManager {
      * @param submitCmdFactory submit 阶段命令工厂
      * @param <T> 命令载荷类型
      * @return 服务端响应
+     * @since 2026-02-09
      */
     private <T extends ExtensionElement> CompletableFuture<XmppStanza> executeAccountCommand(
             String commandName,
@@ -302,6 +288,13 @@ public class AdminManager {
 
     /**
      * 处理 execute 阶段的响应。
+     *
+     * @param commandName 命令名称
+     * @param executeResponse execute 阶段响应
+     * @param submitCmdFactory submit 阶段命令工厂
+     * @param <T> 命令载荷类型
+     * @return 服务端响应
+     * @since 2026-02-09
      */
     private <T extends ExtensionElement> CompletableFuture<XmppStanza> handleExecuteResponse(
             String commandName,
@@ -339,6 +332,13 @@ public class AdminManager {
 
     /**
      * 添加用户。
+     *
+     * @param username 用户名
+     * @param password 密码
+     * @param email 邮箱（可选）
+     * @return 服务端响应
+     * @throws AdminCommandException 如果命令执行失败
+     * @since 2026-02-09
      */
     public CompletableFuture<XmppStanza> addUser(String username, String password, String email) {
         return executeAccountCommand(
@@ -351,6 +351,12 @@ public class AdminManager {
 
     /**
      * 添加用户。
+     *
+     * @param username 用户名
+     * @param password 密码
+     * @return 服务端响应
+     * @throws AdminCommandException 如果命令执行失败
+     * @since 2026-02-09
      */
     public CompletableFuture<XmppStanza> addUser(String username, String password) {
         return addUser(username, password, null);
@@ -358,6 +364,11 @@ public class AdminManager {
 
     /**
      * 删除用户。
+     *
+     * @param username 用户名
+     * @return 服务端响应
+     * @throws AdminCommandException 如果命令执行失败
+     * @since 2026-02-09
      */
     public CompletableFuture<XmppStanza> deleteUser(String username) {
         return executeAccountCommand(
@@ -370,6 +381,12 @@ public class AdminManager {
 
     /**
      * 编辑用户信息。
+     *
+     * @param username 用户名
+     * @param newPassword 新密码
+     * @return 服务端响应
+     * @throws AdminCommandException 如果命令执行失败
+     * @since 2026-02-09
      */
     public CompletableFuture<XmppStanza> editUser(String username, String newPassword) {
         return editUser(username, newPassword, null);
@@ -377,6 +394,13 @@ public class AdminManager {
 
     /**
      * 编辑用户信息。
+     *
+     * @param username 用户名
+     * @param newPassword 新密码
+     * @param email 邮箱（可选）
+     * @return 服务端响应
+     * @throws AdminCommandException 如果命令执行失败
+     * @since 2026-02-09
      */
     public CompletableFuture<XmppStanza> editUser(String username, String newPassword, String email) {
         return executeTwoPhaseCommand(
@@ -388,6 +412,12 @@ public class AdminManager {
 
     /**
      * 修改用户密码。
+     *
+     * @param username 用户名
+     * @param newPassword 新密码
+     * @return 服务端响应
+     * @throws AdminCommandException 如果命令执行失败
+     * @since 2026-02-09
      */
     public CompletableFuture<XmppStanza> changePassword(String username, String newPassword) {
         return executeAccountCommand(
@@ -399,19 +429,11 @@ public class AdminManager {
     }
 
     /**
-     * 获取用户信息。
-     */
-    public CompletableFuture<XmppStanza> getUser(String username) {
-        return executeAccountCommand(
-                "get-user",
-                username,
-                GetUser::createExecuteCommand,
-                GetUser::createSubmitForm
-        );
-    }
-
-    /**
      * 构建完整的账户 JID。
+     *
+     * @param username 用户名
+     * @return 完整 JID
+     * @since 2026-02-09
      */
     private String buildAccountJid(String username) {
         int atIndex = username.indexOf(JID_SEPARATOR.charAt(0));
@@ -419,36 +441,23 @@ public class AdminManager {
     }
 
     /**
-     * 列出所有用户。
-     */
-    public CompletableFuture<XmppStanza> listUsers() {
-        return executeTwoPhaseCommand(
-                "list-users",
-                ListUsers::createExecuteCommand,
-                sessionId -> ListUsers.createSubmitForm(sessionId, null)
-        );
-    }
-
-    /**
      * 列出指定域下的用户。
+     *
+     * @param domains 域名列表
+     * @return 服务端响应
+     * @throws AdminCommandException 如果命令执行失败
+     * @since 2026-02-09
      */
     public CompletableFuture<XmppStanza> listUsers(List<String> domains) {
         return executeSinglePhaseCommand("list-users", new ListUsers(domains));
     }
 
     /**
-     * 获取在线用户列表。
-     */
-    public CompletableFuture<XmppStanza> getOnlineUsers() {
-        return executeTwoPhaseCommand(
-                "get-online-users",
-                GetOnlineUsers::createExecuteCommand,
-                GetOnlineUsers::createSubmitForm
-        );
-    }
-
-    /**
      * 踢出用户。
+     *
+     * @param jid 用户 JID
+     * @return 服务端响应
+     * @since 2026-02-09
      */
     public CompletableFuture<XmppStanza> kickUser(String jid) {
         Iq iq = new Iq.Builder(Iq.Type.SET)
