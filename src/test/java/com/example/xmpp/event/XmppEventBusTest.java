@@ -3,6 +3,7 @@ package com.example.xmpp.event;
 import com.example.xmpp.XmppConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -327,5 +328,55 @@ class XmppEventBusTest {
     void testSubscribeAllNullConnection() {
         assertThrows(IllegalArgumentException.class, () ->
                 eventBus.subscribeAll(null, Map.of(ConnectionEventType.CONNECTED, event -> {})));
+    }
+
+    @Nested
+    @DisplayName("ConnectionEvent 测试")
+    class ConnectionEventTests {
+
+        @Test
+        @DisplayName("ConnectionEvent 构造器应设置所有属性")
+        void testConnectionEventConstructor() {
+            ConnectionEvent event = new ConnectionEvent(mockConnection1, ConnectionEventType.CONNECTED);
+
+            assertEquals(mockConnection1, event.connection());
+            assertEquals(ConnectionEventType.CONNECTED, event.eventType());
+            assertNull(event.error());
+        }
+
+        @Test
+        @DisplayName("ConnectionEvent 构造器应支持带错误")
+        void testConnectionEventConstructorWithError() {
+            Exception testError = new RuntimeException("Test error");
+            ConnectionEvent event = new ConnectionEvent(mockConnection1, ConnectionEventType.ERROR, testError);
+
+            assertEquals(mockConnection1, event.connection());
+            assertEquals(ConnectionEventType.ERROR, event.eventType());
+            assertEquals(testError, event.error());
+        }
+
+        @Test
+        @DisplayName("ConnectionEvent.toString 无错误时应生成正确格式")
+        void testConnectionEventToStringNoError() {
+            ConnectionEvent event = new ConnectionEvent(mockConnection1, ConnectionEventType.CONNECTED);
+            String str = event.toString();
+
+            assertTrue(str.contains("ConnectionEvent"));
+            assertTrue(str.contains("CONNECTED"));
+            assertFalse(str.contains("error="));
+        }
+
+        @Test
+        @DisplayName("ConnectionEvent.toString 有错误时应生成正确格式")
+        void testConnectionEventToStringWithError() {
+            Exception testError = new RuntimeException("Test error message");
+            ConnectionEvent event = new ConnectionEvent(mockConnection1, ConnectionEventType.ERROR, testError);
+            String str = event.toString();
+
+            assertTrue(str.contains("ConnectionEvent"));
+            assertTrue(str.contains("ERROR"));
+            assertTrue(str.contains("error="));
+            assertTrue(str.contains("Test error message"));
+        }
     }
 }

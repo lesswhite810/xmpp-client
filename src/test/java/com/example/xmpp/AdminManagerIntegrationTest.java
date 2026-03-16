@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 如果测试失败，请检查服务器配置。</p>
  */
 @Slf4j
+@Disabled("需要真实的 XMPP 服务器 (Openfire)")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class AdminManagerIntegrationTest {
 

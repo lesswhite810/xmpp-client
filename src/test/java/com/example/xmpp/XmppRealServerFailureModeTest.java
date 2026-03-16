@@ -4,6 +4,7 @@ import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.TrustManager;
@@ -25,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * @since 2026-03-13
  */
+@Disabled("需要真实的 XMPP 服务器 (Openfire)")
 class XmppRealServerFailureModeTest {
 
     private static final String XMPP_DOMAIN = "lesswhite";

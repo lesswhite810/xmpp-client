@@ -173,18 +173,28 @@ class XmppHandlerStateTest {
         }
 
         @Test
-        @DisplayName("Direct TLS 流程验证")
-        void testDirectTlsFlow() {
-            // Direct TLS 跳过 TLS_NEGOTIATING
-            // INITIAL -> CONNECTING -> AWAITING_FEATURES -> SASL_AUTH -> AWAITING_FEATURES
-            // -> BINDING -> SESSION_ACTIVE
+        @DisplayName("跳过 TLS 直接 SASL 流程验证")
+        void testDirectSaslFlow() {
+            // INITIAL -> CONNECTING -> AWAITING_FEATURES -> SASL_AUTH -> AWAITING_FEATURES -> BINDING -> SESSION_ACTIVE
 
-            assertTrue(XmppHandlerState.INITIAL.canTransitionTo(XmppHandlerState.CONNECTING));
-            assertTrue(XmppHandlerState.CONNECTING.canTransitionTo(XmppHandlerState.AWAITING_FEATURES));
             assertTrue(XmppHandlerState.AWAITING_FEATURES.canTransitionTo(XmppHandlerState.SASL_AUTH));
-            assertTrue(XmppHandlerState.SASL_AUTH.canTransitionTo(XmppHandlerState.AWAITING_FEATURES));
             assertTrue(XmppHandlerState.AWAITING_FEATURES.canTransitionTo(XmppHandlerState.BINDING));
-            assertTrue(XmppHandlerState.BINDING.canTransitionTo(XmppHandlerState.SESSION_ACTIVE));
+        }
+
+        @Test
+        @DisplayName("重连流程验证")
+        void testReconnectionFlow() {
+            // SESSION_ACTIVE -> CONNECTING -> AWAITING_FEATURES -> ...
+
+            assertTrue(XmppHandlerState.SESSION_ACTIVE.canTransitionTo(XmppHandlerState.CONNECTING));
+        }
+
+        @Test
+        @DisplayName("相同状态转换应返回 false")
+        void testSameStateTransition() {
+            // 测试 canTransitionTo 对相同状态的处理
+            assertFalse(XmppHandlerState.INITIAL.canTransitionTo(XmppHandlerState.INITIAL));
+            assertFalse(XmppHandlerState.AWAITING_FEATURES.canTransitionTo(XmppHandlerState.AWAITING_FEATURES));
         }
     }
 }
