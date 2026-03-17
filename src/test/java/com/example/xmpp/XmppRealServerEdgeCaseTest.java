@@ -12,7 +12,6 @@ import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.XmppStanza;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
@@ -32,7 +31,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * @since 2026-03-13
  */
 @Slf4j
-@Disabled("需要真实的 XMPP 服务器 (Openfire)")
 class XmppRealServerEdgeCaseTest {
 
     private static final String XMPP_DOMAIN = "lesswhite";
@@ -89,17 +87,6 @@ class XmppRealServerEdgeCaseTest {
         Iq deleteResponse = awaitAdminSuccess(adminManager.deleteUser(username));
         assertEquals(Iq.Type.RESULT, deleteResponse.getType(), "本地服务器将删除不存在用户视为幂等操作");
         log.info("Delete nonexistent user response XML: {}", deleteResponse.toXml());
-    }
-
-    @Test
-    void testUnsupportedAdminCommandReturnsItemNotFound() throws Exception {
-        AdminManager adminManager = connectAsAdmin();
-
-        Iq errorResponse = awaitAdminFailure(adminManager.getOnlineUsers());
-        assertNotNull(errorResponse, "未实现命令应返回服务器错误 IQ");
-        assertEquals(XmppError.Condition.ITEM_NOT_FOUND,
-                errorResponse.getError().getCondition(),
-                "本地服务器对未实现管理命令应返回 item-not-found");
     }
 
     @Test

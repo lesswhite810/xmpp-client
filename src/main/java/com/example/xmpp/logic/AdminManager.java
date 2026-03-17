@@ -7,7 +7,9 @@ import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppStanza;
-import com.example.xmpp.protocol.model.extension.*;
+import com.example.xmpp.protocol.model.extension.AddUser;
+import com.example.xmpp.protocol.model.extension.ChangeUserPassword;
+import com.example.xmpp.protocol.model.extension.DeleteUser;
 import com.example.xmpp.util.StanzaIdGenerator;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -20,12 +22,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * 管理员管理器。
- *
- * <p>提供 XMPP 服务管理功能，包括用户管理。使用此管理器需要管理员权限。</p>
+ * 管理员命令管理器。
  *
  * @since 2026-02-09
- *
  */
 @Slf4j
 @Getter
@@ -50,36 +49,33 @@ public class AdminManager {
     private final long timeoutMs;
 
     /**
-     * 创建 AdminManager。
+     * 创建管理器。
      *
      * @param connection XMPP 连接
-     * @param config 客户端配置，需要包含管理员账户的用户名
-     * 
+     * @param config 客户端配置
      */
     public AdminManager(XmppConnection connection, XmppClientConfig config) {
         this(connection, config.getUsername(), config.getXmppServiceDomain(), DEFAULT_TIMEOUT_MS);
     }
 
     /**
-     * 创建 AdminManager（带自定义管理员用户名）。
+     * 创建管理器。
      *
      * @param connection XMPP 连接
      * @param adminUsername 管理员用户名
      * @param serviceDomain XMPP 服务域名
-     * 
      */
     public AdminManager(XmppConnection connection, String adminUsername, String serviceDomain) {
         this(connection, adminUsername, serviceDomain, DEFAULT_TIMEOUT_MS);
     }
 
     /**
-     * 创建 AdminManager（完整构造器）。
+     * 创建管理器。
      *
      * @param connection XMPP 连接
      * @param adminUsername 管理员用户名
      * @param serviceDomain XMPP 服务域名
      * @param timeoutMs 命令超时时间（毫秒）
-     * 
      */
     public AdminManager(XmppConnection connection, String adminUsername, String serviceDomain, long timeoutMs) {
         this.connection = connection;
@@ -93,7 +89,6 @@ public class AdminManager {
      *
      * @param iq 要发送的 IQ
      * @return 响应 CompletableFuture
-     * 
      */
     private CompletableFuture<XmppStanza> sendAdminCommand(Iq iq) {
         log.debug("Sent admin command: id={}, to={}", iq.getId(), iq.getTo());
@@ -105,7 +100,6 @@ public class AdminManager {
      *
      * @param childElement 命令载荷
      * @return 发送到服务域名的管理命令 IQ
-     * 
      */
     private Iq buildAdminIq(ExtensionElement childElement) {
         return new Iq.Builder(Iq.Type.SET)
@@ -120,7 +114,6 @@ public class AdminManager {
      *
      * @param response 响应节
      * @return 会话 ID；如果不存在则返回 {@link Optional#empty()}
-     * 
      */
     private Optional<String> extractSessionId(XmppStanza response) {
         if (!(response instanceof Iq iq)) {
@@ -150,7 +143,6 @@ public class AdminManager {
      *
      * @param xml XML 字符串
      * @return 会话 ID；如果不存在则返回 {@link Optional#empty()}
-     * 
      */
     private Optional<String> extractSessionIdFromXml(String xml) {
         int sessionidIndex = xml.indexOf(ATTR_SESSION_ID + "=");
@@ -185,7 +177,6 @@ public class AdminManager {
      *
      * @param response 响应节
      * @return 是否为错误响应
-     * 
      */
     private boolean isErrorResponse(XmppStanza response) {
         return response instanceof Iq iq && iq.getType() == Iq.Type.ERROR;
@@ -196,7 +187,6 @@ public class AdminManager {
      *
      * @param response 响应节
      * @return 是否已完成
-     * 
      */
     private boolean isCompletedResponse(XmppStanza response) {
         if (!(response instanceof Iq iq) || iq.getType() != Iq.Type.RESULT) {
@@ -216,7 +206,6 @@ public class AdminManager {
      * @param message 异常消息
      * @param response 响应节
      * @return 命令异常
-     * 
      */
     private AdminCommandException createCommandException(String commandName, String message, XmppStanza response) {
         return new AdminCommandException(commandName, message, response instanceof Iq iq ? iq : null);
@@ -228,7 +217,6 @@ public class AdminManager {
      * @param commandName 命令名称
      * @param request 命令载荷
      * @return 服务端响应
-     * 
      */
     private CompletableFuture<XmppStanza> executeSinglePhaseCommand(String commandName, ExtensionElement request) {
         log.debug("Sending single-phase {} command", commandName);
@@ -236,14 +224,13 @@ public class AdminManager {
     }
 
     /**
-     * 执行两阶段命令的通用模板。
+     * 执行两阶段命令。
      *
      * @param commandName 命令名称
      * @param executeCmdFactory execute 阶段命令工厂
      * @param submitCmdFactory submit 阶段命令工厂
      * @param <T> 命令载荷类型
      * @return 服务端响应
-     * 
      */
     private <T extends ExtensionElement> CompletableFuture<XmppStanza> executeTwoPhaseCommand(
             String commandName,
@@ -263,7 +250,7 @@ public class AdminManager {
     }
 
     /**
-     * 执行账户作用域的两阶段管理命令。
+     * 执行账户命令。
      *
      * @param commandName 命令名称
      * @param username 用户名或完整 JID
@@ -271,7 +258,6 @@ public class AdminManager {
      * @param submitCmdFactory submit 阶段命令工厂
      * @param <T> 命令载荷类型
      * @return 服务端响应
-     * 
      */
     private <T extends ExtensionElement> CompletableFuture<XmppStanza> executeAccountCommand(
             String commandName,
@@ -295,7 +281,6 @@ public class AdminManager {
      * @param submitCmdFactory submit 阶段命令工厂
      * @param <T> 命令载荷类型
      * @return 服务端响应
-     * 
      */
     private <T extends ExtensionElement> CompletableFuture<XmppStanza> handleExecuteResponse(
             String commandName,
@@ -338,7 +323,6 @@ public class AdminManager {
      * @param password 密码
      * @param email 邮箱（可选）
      * @return 服务端响应
-     * 
      */
     public CompletableFuture<XmppStanza> addUser(String username, String password, String email) {
         return executeAccountCommand(
@@ -355,7 +339,6 @@ public class AdminManager {
      * @param username 用户名
      * @param password 密码
      * @return 服务端响应
-     * 
      */
     public CompletableFuture<XmppStanza> addUser(String username, String password) {
         return addUser(username, password, null);
@@ -366,7 +349,6 @@ public class AdminManager {
      *
      * @param username 用户名
      * @return 服务端响应
-     * 
      */
     public CompletableFuture<XmppStanza> deleteUser(String username) {
         return executeAccountCommand(
@@ -378,41 +360,11 @@ public class AdminManager {
     }
 
     /**
-     * 编辑用户信息。
-     *
-     * @param username 用户名
-     * @param newPassword 新密码
-     * @return 服务端响应
-     * 
-     */
-    public CompletableFuture<XmppStanza> editUser(String username, String newPassword) {
-        return editUser(username, newPassword, null);
-    }
-
-    /**
-     * 编辑用户信息。
-     *
-     * @param username 用户名
-     * @param newPassword 新密码
-     * @param email 邮箱（可选）
-     * @return 服务端响应
-     * 
-     */
-    public CompletableFuture<XmppStanza> editUser(String username, String newPassword, String email) {
-        return executeTwoPhaseCommand(
-                "edit-user",
-                EditUser::createExecuteCommand,
-                sessionId -> EditUser.createSubmitForm(sessionId, username, newPassword, email)
-        );
-    }
-
-    /**
      * 修改用户密码。
      *
      * @param username 用户名
      * @param newPassword 新密码
      * @return 服务端响应
-     * 
      */
     public CompletableFuture<XmppStanza> changePassword(String username, String newPassword) {
         return executeAccountCommand(
@@ -428,7 +380,6 @@ public class AdminManager {
      *
      * @param username 用户名
      * @return 完整 JID
-     * 
      */
     private String buildAccountJid(String username) {
         int atIndex = username.indexOf(JID_SEPARATOR.charAt(0));
@@ -436,19 +387,10 @@ public class AdminManager {
     }
 
     /**
-     * 列出指定域下的用户。
-     *
-     * @param domains 域名列表
-     * @return 服务端响应
-     * 
-     */
-
-    /**
      * 踢出用户。
      *
      * @param jid 用户 JID
      * @return 服务端响应
-     * 
      */
     public CompletableFuture<XmppStanza> kickUser(String jid) {
         Iq iq = new Iq.Builder(Iq.Type.SET)

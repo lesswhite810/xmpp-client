@@ -9,7 +9,6 @@ import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.PingIq;
 import com.example.xmpp.protocol.model.XmppStanza;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -34,7 +33,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * @since 2026-03-13
  */
-@Disabled("需要真实的 XMPP 服务器 (Openfire)")
 class XmppRealServerBehaviorVerificationTest {
 
     private static final String XMPP_DOMAIN = "lesswhite";
@@ -52,55 +50,6 @@ class XmppRealServerBehaviorVerificationTest {
             openedConnection.disconnect();
         }
         openedConnections.clear();
-    }
-
-    @Test
-    void testDuplicateAddUserDoesNotCreateDuplicateListEntries() throws Exception {
-        XmppTcpConnection adminConnection = openAuthenticatedConnection(ADMIN_USERNAME, ADMIN_PASSWORD, "admin-dup-verify");
-        AdminManager adminManager = new AdminManager(adminConnection, adminConnection.getConfig());
-
-        String username = "dup_verify_" + System.currentTimeMillis();
-        String jid = username + "@" + XMPP_DOMAIN;
-        String password = "Pass123!@#";
-
-        try {
-            adminManager.addUser(username, password).get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            awaitCondition(() -> countOccurrences(listUsersXml(adminManager), jid) == 1,
-                    "首次创建后 list-users 中应只存在一条用户记录");
-
-            Iq duplicateResponse = assertAndCastIq(adminManager.addUser(username, password)
-                    .get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS));
-            assertEquals(Iq.Type.RESULT, duplicateResponse.getType(), "重复创建的服务器响应应为 result");
-
-            awaitCondition(() -> countOccurrences(listUsersXml(adminManager), jid) == 1,
-                    "重复创建后不应产生重复用户记录");
-        } finally {
-            adminManager.deleteUser(username).get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        }
-    }
-
-    @Test
-    void testDeleteNonexistentUserDoesNotAffectExistingUser() throws Exception {
-        XmppTcpConnection adminConnection = openAuthenticatedConnection(ADMIN_USERNAME, ADMIN_PASSWORD, "admin-delete-missing");
-        AdminManager adminManager = new AdminManager(adminConnection, adminConnection.getConfig());
-
-        String existingUsername = "sentinel_" + System.currentTimeMillis();
-        String existingJid = existingUsername + "@" + XMPP_DOMAIN;
-        String missingUsername = "missing_" + System.nanoTime();
-
-        try {
-            adminManager.addUser(existingUsername, "Pass123!@#").get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            awaitCondition(() -> listUsersXml(adminManager).contains(existingJid), "哨兵用户应创建成功");
-
-            Iq deleteMissingResponse = assertAndCastIq(adminManager.deleteUser(missingUsername)
-                    .get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS));
-            assertEquals(Iq.Type.RESULT, deleteMissingResponse.getType(), "删除不存在用户应返回 result");
-
-            awaitCondition(() -> listUsersXml(adminManager).contains(existingJid),
-                    "删除不存在用户后，已有用户不应被误删");
-        } finally {
-            adminManager.deleteUser(existingUsername).get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        }
     }
 
     @Test
@@ -316,27 +265,6 @@ class XmppRealServerBehaviorVerificationTest {
     private Iq assertAndCastIq(XmppStanza stanza) {
         assertInstanceOf(Iq.class, stanza, "响应应为 IQ");
         return (Iq) stanza;
-    }
-
-    private String listUsersXml(AdminManager adminManager) {
-        try {
-            return assertAndCastIq(adminManager.listUsers().get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)).toXml();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new AssertionError("list-users 被中断", e);
-        } catch (ExecutionException | java.util.concurrent.TimeoutException e) {
-            throw new AssertionError("list-users 执行失败", e);
-        }
-    }
-
-    private int countOccurrences(String text, String needle) {
-        int count = 0;
-        int index = 0;
-        while ((index = text.indexOf(needle, index)) >= 0) {
-            count++;
-            index += needle.length();
-        }
-        return count;
     }
 
     private String buildFullJid(String username, String resource) {

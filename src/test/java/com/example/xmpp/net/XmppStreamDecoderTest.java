@@ -1,8 +1,14 @@
 package com.example.xmpp.net;
 
+import com.example.xmpp.exception.XmppParseException;
+import com.example.xmpp.protocol.ExtensionElementProvider;
+import com.example.xmpp.protocol.ProviderRegistry;
+import com.example.xmpp.protocol.model.ExtensionElement;
+import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.Message;
 import com.example.xmpp.protocol.model.Presence;
+import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.extension.Bind;
 import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.protocol.model.sasl.Auth;
@@ -16,9 +22,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import javax.xml.stream.XMLEventReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -267,6 +276,176 @@ class XmppStreamDecoderTest {
         assertEquals("Hello & welcome! <tag> \"quoted\"", ((Message) msg).getBody());
     }
 
+    @Test
+    @DisplayName("应跳过处理指令和注释后再解析消息")
+    void testSkipProcessingInstructionAndCommentBeforeMessage() {
+        sendStreamHeader();
+        sendXml("<?pi test?><message type='chat' id='msg-pi'><body>payload</body></message><!--tail-->");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(Message.class, msg);
+        assertEquals("msg-pi", ((Message) msg).getId());
+        assertNull(channel.readInbound());
+    }
+
+    @Test
+    @DisplayName("应解析包含 CDATA 的消息")
+    void testParseMessageWithCdata() {
+        sendStreamHeader();
+        sendXml("<message type='chat' id='msg-cdata'><body><![CDATA[<xml>&raw]]></body></message>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(Message.class, msg);
+        assertEquals("<xml>&raw", ((Message) msg).getBody());
+    }
+
+    @Test
+    @DisplayName("应解析顶层 SASL challenge response success")
+    void testParseTopLevelSaslChallengeResponseAndSuccess() {
+        sendStreamHeader();
+        sendXml("<challenge xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>Y2hhbGxlbmdl</challenge>");
+        sendXml("<response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>cmVzcG9uc2U=</response>");
+        sendXml("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>c3VjY2Vzcw==</success>");
+
+        Object challenge = channel.readInbound();
+        assertNotNull(challenge);
+        assertInstanceOf(com.example.xmpp.protocol.model.sasl.SaslChallenge.class, challenge);
+        assertEquals("Y2hhbGxlbmdl",
+                ((com.example.xmpp.protocol.model.sasl.SaslChallenge) challenge).getContent());
+
+        Object response = channel.readInbound();
+        assertNotNull(response);
+        assertInstanceOf(com.example.xmpp.protocol.model.sasl.SaslResponse.class, response);
+        assertEquals("cmVzcG9uc2U=",
+                ((com.example.xmpp.protocol.model.sasl.SaslResponse) response).getContent());
+
+        Object success = channel.readInbound();
+        assertNotNull(success);
+        assertInstanceOf(com.example.xmpp.protocol.model.sasl.SaslSuccess.class, success);
+        assertEquals("c3VjY2Vzcw==",
+                ((com.example.xmpp.protocol.model.sasl.SaslSuccess) success).getContent());
+    }
+
+    @Test
+    @DisplayName("应忽略未知顶层 SASL 元素")
+    void testIgnoreUnknownTopLevelSaslElement() {
+        sendStreamHeader();
+        sendXml("<abort xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
+
+        assertNull(channel.readInbound());
+    }
+
+    @Test
+    @DisplayName("Presence priority 非数字时应忽略")
+    void testIgnoreInvalidPresencePriority() {
+        sendStreamHeader();
+        sendXml("<presence id='pres-invalid'><priority>invalid</priority></presence>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(Presence.class, msg);
+        assertNull(((Presence) msg).getPriority());
+    }
+
+    @Test
+    @DisplayName("IQ error 的未知 type 应保留 condition 和 text")
+    void testParseIqErrorWithUnknownType() {
+        sendStreamHeader();
+        sendXml("<iq type='error' id='iq-error'>"
+                + "<error type='not-a-real-type'>"
+                + "<feature-not-implemented xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/>"
+                + "<text xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'>unsupported</text>"
+                + "</error></iq>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(Iq.class, msg);
+
+        Iq iq = (Iq) msg;
+        assertEquals(Iq.Type.ERROR, iq.getType());
+        assertNotNull(iq.getError());
+        assertEquals(XmppError.Condition.FEATURE_NOT_IMPLEMENTED, iq.getError().getCondition());
+        assertEquals("unsupported", iq.getError().getText());
+        assertEquals(XmppError.Type.CANCEL, iq.getError().getType());
+    }
+
+    @Test
+    @DisplayName("未知扩展元素应使用通用解析器")
+    void testFallbackToGenericExtensionParser() {
+        sendStreamHeader();
+        sendXml("<message type='chat' id='msg-generic'>"
+                + "<x xmlns='urn:test:generic' foo='bar'><item>value</item></x>"
+                + "</message>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(Message.class, msg);
+
+        Message message = (Message) msg;
+        assertEquals(1, message.getExtensions().size());
+        assertInstanceOf(GenericExtensionElement.class, message.getExtensions().getFirst());
+
+        GenericExtensionElement extension = (GenericExtensionElement) message.getExtensions().getFirst();
+        assertEquals("bar", extension.getAttributeValue("foo"));
+        assertTrue(extension.getFirstChild("item").isPresent());
+        assertEquals("value", extension.getFirstChild("item").orElseThrow().getText());
+    }
+
+    @Test
+    @DisplayName("Provider 解析失败时应忽略该扩展")
+    void testIgnoreExtensionWhenProviderThrowsParseException() {
+        ProviderRegistry registry = ProviderRegistry.getInstance();
+        ThrowingExtensionProvider provider = new ThrowingExtensionProvider("broken", "urn:test:broken");
+        registry.registerProvider(provider);
+
+        try {
+            sendStreamHeader();
+            sendXml("<message type='chat' id='msg-broken'>"
+                    + "<broken xmlns='urn:test:broken'><value>ignored</value></broken>"
+                    + "</message>");
+
+            Object msg = channel.readInbound();
+            assertNotNull(msg);
+            assertInstanceOf(Message.class, msg);
+            Message message = (Message) msg;
+            assertEquals(1, message.getExtensions().size());
+            assertInstanceOf(GenericExtensionElement.class, message.getExtensions().getFirst());
+            assertEquals("value",
+                    ((GenericExtensionElement) message.getExtensions().getFirst()).getElementName());
+        } finally {
+            registry.removeProvider("broken", "urn:test:broken");
+        }
+    }
+
+    @Test
+    @DisplayName("parseFromByteBuf 应跳过前导噪音和结束标签")
+    void testParseFromByteBufSkipsNoiseAndClosingTag() {
+        XmppStreamDecoder decoder = new XmppStreamDecoder();
+        var buffer = Unpooled.copiedBuffer(
+                "noise</ignored><message type='chat' id='msg-buffer'><body>buffer</body></message>",
+                StandardCharsets.UTF_8);
+
+        List<Object> elements = decoder.parseFromByteBuf(buffer);
+
+        assertEquals(1, elements.size());
+        assertInstanceOf(Message.class, elements.getFirst());
+        assertEquals("msg-buffer", ((Message) elements.getFirst()).getId());
+    }
+
+    @Test
+    @DisplayName("parseFromByteBuf 遇到未闭合注释时应等待更多数据")
+    void testParseFromByteBufReturnsEmptyWhenCommentIncomplete() {
+        XmppStreamDecoder decoder = new XmppStreamDecoder();
+        var buffer = Unpooled.copiedBuffer("<!-- unfinished", StandardCharsets.UTF_8);
+
+        List<Object> elements = decoder.parseFromByteBuf(buffer);
+
+        assertTrue(elements.isEmpty());
+        assertFalse(buffer.readerIndex() > 0);
+    }
+
     private void sendXml(String xml) {
         channel.writeInbound(Unpooled.copiedBuffer(xml, StandardCharsets.UTF_8));
     }
@@ -277,5 +456,37 @@ class XmppStreamDecoderTest {
 
     private void sendStreamFeatures(String content) {
         sendXml("<stream:features xmlns:stream='http://etherx.jabber.org/streams'>" + content + "</stream:features>");
+    }
+
+    private static final class ThrowingExtensionProvider implements ExtensionElementProvider<ExtensionElement> {
+
+        private final String elementName;
+
+        private final String namespace;
+
+        private ThrowingExtensionProvider(String elementName, String namespace) {
+            this.elementName = elementName;
+            this.namespace = namespace;
+        }
+
+        @Override
+        public ExtensionElement parse(XMLEventReader reader) throws XmppParseException {
+            throw new XmppParseException("broken provider");
+        }
+
+        @Override
+        public void serialize(ExtensionElement object, com.example.xmpp.util.XmlStringBuilder xml) {
+            throw new UnsupportedOperationException("Not needed in tests");
+        }
+
+        @Override
+        public String getElementName() {
+            return elementName;
+        }
+
+        @Override
+        public String getNamespace() {
+            return namespace;
+        }
     }
 }
