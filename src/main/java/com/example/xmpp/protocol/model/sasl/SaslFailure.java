@@ -19,6 +19,11 @@ import lombok.Getter;
 public class SaslFailure implements ExtensionElement {
 
     /**
+     * 元素名称。
+     */
+    public static final String ELEMENT = "failure";
+
+    /**
      * SASL 命名空间。
      */
     public static final String NAMESPACE = XmppConstants.NS_XMPP_SASL;

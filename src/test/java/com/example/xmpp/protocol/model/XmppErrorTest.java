@@ -181,7 +181,7 @@ class XmppErrorTest {
         @DisplayName("XmppError.getElementName 应返回 error")
         void testGetElementName() {
             XmppError error = new XmppError.Builder(XmppError.Condition.BAD_REQUEST).build();
-            assertEquals("error", error.getElementName());
+            assertEquals(XmppError.ELEMENT, error.getElementName());
         }
 
         @Test

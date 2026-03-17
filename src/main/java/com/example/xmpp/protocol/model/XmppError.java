@@ -57,7 +57,7 @@ public class XmppError implements XmppExtension {
      */
     @Override
     public String toXml() {
-        XmlStringBuilder xml = new XmlStringBuilder().element("error");
+        XmlStringBuilder xml = new XmlStringBuilder().element(ELEMENT);
         if (type != null) {
             xml.attribute("type", type);
         }
@@ -74,7 +74,7 @@ public class XmppError implements XmppExtension {
             xml.append(extension.toXml());
         }
 
-        return xml.closeElement("error").toString();
+        return xml.closeElement(ELEMENT).toString();
     }
 
     /**

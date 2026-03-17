@@ -281,4 +281,25 @@ class SaslModelTest {
         SaslChallenge challenge = SaslChallenge.of("test-content");
         assertEquals("test-content", challenge.getContent());
     }
+
+    @Test
+    @DisplayName("SaslChallenge 应暴露 ELEMENT 常量")
+    void testSaslChallengeElementConstant() {
+        assertEquals("challenge", SaslChallenge.ELEMENT);
+        assertEquals(SaslChallenge.ELEMENT, SaslChallenge.builder().build().getElementName());
+    }
+
+    @Test
+    @DisplayName("SaslSuccess 应暴露 ELEMENT 常量")
+    void testSaslSuccessElementConstant() {
+        assertEquals("success", SaslSuccess.ELEMENT);
+        assertEquals(SaslSuccess.ELEMENT, SaslSuccess.builder().build().getElementName());
+    }
+
+    @Test
+    @DisplayName("SaslFailure 应暴露 ELEMENT 常量")
+    void testSaslFailureElementConstant() {
+        assertEquals("failure", SaslFailure.ELEMENT);
+        assertEquals(SaslFailure.ELEMENT, SaslFailure.builder().build().getElementName());
+    }
 }

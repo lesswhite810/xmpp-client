@@ -278,6 +278,37 @@ public class XmlStringBuilder {
     }
 
     /**
+     * 包装元素内容。
+     *
+     * <p>生成形如 {@code <name>content</name>} 的完整元素。内容将按原样追加，不做转义。</p>
+     *
+     * @param name 元素名称
+     * @param content 元素内容，null 将按空内容处理
+     * @return 当前 XmlStringBuilder 实例，用于链式调用
+     */
+    public XmlStringBuilder wrapElement(String name, String content) {
+        return openElement(name)
+                .append(content)
+                .closeElement(name);
+    }
+
+    /**
+     * 包装带命名空间的元素内容。
+     *
+     * <p>生成形如 {@code <name xmlns="namespace">content</name>} 的完整元素。内容将按原样追加，不做转义。</p>
+     *
+     * @param name 元素名称
+     * @param namespace 命名空间 URI，null 值将不添加 xmlns 属性
+     * @param content 元素内容，null 将按空内容处理
+     * @return 当前 XmlStringBuilder 实例，用于链式调用
+     */
+    public XmlStringBuilder wrapElement(String name, String namespace, String content) {
+        return openElement(name, namespace)
+                .append(content)
+                .closeElement(name);
+    }
+
+    /**
      * 添加空元素（自闭合标签）。
      *
      * <p>生成形如 {@code <element/>} 的自闭合标签。</p>

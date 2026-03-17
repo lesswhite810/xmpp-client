@@ -75,10 +75,10 @@ public class ConnectionRequest implements ExtensionElement {
     @Override
     public String toXml() {
         return new XmlStringBuilder()
-                .openElement("connectionRequest", NAMESPACE)
+                .openElement(ELEMENT, NAMESPACE)
                 .optTextElement("username", username)
                 .optTextElement("password", password)
-                .closeElement("connectionRequest")
+                .closeElement(ELEMENT)
                 .toString();
     }
 }

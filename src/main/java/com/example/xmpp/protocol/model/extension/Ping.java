@@ -51,6 +51,6 @@ public final class Ping implements ExtensionElement {
      */
     @Override
     public String toXml() {
-        return new XmlStringBuilder().emptyElement("ping", NAMESPACE).toString();
+        return new XmlStringBuilder().emptyElement(ELEMENT, NAMESPACE).toString();
     }
 }

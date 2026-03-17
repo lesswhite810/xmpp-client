@@ -58,9 +58,7 @@ public final class SaslResponse implements ExtensionElement {
     @Override
     public String toXml() {
         return new XmlStringBuilder()
-                .openElement(ELEMENT, NAMESPACE)
-                .append(content != null ? content : "")
-                .closeElement(ELEMENT)
+                .wrapElement(ELEMENT, NAMESPACE, content)
                 .toString();
     }
 }

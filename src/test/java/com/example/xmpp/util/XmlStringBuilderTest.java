@@ -205,6 +205,31 @@ class XmlStringBuilderTest {
             builder.optTextElement("body", "content");
             assertEquals("<body>content</body>", builder.toString());
         }
+
+        @Test
+        @DisplayName("wrapElement() 应包装原始内容")
+        void testWrapElement() {
+            XmlStringBuilder builder = new XmlStringBuilder();
+            builder.wrapElement("body", "<inner/>");
+            assertEquals("<body><inner/></body>", builder.toString());
+        }
+
+        @Test
+        @DisplayName("wrapElement() 带命名空间应包装内容")
+        void testWrapElementWithNamespace() {
+            XmlStringBuilder builder = new XmlStringBuilder();
+            builder.wrapElement("challenge", "urn:ietf:params:xml:ns:xmpp-sasl", "dGVzdA==");
+            assertEquals("<challenge xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\">dGVzdA==</challenge>",
+                    builder.toString());
+        }
+
+        @Test
+        @DisplayName("wrapElement() 内容为 null 时应保留空元素体")
+        void testWrapElementNullContent() {
+            XmlStringBuilder builder = new XmlStringBuilder();
+            builder.wrapElement("response", null);
+            assertEquals("<response></response>", builder.toString());
+        }
     }
 
     @Nested
