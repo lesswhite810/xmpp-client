@@ -129,13 +129,6 @@ public interface XmppConnection {
     XmppClientConfig getConfig();
 
     /**
-     * 重置连接处理器状态。
-     *
-     * <p>用于重连场景，清除内部状态以便重新开始连接流程。</p>
-     */
-    void resetHandlerState();
-
-    /**
      * 创建节收集器。
      *
      * <p>创建一个带有指定过滤器的异步节收集器，用于等待匹配的响应节。

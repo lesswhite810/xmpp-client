@@ -324,10 +324,35 @@ class XmppEventBusTest {
     }
 
     @Test
+    @DisplayName("null handlers 应返回空 Runnable")
+    void testSubscribeAllNullHandlers() {
+        Runnable unsubscribe = eventBus.subscribeAll(mockConnection1, null);
+
+        assertEquals(0, eventBus.getTotalSubscriberCount(mockConnection1));
+        assertDoesNotThrow(unsubscribe::run);
+    }
+
+    @Test
     @DisplayName("null 连接应抛出异常")
     void testSubscribeAllNullConnection() {
         assertThrows(IllegalArgumentException.class, () ->
                 eventBus.subscribeAll(null, Map.of(ConnectionEventType.CONNECTED, event -> {})));
+    }
+
+    @Test
+    @DisplayName("已有连接但目标事件无处理器时发布应安全返回")
+    void testPublishWhenConnectionExistsButEventHasNoHandlers() {
+        eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> { });
+
+        assertDoesNotThrow(() -> eventBus.publish(mockConnection1, ConnectionEventType.ERROR));
+        assertFalse(eventBus.hasSubscribers(mockConnection1, ConnectionEventType.ERROR));
+    }
+
+    @Test
+    @DisplayName("unsubscribeAll 对不存在的连接应安全返回")
+    void testUnsubscribeAllForUnknownConnection() {
+        assertDoesNotThrow(() -> eventBus.unsubscribeAll(mockConnection1));
+        assertEquals(0, eventBus.getTotalSubscriberCount(mockConnection1));
     }
 
     @Nested

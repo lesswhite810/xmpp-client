@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -129,7 +130,7 @@ class XmppConnectionLifecycleErrorTest {
                 .build());
 
         assertEquals(1, errorCount.get());
-        assertEquals(0, closedCount.get());
+        assertEquals(1, closedCount.get());
     }
 
     @Test
@@ -154,7 +155,7 @@ class XmppConnectionLifecycleErrorTest {
         channel.runScheduledPendingTasks();
 
         assertEquals(1, errorCount.get());
-        assertEquals(0, closedCount.get());
+        assertEquals(1, closedCount.get());
     }
 
     @Test
@@ -181,7 +182,7 @@ class XmppConnectionLifecycleErrorTest {
             XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.ERROR, event -> errorCount.incrementAndGet());
             XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.CLOSED, event -> closedCount.incrementAndGet());
 
-            connection.connectAsync();
+            startConnect(connection);
             assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
 
             connection.disconnect();
@@ -211,7 +212,7 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            connection.connectAsync();
+            startConnect(connection);
             assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
             assertTrue(connection.getChannel().isActive());
             assertTrue(getWorkerGroup(connection) != null);
@@ -245,7 +246,7 @@ class XmppConnectionLifecycleErrorTest {
             XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.CONNECTED,
                     event -> connectedCount.incrementAndGet());
 
-            CompletableFuture<Void> future = connection.connectAsync();
+            CompletableFuture<Void> future = startConnect(connection);
             assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
 
             Thread.sleep(200);
@@ -280,12 +281,12 @@ class XmppConnectionLifecycleErrorTest {
             XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.CONNECTED,
                     event -> connectedCount.incrementAndGet());
 
-            CompletableFuture<Void> firstFuture = connection.connectAsync();
+            CompletableFuture<Void> firstFuture = startConnect(connection);
             assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
             connection.markConnectionReady();
             firstFuture.join();
 
-            CompletableFuture<Void> secondFuture = connection.connectAsync();
+            CompletableFuture<Void> secondFuture = startConnect(connection);
             assertSame(firstFuture, secondFuture);
 
             Thread.sleep(200);
@@ -315,7 +316,7 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> readyFuture = connection.connectAsync();
+            CompletableFuture<Void> readyFuture = startConnect(connection);
             assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
 
             CompletionException exception = assertThrows(CompletionException.class, readyFuture::join);
@@ -351,19 +352,19 @@ class XmppConnectionLifecycleErrorTest {
             XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.CLOSED,
                     event -> closedCount.incrementAndGet());
 
-            CompletableFuture<Void> readyFuture = connection.connectAsync();
+            CompletableFuture<Void> readyFuture = startConnect(connection);
             assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
 
             assertThrows(CompletionException.class, readyFuture::join);
             waitUntilDisconnected(connection);
 
             assertEquals(1, errorCount.get());
-            assertEquals(0, closedCount.get());
+            assertEquals(1, closedCount.get());
         }
     }
 
     @Test
-    void testCloseConnectionOnErrorSanitizesSensitiveMessage() {
+    void testCloseConnectionOnErrorUsesExplicitSafeMessage() {
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
@@ -376,12 +377,12 @@ class XmppConnectionLifecycleErrorTest {
         StateContext stateContext = new StateContext(config, connection, channel.pipeline().lastContext());
 
         stateContext.closeConnectionOnError(channel.pipeline().lastContext(),
-                new IllegalArgumentException("password=secret"));
+                "Invalid SASL authentication data");
 
         CompletionException exception = assertThrows(CompletionException.class,
                 () -> connection.getConnectionReadyFuture().join());
-        assertFalse(String.valueOf(exception.getCause().getMessage()).contains("secret"));
-        assertInstanceOf(IllegalArgumentException.class, exception.getCause().getCause());
+        assertEquals("Invalid SASL authentication data", exception.getCause().getMessage());
+        assertNull(exception.getCause().getCause());
     }
 
     @Test
@@ -441,10 +442,10 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> firstFuture = connection.connectAsync();
+            CompletableFuture<Void> firstFuture = startConnect(connection);
             assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
 
-            CompletableFuture<Void> secondFuture = connection.connectAsync();
+            CompletableFuture<Void> secondFuture = startConnect(connection);
 
             assertSame(firstFuture, secondFuture);
             connection.disconnect();
@@ -466,7 +467,7 @@ class XmppConnectionLifecycleErrorTest {
                 .build();
         XmppTcpConnection connection = new XmppTcpConnection(config);
 
-        assertThrows(Exception.class, connection::connectAsync);
+        assertThrows(Exception.class, connection::connect);
         assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
     }
 
@@ -604,7 +605,7 @@ class XmppConnectionLifecycleErrorTest {
         bindChannel(connection, currentChannel);
 
         staleStateContext.closeConnectionOnError(staleChannel.pipeline().lastContext(),
-                new IllegalStateException("stale state failure"));
+                "stale state failure");
 
         assertSame(currentChannel, connection.getChannel());
         assertFalse(connection.getConnectionReadyFuture().isDone());
@@ -626,8 +627,67 @@ class XmppConnectionLifecycleErrorTest {
                 .build();
         XmppTcpConnection connection = new XmppTcpConnection(config);
 
-        assertThrows(Exception.class, connection::connectAsync);
+        assertThrows(Exception.class, connection::connect);
         assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+    }
+
+    @Test
+    void testConnectAsyncUsesServiceDomainWhenHostIsBlank() throws Exception {
+        try (ServerSocket serverSocket = new ServerSocket(0);
+             ExecutorService executor = Executors.newSingleThreadExecutor()) {
+            CountDownLatch acceptedLatch = new CountDownLatch(1);
+            executor.submit(() -> acceptAndHoldSocket(serverSocket, acceptedLatch));
+
+            XmppClientConfig config = XmppClientConfig.builder()
+                    .xmppServiceDomain("127.0.0.1")
+                    .host("")
+                    .port(serverSocket.getLocalPort())
+                    .username("user")
+                    .password("pass".toCharArray())
+                    .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                    .readTimeout(1000)
+                    .build();
+            XmppTcpConnection connection = new XmppTcpConnection(config);
+
+            CompletableFuture<Void> readyFuture = startConnect(connection);
+            assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
+
+            connection.disconnect();
+
+            assertThrows(CompletionException.class, readyFuture::join);
+            waitUntilDisconnected(connection);
+            assertFalse(connection.isConnected());
+        }
+    }
+
+    @Test
+    void testConnectAsyncPrefersHostAddressWhenConfigured() throws Exception {
+        try (ServerSocket serverSocket = new ServerSocket(0);
+             ExecutorService executor = Executors.newSingleThreadExecutor()) {
+            CountDownLatch acceptedLatch = new CountDownLatch(1);
+            executor.submit(() -> acceptAndHoldSocket(serverSocket, acceptedLatch));
+
+            XmppClientConfig config = XmppClientConfig.builder()
+                    .xmppServiceDomain("example.com")
+                    .host("invalid-host.example")
+                    .hostAddress(InetAddress.getByName("127.0.0.1"))
+                    .port(serverSocket.getLocalPort())
+                    .username("user")
+                    .password("pass".toCharArray())
+                    .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                    .readTimeout(1000)
+                    .build();
+            XmppTcpConnection connection = new XmppTcpConnection(config);
+
+            CompletableFuture<Void> readyFuture = startConnect(connection);
+            assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
+
+            connection.disconnect();
+
+            assertThrows(CompletionException.class, readyFuture::join);
+            waitUntilDisconnected(connection);
+            assertFalse(connection.isConnected());
+        }
     }
 
     @Test
@@ -645,10 +705,10 @@ class XmppConnectionLifecycleErrorTest {
                 .build();
         XmppTcpConnection connection = new XmppTcpConnection(config);
 
-        assertThrows(Exception.class, connection::connectAsync);
+        assertThrows(Exception.class, connection::connect);
         assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
 
-        assertThrows(Exception.class, connection::connectAsync);
+        assertThrows(Exception.class, connection::connect);
         assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
     }
 
@@ -668,13 +728,13 @@ class XmppConnectionLifecycleErrorTest {
         XmppTcpConnection connection = new XmppTcpConnection(config);
 
         CompletableFuture<Void> initialFuture = connection.getConnectionReadyFuture();
-        assertThrows(Exception.class, connection::connectAsync);
+        assertThrows(Exception.class, connection::connect);
         CompletableFuture<Void> failedFuture = connection.getConnectionReadyFuture();
 
         assertNotSame(initialFuture, failedFuture);
         assertTrue(failedFuture.isCompletedExceptionally());
 
-        assertThrows(Exception.class, connection::connectAsync);
+        assertThrows(Exception.class, connection::connect);
         CompletableFuture<Void> retriedFuture = connection.getConnectionReadyFuture();
 
         assertNotSame(failedFuture, retriedFuture);
@@ -702,7 +762,7 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> readyFuture = connection.connectAsync();
+            CompletableFuture<Void> readyFuture = startConnect(connection);
             assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
 
             connection.disconnect();
@@ -730,7 +790,7 @@ class XmppConnectionLifecycleErrorTest {
                 .build();
         XmppTcpConnection connection = new XmppTcpConnection(config);
 
-        assertThrows(Exception.class, connection::connectAsync);
+        assertThrows(Exception.class, connection::connect);
 
         connection.disconnect();
         connection.disconnect();
@@ -760,12 +820,12 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> firstFuture = connection.connectAsync();
+            CompletableFuture<Void> firstFuture = startConnect(connection);
             assertTrue(firstAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
             connection.disconnect();
             assertThrows(CompletionException.class, firstFuture::join);
 
-            CompletableFuture<Void> secondFuture = connection.connectAsync();
+            CompletableFuture<Void> secondFuture = startConnect(connection);
             assertTrue(secondAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
 
             assertNotSame(firstFuture, secondFuture);
@@ -795,18 +855,11 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<CompletableFuture<Void>> connectInvocation = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return connection.connectAsync();
-                } catch (XmppException e) {
-                    throw new CompletionException(e);
-                }
-            }, executor);
+            CompletableFuture<Void> connectInvocation = startConnect(connection, executor);
 
             CompletableFuture.runAsync(connection::disconnect, executor).join();
 
-            CompletableFuture<Void> readyFuture = connectInvocation.join();
-            assertThrows(CompletionException.class, readyFuture::join);
+            assertThrows(CompletionException.class, connectInvocation::join);
             waitUntilDisconnected(connection);
             assertFalse(connection.isConnected());
             assertNull(connection.getChannel());
@@ -849,12 +902,12 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> firstFuture = connection.connectAsync();
+            CompletableFuture<Void> firstFuture = startConnect(connection);
             assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
             connection.markConnectionReady();
             firstFuture.join();
 
-            CompletableFuture<Void> secondFuture = connection.connectAsync();
+            CompletableFuture<Void> secondFuture = startConnect(connection);
 
             assertSame(firstFuture, secondFuture);
             assertTrue(secondFuture.isDone());
@@ -883,7 +936,7 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> firstFuture = connection.connectAsync();
+            CompletableFuture<Void> firstFuture = startConnect(connection);
             assertTrue(firstAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
             connection.markConnectionReady();
             firstFuture.join();
@@ -891,7 +944,7 @@ class XmppConnectionLifecycleErrorTest {
             closeFirstLatch.countDown();
             waitUntilDisconnected(connection);
 
-            CompletableFuture<Void> secondFuture = connection.connectAsync();
+            CompletableFuture<Void> secondFuture = startConnect(connection);
             assertTrue(secondAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
 
             assertNotSame(firstFuture, secondFuture);
@@ -924,7 +977,7 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> firstFuture = connection.connectAsync();
+            CompletableFuture<Void> firstFuture = startConnect(connection);
             assertTrue(firstAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
             assertThrows(CompletionException.class, firstFuture::join);
 
@@ -957,7 +1010,7 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> firstFuture = connection.connectAsync();
+            CompletableFuture<Void> firstFuture = startConnect(connection);
             assertTrue(firstAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
 
             connection.disconnect();
@@ -992,7 +1045,7 @@ class XmppConnectionLifecycleErrorTest {
             XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.CONNECTED,
                     event -> connectedCount.incrementAndGet());
 
-            CompletableFuture<Void> firstFuture = connection.connectAsync();
+            CompletableFuture<Void> firstFuture = startConnect(connection);
             assertTrue(firstAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
             connection.markConnectionReady();
             firstFuture.join();
@@ -1000,7 +1053,7 @@ class XmppConnectionLifecycleErrorTest {
             closeFirstLatch.countDown();
             waitUntilDisconnected(connection);
 
-            CompletableFuture<Void> secondFuture = connection.connectAsync();
+            CompletableFuture<Void> secondFuture = startConnect(connection);
             assertTrue(secondAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
 
             Thread.sleep(200);
@@ -1031,7 +1084,7 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> readyFuture = connection.connectAsync();
+            CompletableFuture<Void> readyFuture = startConnect(connection);
             assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
             connection.markConnectionReady();
             readyFuture.join();
@@ -1067,14 +1120,14 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> firstFuture = connection.connectAsync();
+            CompletableFuture<Void> firstFuture = startConnect(connection);
             assertTrue(firstAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
             var firstChannel = connection.getChannel();
 
             connection.failConnection(new XmppNetworkException("boom"));
             assertThrows(CompletionException.class, firstFuture::join);
 
-            CompletableFuture<Void> secondFuture = connection.connectAsync();
+            CompletableFuture<Void> secondFuture = startConnect(connection);
             assertTrue(secondAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
 
             assertNotSame(firstFuture, secondFuture);
@@ -1217,5 +1270,25 @@ class XmppConnectionLifecycleErrorTest {
         } catch (ReflectiveOperationException e) {
             throw new AssertionError("无法绑定测试用 channel", e);
         }
+    }
+
+    private CompletableFuture<Void> startConnect(XmppTcpConnection connection) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                connection.connect();
+            } catch (XmppException e) {
+                throw new CompletionException(e);
+            }
+        });
+    }
+
+    private CompletableFuture<Void> startConnect(XmppTcpConnection connection, ExecutorService executor) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                connection.connect();
+            } catch (XmppException e) {
+                throw new CompletionException(e);
+            }
+        }, executor);
     }
 }

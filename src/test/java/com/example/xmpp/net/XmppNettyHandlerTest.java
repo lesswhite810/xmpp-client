@@ -4,8 +4,9 @@ import com.example.xmpp.XmppTcpConnection;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
-import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppException;
+import com.example.xmpp.exception.XmppNetworkException;
+import com.example.xmpp.protocol.model.XmlSerializable;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.protocol.model.extension.Bind;
@@ -22,6 +23,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -235,8 +237,8 @@ class XmppNettyHandlerTest {
 
             CompletionException exception = assertThrows(CompletionException.class,
                     () -> connection.getConnectionReadyFuture().join());
-            XmppAuthException cause = assertInstanceOf(XmppAuthException.class, exception.getCause());
-            assertTrue(cause.getMessage().contains("Failed to send SASL stanza"));
+            XmppNetworkException cause = assertInstanceOf(XmppNetworkException.class, exception.getCause());
+            assertTrue(cause.getMessage().contains("Failed to send SASL auth stanza"));
         } finally {
             channel.finishAndReleaseAll();
         }
@@ -295,7 +297,7 @@ class XmppNettyHandlerTest {
                     .build());
             StateContext capturedStateContext = currentStateContext(handler);
 
-            handler.clearState();
+            handler.invalidateStateContext();
             delayedAuthWriteHandler.succeedPendingWrite();
             channel.runPendingTasks();
             channel.runScheduledPendingTasks();
@@ -327,7 +329,7 @@ class XmppNettyHandlerTest {
 
             assertEquals("CONNECTING", capturedStateContext.getCurrentStateName());
 
-            handler.clearState();
+            handler.invalidateStateContext();
             delayedStreamWriteHandler.succeedPendingWrite();
             channel.runPendingTasks();
             channel.runScheduledPendingTasks();
@@ -353,7 +355,7 @@ class XmppNettyHandlerTest {
         EmbeddedChannel channel = newBoundChannel(connection, handler);
 
         try {
-            handler.clearState();
+            handler.invalidateStateContext();
 
             assertDoesNotThrow(() -> channel.pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS));
             assertNull(currentStateName(handler));
@@ -533,7 +535,7 @@ class XmppNettyHandlerTest {
                     .childElement(Bind.builder().jid("user@example.com/resource").build())
                     .build());
 
-            handler.clearState();
+            handler.invalidateStateContext();
             delayedPresenceWriteHandler.succeedPendingWrite();
             channel.runPendingTasks();
             channel.runScheduledPendingTasks();
@@ -572,10 +574,107 @@ class XmppNettyHandlerTest {
         CompletionException exception = assertThrows(CompletionException.class,
                 () -> connection.getConnectionReadyFuture().join());
         assertInstanceOf(XmppException.class, exception.getCause());
+        assertNull(exception.getCause().getCause());
         assertEquals(1, errorCount.get());
-        assertEquals(0, closedCount.get());
+        assertEquals(1, closedCount.get());
 
         channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void testExceptionCaughtWithIoExceptionUsesNetworkException() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            channel.pipeline().fireExceptionCaught(new IOException("broken pipe"));
+
+            CompletionException exception = assertThrows(CompletionException.class,
+                    () -> connection.getConnectionReadyFuture().join());
+            XmppNetworkException cause = assertInstanceOf(XmppNetworkException.class, exception.getCause());
+            assertEquals("I/O error", cause.getMessage());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testHandshakeFailureCompletesConnectionWithNetworkException() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .usingDirectTLS(true)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            channel.pipeline().fireUserEventTriggered(
+                    new SslHandshakeCompletionEvent(new IllegalStateException("tls boom")));
+
+            CompletionException exception = assertThrows(CompletionException.class,
+                    () -> connection.getConnectionReadyFuture().join());
+            XmppNetworkException cause = assertInstanceOf(XmppNetworkException.class, exception.getCause());
+            assertEquals("SSL handshake failed", cause.getMessage());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testHandshakeSuccessWithNullOpenStreamFutureFailsRecovery() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .usingDirectTLS(true)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            setStateContext(handler, new NullOpenStreamStateContext(config, connection, channel.pipeline().lastContext()));
+            channel.pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
+
+            CompletionException exception = assertThrows(CompletionException.class,
+                    () -> connection.getConnectionReadyFuture().join());
+            XmppException cause = assertInstanceOf(XmppException.class, exception.getCause());
+            assertEquals("Failed to reopen stream after TLS handshake", cause.getMessage());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testSendStanzaReturnsNullForNullAndEmptyXml() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppNettyHandler handler = new XmppNettyHandler(config, new XmppTcpConnection(config));
+        EmbeddedChannel channel = new EmbeddedChannel(handler);
+
+        try {
+            ChannelHandlerContext context = channel.pipeline().lastContext();
+            assertNull(handler.sendStanza(context, null));
+            assertNull(handler.sendStanza(context, new EmptySerializable()));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
     }
 
     @Test
@@ -590,7 +689,7 @@ class XmppNettyHandlerTest {
         XmppNettyHandler handler = new XmppNettyHandler(config, connection);
         EmbeddedChannel channel = newBoundChannel(connection, handler);
 
-        handler.clearState();
+        handler.invalidateStateContext();
 
         assertDoesNotThrow(() -> channel.writeInbound(new Iq.Builder(Iq.Type.RESULT).id("iq-1").build()));
         assertNull(channel.readInbound());
@@ -627,6 +726,16 @@ class XmppNettyHandlerTest {
             return (StateContext) field.get(handler);
         } catch (ReflectiveOperationException e) {
             throw new AssertionError("Failed to inspect handler state", e);
+        }
+    }
+
+    private void setStateContext(XmppNettyHandler handler, StateContext stateContext) {
+        try {
+            Field field = XmppNettyHandler.class.getDeclaredField("stateContext");
+            field.setAccessible(true);
+            field.set(handler, stateContext);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to replace handler state", e);
         }
     }
 
@@ -821,6 +930,28 @@ class XmppNettyHandlerTest {
             pendingPromise = null;
             pendingBuffer = null;
             context.writeAndFlush(buffer, promise);
+        }
+    }
+
+    private static final class NullOpenStreamStateContext extends StateContext {
+
+        private NullOpenStreamStateContext(XmppClientConfig config,
+                                           XmppTcpConnection connection,
+                                           ChannelHandlerContext ctx) {
+            super(config, connection, ctx);
+        }
+
+        @Override
+        public ChannelFuture openStream(ChannelHandlerContext ctx) {
+            return null;
+        }
+    }
+
+    private static final class EmptySerializable implements XmlSerializable {
+
+        @Override
+        public String toXml() {
+            return "";
         }
     }
 }

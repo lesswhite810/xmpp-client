@@ -227,6 +227,36 @@ class StanzaModelTest {
             Iq iq = new Iq.Builder(Iq.Type.GET).build();
             assertNull(iq.getError());
         }
+
+        @Test
+        @DisplayName("Iq 类型辅助方法应按当前类型返回")
+        void testIqTypeHelpers() {
+            Iq getIq = new Iq.Builder(Iq.Type.GET).build();
+            Iq setIq = new Iq.Builder(Iq.Type.SET).build();
+            Iq resultIq = new Iq.Builder(Iq.Type.RESULT).build();
+            Iq errorIq = new Iq.Builder(Iq.Type.ERROR).build();
+
+            assertTrue(getIq.isGet());
+            assertTrue(setIq.isSet());
+            assertTrue(resultIq.isResult());
+            assertTrue(errorIq.isError());
+        }
+
+        @Test
+        @DisplayName("Iq.getChildElementNamespace 应返回子元素命名空间")
+        void testGetChildElementNamespace() {
+            Iq iq = new Iq.Builder(Iq.Type.GET).childElement(new Ping()).build();
+
+            assertEquals("urn:xmpp:ping", iq.getChildElementNamespace());
+        }
+
+        @Test
+        @DisplayName("Iq.getChildElementNamespace 无子元素时返回 null")
+        void testGetChildElementNamespaceNull() {
+            Iq iq = new Iq.Builder(Iq.Type.GET).build();
+
+            assertNull(iq.getChildElementNamespace());
+        }
     }
 
     @Nested
@@ -355,6 +385,26 @@ class StanzaModelTest {
             assertFalse(msg.isHeadline());
             assertFalse(msg.isNormal());
             assertTrue(msg.isError());
+        }
+
+        @Test
+        @DisplayName("Message 字符串类型构造器和设置器应支持有效值和默认值")
+        void testMessageStringTypeBuilder() {
+            Message valid = new Message.Builder("headline").build();
+            Message invalid = new Message.Builder("not-real").build();
+            Message updated = new Message.Builder().type("groupchat").build();
+
+            assertEquals(Message.Type.HEADLINE, valid.getType());
+            assertEquals(Message.Type.NORMAL, invalid.getType());
+            assertEquals(Message.Type.GROUPCHAT, updated.getType());
+        }
+
+        @Test
+        @DisplayName("Message.Type.fromString 应处理命中和未命中")
+        void testMessageTypeFromString() {
+            assertEquals(Optional.of(Message.Type.CHAT), Message.Type.fromString("chat"));
+            assertTrue(Message.Type.fromString("missing").isEmpty());
+            assertTrue(Message.Type.fromString(null).isEmpty());
         }
     }
 
@@ -521,6 +571,37 @@ class StanzaModelTest {
             Presence presence = new Presence.Builder(Presence.Type.UNSUBSCRIBED).build();
             assertFalse(presence.isUnsubscribe());
             assertTrue(presence.isUnsubscribed());
+        }
+
+        @Test
+        @DisplayName("Presence 字符串类型构造器和设置器应支持命中与空值")
+        void testPresenceStringTypeBuilder() {
+            Presence valid = new Presence.Builder("subscribe").build();
+            Presence invalid = new Presence.Builder("missing").build();
+            Presence updated = new Presence.Builder().type("unavailable").build();
+
+            assertEquals(Presence.Type.SUBSCRIBE, valid.getType());
+            assertEquals(Presence.Type.AVAILABLE, invalid.getType());
+            assertEquals(Presence.Type.UNAVAILABLE, updated.getType());
+        }
+
+        @Test
+        @DisplayName("Presence.getPresenceShow 应返回解析后的枚举")
+        void testGetPresenceShow() {
+            Presence valid = new Presence.Builder().show("chat").build();
+            Presence invalid = new Presence.Builder().show("unknown").build();
+
+            assertEquals(Optional.of(Presence.Show.CHAT), valid.getPresenceShow());
+            assertTrue(invalid.getPresenceShow().isEmpty());
+        }
+
+        @Test
+        @DisplayName("Presence.Type 和 Show 的 fromString 应处理未命中")
+        void testPresenceEnumFromString() {
+            assertEquals(Optional.of(Presence.Type.ERROR), Presence.Type.fromString("error"));
+            assertTrue(Presence.Type.fromString("missing").isEmpty());
+            assertTrue(Presence.Show.fromString("missing").isEmpty());
+            assertEquals(Optional.of(Presence.Show.DND), Presence.Show.fromString("dnd"));
         }
     }
 

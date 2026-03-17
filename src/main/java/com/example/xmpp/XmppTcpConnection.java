@@ -1,15 +1,12 @@
 package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
-import com.example.xmpp.exception.XmppDnsException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.exception.XmppProtocolException;
 import com.example.xmpp.handler.PingIqRequestHandler;
 import com.example.xmpp.logic.PingManager;
 import com.example.xmpp.logic.ReconnectionManager;
-import com.example.xmpp.net.DnsResolver;
-import com.example.xmpp.net.SrvRecord;
 import com.example.xmpp.net.SslUtils;
 import com.example.xmpp.net.XmppNettyHandler;
 import com.example.xmpp.net.XmppStreamDecoder;
@@ -43,7 +40,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * 基于 TCP 的 XMPP 连接实现。
  *
- * <p>负责创建 Netty 管道、建立 XMPP 会话，并协调 Ping 与重连等生命周期管理组件。</p>
+ * <p>负责建连、会话就绪通知和资源清理。</p>
  *
  * @since 2026-02-09
  */
@@ -65,6 +62,12 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     private volatile CompletableFuture<Void> connectionReadyFuture = new CompletableFuture<>();
 
+    private volatile boolean disconnectRequested;
+
+    private volatile boolean errorEventPublished;
+
+    private volatile boolean closedEventPublished;
+
     /**
      * 创建 TCP XMPP 连接。
      *
@@ -77,11 +80,11 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 同步建立连接并等待会话就绪。
+     * 同步建立连接。
      *
-     * <p>该方法会等待 TCP 建连、认证、资源绑定和会话激活全部完成。</p>
+     * <p>该方法会等待会话进入可用状态。</p>
      *
-     * @throws XmppException 如果建连、认证或会话初始化失败
+     * @throws XmppException 如果连接或初始化失败
      */
     @Override
     public void connect() throws XmppException {
@@ -101,12 +104,10 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 异步建立连接并返回会话就绪 Future。
-     *
-     * <p>返回的 Future 在资源绑定完成且会话进入可用状态后结束。</p>
+     * 异步建立连接。
      *
      * @return 当前会话的就绪 Future
-     * @throws XmppException 如果连接目标解析或连接初始化失败
+     * @throws XmppException 如果连接初始化失败
      */
     public synchronized CompletableFuture<Void> connectAsync() throws XmppException {
         CompletableFuture<Void> reusableFuture = findReusableReadyFuture();
@@ -160,6 +161,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     private void prepareNewConnectionAttempt() {
+        disconnectRequested = false;
+        errorEventPublished = false;
+        closedEventPublished = false;
         connectionReadyFuture = new CompletableFuture<>();
     }
 
@@ -215,22 +219,10 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     private record ConnectionTarget(String host, InetAddress address, int port) {
 
         static Optional<ConnectionTarget> of(InetAddress address, String host, int port) {
-            if (address == null && (host == null || host.isEmpty())) {
+            if (address == null && (host == null || host.isBlank())) {
                 return Optional.empty();
             }
             return Optional.of(new ConnectionTarget(host, address, port));
-        }
-
-        static List<ConnectionTarget> fromSrvRecords(List<SrvRecord> records) {
-            return records.stream()
-                    .map(record -> new ConnectionTarget(normalizeHost(record.target()), null, record.port()))
-                    .toList();
-        }
-
-        private static String normalizeHost(String host) {
-            return host != null && host.endsWith(".")
-                    ? host.substring(0, host.length() - 1)
-                    : host;
         }
 
         @Override
@@ -248,30 +240,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     private List<ConnectionTarget> resolveConnectionTargets() {
-        int basePort = config.isUsingDirectTLS()
-                ? XmppConstants.DIRECT_TLS_PORT
-                : XmppConstants.DEFAULT_XMPP_PORT;
-        int port = config.getPort() > 0 ? config.getPort() : basePort;
-
-        Optional<ConnectionTarget> configTarget = resolveConfiguredTarget(port);
-        if (configTarget.isPresent()) {
-            return List.of(configTarget.get());
-        }
-
-        return resolveSrvOrDomainTargets(port);
-    }
-
-    private Optional<ConnectionTarget> resolveConfiguredTarget(int port) {
-        return ConnectionTarget.of(config.getHostAddress(), config.getHost(), port);
-    }
-
-    private List<ConnectionTarget> resolveSrvOrDomainTargets(int port) {
-        List<SrvRecord> srvRecords = resolveSrvRecords(config.getXmppServiceDomain());
-        if (!srvRecords.isEmpty()) {
-            return ConnectionTarget.fromSrvRecords(srvRecords);
-        }
-
-        return ConnectionTarget.of(null, config.getXmppServiceDomain(), port)
+        int port = config.getPort();
+        return ConnectionTarget.of(config.getHostAddress(), config.getHost(), port)
+                .or(() -> ConnectionTarget.of(null, config.getXmppServiceDomain(), port))
                 .map(List::of)
                 .orElse(List.of());
     }
@@ -320,8 +291,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             log.debug("Connection target {} established", target);
             return Optional.of(connectedChannel);
         } catch (XmppNetworkException e) {
-            log.warn("Connection failed");
-            log.debug("Detail", e);
+            log.warn("Connection failed for target {}: {}", target, e.getMessage());
             return Optional.empty();
         }
     }
@@ -338,10 +308,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 将当前连接生命周期标记为就绪。
-     *
-     * <p>该方法会完成 {@code connectionReadyFuture}，用于唤醒同步 {@link #connect()}
-     * 和异步 {@link #connectAsync()} 的等待方，表明资源绑定与会话激活已经完成。</p>
+     * 将当前会话标记为就绪。
      */
     public synchronized void markConnectionReady() {
         CompletableFuture<Void> future = connectionReadyFuture;
@@ -351,9 +318,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 使用异常结束当前连接生命周期。
-     *
-     * <p>该方法会使连接就绪 Future 失败，并向连接事件总线发布错误事件。</p>
+     * 以异常结束当前连接。
      *
      * @param exception 失败原因
      */
@@ -361,15 +326,15 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         failReadyFuture(exception);
         failPendingCollectors(exception);
         clearHandlerState();
-        notifyConnectionClosedOnError(exception);
+        publishTerminalError(exception);
         closeCurrentChannelOrShutdownWorkerGroup();
     }
 
     /**
-     * 仅在事件来自当前活动通道时结束当前连接生命周期。
+     * 仅处理当前活动通道上的失败事件。
      *
      * @param sourceChannel 触发失败的通道
-     * @param exception     失败原因
+     * @param exception 失败原因
      */
     public synchronized void failConnection(Channel sourceChannel, Exception exception) {
         if (!isCurrentChannel(sourceChannel)) {
@@ -380,17 +345,14 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 处理底层通道关闭后的资源收尾。
-     *
-     * <p>该方法在 Netty 通知通道失活时调用，用于释放旧通道和事件循环资源，
-     * 并确保所有等待中的请求立即失败，而不是悬挂到超时。</p>
+     * 处理当前通道失活后的收尾逻辑。
      */
     public synchronized void handleChannelInactive() {
         handleChannelInactive(channel);
     }
 
     /**
-     * 仅在事件来自当前活动通道时处理通道失活。
+     * 仅处理当前活动通道上的失活事件。
      *
      * @param inactiveChannel 失活的通道
      */
@@ -400,38 +362,47 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             return;
         }
 
-        XmppNetworkException closeException = new XmppNetworkException("Connection closed unexpectedly");
+        boolean manualDisconnect = disconnectRequested;
+        XmppNetworkException closeException = new XmppNetworkException(
+                manualDisconnect ? "Connection closed" : "Connection closed unexpectedly");
         failPendingCollectors(closeException);
         cleanupCollectors();
-        failReadyFuture(new XmppNetworkException("Connection closed unexpectedly before session became ready"));
+        failReadyFuture(new XmppNetworkException(
+                manualDisconnect
+                        ? "Connection closed before session became ready"
+                        : "Connection closed unexpectedly before session became ready"));
 
         channel = null;
         clearHandlerState();
         shutdownWorkerGroup();
-        notifyConnectionClosedOnError(closeException);
+        if (manualDisconnect) {
+            publishClosedEvent(null);
+            return;
+        }
+        publishTerminalError(closeException);
     }
 
     /**
-     * 判断给定通道是否仍然属于当前连接生命周期。
+     * 判断通道是否属于当前连接。
      *
      * @param candidate 待检查的通道
-     * @return 如果通道仍为当前活动通道则返回 {@code true}
+     * @return 如果是当前活动通道则返回 {@code true}
      */
     public synchronized boolean isCurrentChannel(Channel candidate) {
         return candidate != null && candidate == channel;
     }
 
     /**
-     * 在通道激活时将其绑定到当前连接生命周期。
-     *
-     * <p>该方法用于覆盖 TCP 连接刚建立、但 {@link #connectAsync()} 尚未拿到返回值前的短暂窗口，
-     * 避免首个入站事件被误判为旧通道事件。</p>
+     * 将新激活的通道绑定到当前连接。
      *
      * @param candidate 待绑定的活动通道
-     * @return 如果通道已成功绑定或本就属于当前生命周期，则返回 {@code true}
+     * @return 如果绑定成功或通道本就属于当前连接则返回 {@code true}
      */
     public synchronized boolean bindActiveChannel(Channel candidate) {
         if (candidate == null) {
+            return false;
+        }
+        if (disconnectRequested) {
             return false;
         }
         if (channel == null) {
@@ -441,30 +412,19 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         return channel == candidate;
     }
 
-    private List<SrvRecord> resolveSrvRecords(String domain) {
-        try (DnsResolver resolver = new DnsResolver()) {
-            return resolver.resolveXmppService(domain);
-        } catch (XmppDnsException e) {
-            log.warn("DNS SRV lookup failed for {}, falling back to direct domain connection: {}",
-                    domain, e.getMessage());
-            log.debug("DNS SRV lookup failure detail", e);
-        }
-        return List.of();
-    }
-
     /**
-     * 关闭当前会话并释放相关资源。
-     *
-     * <p>该方法会停止心跳与重连逻辑、清理 collector，并关闭底层 Netty 资源。</p>
+     * 关闭当前连接并释放资源。
      */
     @Override
     public synchronized void disconnect() {
+        disconnectRequested = true;
         shutdownLifecycleManagers();
 
         failPendingCollectors(new XmppNetworkException("Connection closed"));
         cleanupCollectors();
         failReadyFuture(new XmppNetworkException("Connection closed before session became ready"));
         clearHandlerState();
+        publishClosedEvent(null);
         closeCurrentChannelOrShutdownWorkerGroup();
     }
 
@@ -477,8 +437,33 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     private void clearHandlerState() {
         if (nettyHandler != null) {
-            nettyHandler.clearState();
+            nettyHandler.invalidateStateContext();
         }
+    }
+
+    private void publishTerminalError(Exception exception) {
+        publishErrorEvent(exception);
+        publishClosedEvent(exception);
+    }
+
+    private void publishErrorEvent(Exception exception) {
+        if (errorEventPublished) {
+            return;
+        }
+        errorEventPublished = true;
+        notifyConnectionClosedOnError(exception);
+    }
+
+    private void publishClosedEvent(Exception exception) {
+        if (closedEventPublished) {
+            return;
+        }
+        closedEventPublished = true;
+        if (exception == null) {
+            notifyConnectionClosed();
+            return;
+        }
+        notifyConnectionClosed(exception);
     }
 
     private void closeCurrentChannelOrShutdownWorkerGroup() {
@@ -526,9 +511,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 在通道可用时发送 XMPP stanza。
+     * 发送 XMPP stanza。
      *
-     * @param stanza 待发送的协议元素；如果为 {@code null} 或通道不可用，则仅记录日志
+     * @param stanza 待发送的协议元素
      */
     @Override
     public void sendStanza(XmppStanza stanza) {
@@ -547,13 +532,10 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     private void logSendFailure(Throwable error) {
         Throwable cause = unwrapCompletionError(error);
         if (cause instanceof XmppNetworkException) {
-            log.warn("Failed to send stanza");
-            log.debug("Detail", cause);
-            log.debug("Stanza send failure detail", cause);
+            log.warn("Failed to send stanza: {}", cause.getMessage());
             return;
         }
-        log.error("Failed to send stanza");
-        log.debug("Detail", cause);
+        log.error("Failed to send stanza: {}", cause.getMessage(), cause);
     }
 
     private Throwable unwrapCompletionError(Throwable error) {
@@ -597,7 +579,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 获取当前连接绑定的客户端配置。
+     * 获取当前连接配置。
      *
      * @return 当前连接配置
      */
@@ -606,13 +588,4 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         return config;
     }
 
-    /**
-     * 重置底层 Netty 处理器的状态机。
-     */
-    @Override
-    public void resetHandlerState() {
-        if (nettyHandler != null) {
-            nettyHandler.resetState();
-        }
-    }
 }

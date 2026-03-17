@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.concurrent.ScheduledFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -45,6 +46,12 @@ class PingManagerTest {
     @DisplayName("构造函数应正确初始化")
     void testConstructor() {
         assertNotNull(pingManager);
+    }
+
+    @Test
+    @DisplayName("PingManager 应禁止子类覆写构造期间绑定的生命周期方法")
+    void testPingManagerClassIsFinal() {
+        assertTrue(Modifier.isFinal(PingManager.class.getModifiers()));
     }
 
     @Test

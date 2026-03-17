@@ -4,35 +4,16 @@ import com.example.xmpp.XmppConnection;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 /**
  * XMPP 事件总线。
  *
- * <p>提供基于 XmppConnection 的事件订阅/发布功能。
- * 订阅时需要指定连接实例和事件类型，发布时自动分发给对应连接的订阅者。</p>
- *
- * <p>使用示例：</p>
- * <pre>{@code
- * XmppEventBus eventBus = XmppEventBus.getInstance();
- *
- * // 订阅特定连接的事件
- * Runnable unsubscribe = eventBus.subscribe(myConnection, ConnectionEventType.AUTHENTICATED, event -> {
- *     log.info("认证成功: {}", event.connection().getUser());
- * });
- *
- * // 发布事件
- * eventBus.publish(connection, ConnectionEventType.CONNECTED);
- *
- * // 取消订阅
- * unsubscribe.run();
- * }</pre>
+ * <p>负责按连接和事件类型分发回调。</p>
  *
  * @since 2026-03-02
  */
@@ -91,47 +72,12 @@ public final class XmppEventBus {
     }
 
     /**
-     * 订阅特定连接的事件，使用指定线程池异步执行。
+     * 批量订阅多个事件。
      *
      * @param connection 连接实例
-     * @param eventType  事件类型
-     * @param handler    事件处理器
-     * @param executor   执行器
-     * @return 取消订阅的 Runnable
-     */
-    public Runnable subscribeAsync(XmppConnection connection, ConnectionEventType eventType,
-                                   Consumer<ConnectionEvent> handler, ExecutorService executor) {
-        return subscribe(connection, eventType, event -> executor.execute(() -> {
-            try {
-                handler.accept(event);
-            } catch (Exception e) {
-                log.error("Async event handler error for {}@{}: {}",
-                        eventType, connection, e.getMessage(), e);
-            }
-        }));
-    }
-
-    /**
-     * 批量订阅多个事件类型。
-     *
-     * <p>一次调用订阅多个事件类型，返回的 Runnable 可一次性取消所有订阅。</p>
-     *
-     * <p>使用示例：</p>
-     * <pre>{@code
-     * Runnable unsubscribe = eventBus.subscribeAll(connection, Map.of(
-     *     ConnectionEventType.CONNECTED, event -> log.info("Connected"),
-     *     ConnectionEventType.AUTHENTICATED, event -> log.info("Authenticated"),
-     *     ConnectionEventType.ERROR, event -> log.error("Error", event.error())
-     * ));
-     *
-     * // 取消所有订阅
-     * unsubscribe.run();
-     * }</pre>
-     *
-     * @param connection 连接实例
-     * @param handlers   事件类型到处理器的映射
+     * @param handlers 事件类型到处理器的映射
      * @return 取消所有订阅的 Runnable
-     * @throws IllegalArgumentException 如果 connection 或 handlers 为 null
+     * @throws IllegalArgumentException 如果 connection 为 {@code null}
      */
     public Runnable subscribeAll(XmppConnection connection,
                                  Map<ConnectionEventType, Consumer<ConnectionEvent>> handlers) {
@@ -167,46 +113,11 @@ public final class XmppEventBus {
     }
 
     /**
-     * 批量订阅多个事件类型，使用指定线程池异步执行。
+     * 取消单个事件订阅。
      *
      * @param connection 连接实例
-     * @param handlers   事件类型到处理器的映射
-     * @param executor   执行器
-     * @return 取消所有订阅的 Runnable
-     */
-    public Runnable subscribeAllAsync(XmppConnection connection,
-                                      Map<ConnectionEventType, Consumer<ConnectionEvent>> handlers,
-                                      ExecutorService executor) {
-        if (connection == null) {
-            throw new IllegalArgumentException("Connection must not be null");
-        }
-        if (handlers == null || handlers.isEmpty()) {
-            return () -> {};
-        }
-
-        Map<ConnectionEventType, Consumer<ConnectionEvent>> asyncHandlers = new HashMap<>(handlers.size());
-        for (Map.Entry<ConnectionEventType, Consumer<ConnectionEvent>> entry : handlers.entrySet()) {
-            Consumer<ConnectionEvent> asyncHandler = event -> executor.execute(() -> {
-                try {
-                    entry.getValue().accept(event);
-                } catch (Exception e) {
-                    log.error("Async event handler error for {}@{}: {}",
-                            entry.getKey(), connection, e.getMessage(), e);
-                }
-            });
-            asyncHandlers.put(entry.getKey(), asyncHandler);
-        }
-
-        return subscribeAll(connection, asyncHandlers);
-    }
-
-    /**
-     * 取消订阅特定连接的事件（仅内部使用）。
-     * 使用 subscribe 返回的 Runnable 来取消更方便。
-     *
-     * @param connection 连接实例
-     * @param eventType  事件类型
-     * @param handler    事件处理器
+     * @param eventType 事件类型
+     * @param handler 事件处理器
      */
     private void unsubscribe(XmppConnection connection, ConnectionEventType eventType,
                             Consumer<ConnectionEvent> handler) {
@@ -227,11 +138,11 @@ public final class XmppEventBus {
         }
     }
     /**
-     * 静默取消订阅（不打印日志，用于批量取消）。
+     * 静默取消订阅。
      *
      * @param connection 连接实例
-     * @param eventType  事件类型
-     * @param handler    事件处理器
+     * @param eventType 事件类型
+     * @param handler 事件处理器
      */
     private void unsubscribeSilent(XmppConnection connection, ConnectionEventType eventType,
                                    Consumer<ConnectionEvent> handler) {
@@ -272,23 +183,14 @@ public final class XmppEventBus {
     }
 
     /**
-     * 发布事件（带错误信息）。
+     * 发布带异常的事件。
      *
      * @param connection 关联的连接
-     * @param eventType  事件类型
-     * @param error      错误信息（可选，仅 ERROR 类型需要）
+     * @param eventType 事件类型
+     * @param error 附带异常，可为 {@code null}
      */
     public void publish(XmppConnection connection, ConnectionEventType eventType, Exception error) {
         ConnectionEvent event = new ConnectionEvent(connection, eventType, error);
-        publishEvent(event);
-    }
-
-    /**
-     * 发布事件对象。
-     *
-     * @param event 事件对象
-     */
-    private void publish(ConnectionEvent event) {
         publishEvent(event);
     }
 

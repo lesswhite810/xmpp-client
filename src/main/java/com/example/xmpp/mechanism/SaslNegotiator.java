@@ -150,7 +150,9 @@ public class SaslNegotiator {
                     if (bufToWrite.refCnt() > 0) {
                         bufToWrite.release();
                     }
-                    ctx.pipeline().fireExceptionCaught(new XmppAuthException("Failed to send SASL stanza", result.cause()));
+                    ctx.executor().execute(() ->
+                            ctx.pipeline().fireExceptionCaught(
+                                    new XmppAuthException("Failed to send SASL stanza", result.cause())));
                 }
             });
             return future;

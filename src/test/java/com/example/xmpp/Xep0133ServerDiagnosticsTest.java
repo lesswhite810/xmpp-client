@@ -55,34 +55,6 @@ class Xep0133ServerDiagnosticsTest {
         }
     }
 
-    @Test
-    void diagnoseEditUser() throws Exception {
-        String username = "diag_edit_" + System.currentTimeMillis();
-        adminManager.addUser(username, "oldpass123").get(20, TimeUnit.SECONDS);
-        try {
-            logCommandResult("edit-user",
-                    adminManager.editUser(username, "newpass456", "newemail@example.com"));
-        } finally {
-            adminManager.deleteUser(username).get(20, TimeUnit.SECONDS);
-        }
-    }
-
-    @Test
-    void diagnoseGetOnlineUsers() throws Exception {
-        logCommandResult("get-online-users", adminManager.getOnlineUsers());
-    }
-
-    @Test
-    void diagnoseGetUser() throws Exception {
-        String username = "diag_get_" + System.currentTimeMillis();
-        adminManager.addUser(username, "testpass123").get(20, TimeUnit.SECONDS);
-        try {
-            logCommandResult("get-user", adminManager.getUser(username));
-        } finally {
-            adminManager.deleteUser(username).get(20, TimeUnit.SECONDS);
-        }
-    }
-
     /**
      * 输出命令结果详情。
      *

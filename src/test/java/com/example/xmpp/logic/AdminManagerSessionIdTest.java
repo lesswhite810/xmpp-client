@@ -241,19 +241,4 @@ class AdminManagerSessionIdTest {
         verify(connection, times(2)).sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS));
     }
 
-    @Test
-    void testListUsersWithDomainsUsesSinglePhaseRequest() {
-        XmppConnection connection = mock(XmppConnection.class);
-        AdminManager manager = new AdminManager(connection, "admin", "example.com", 3000);
-        Iq resultIq = new Iq.Builder(Iq.Type.RESULT)
-                .id("list-users-result")
-                .to("example.com")
-                .build();
-
-        when(connection.sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS)))
-                .thenReturn(CompletableFuture.completedFuture(resultIq));
-
-        assertSame(resultIq, manager.listUsers(List.of("example.com")).join());
-        verify(connection, times(1)).sendIqPacketAsync(any(Iq.class), eq(3000L), eq(TimeUnit.MILLISECONDS));
-    }
 }

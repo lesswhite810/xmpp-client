@@ -44,7 +44,7 @@ public record ConnectionEvent(XmppConnection connection, ConnectionEventType eve
     /**
      * 获取错误信息。
      *
-     * @return 错误异常，仅 ERROR 类型有效
+     * @return 错误异常，ERROR 与异常关闭场景下的 CLOSED 事件可用
      */
     public Exception error() {
         return error;

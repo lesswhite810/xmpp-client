@@ -25,9 +25,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * XMPP 连接的抽象基类。
+ * XMPP 连接抽象基类。
  *
- * <p>提供 IQ 处理器注册、collector 管理以及连接生命周期事件分发等公共能力。</p>
+ * <p>提供 IQ 处理、collector 和事件分发的公共逻辑。</p>
  *
  * @since 2026-02-09
  */
@@ -83,10 +83,10 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     }
 
     /**
-     * 将收到的 IQ 请求分发给已注册的处理器。
+     * 分发收到的 IQ 请求。
      *
      * @param iq 入站 IQ stanza
-     * @return 如果有处理器处理了该请求则返回 {@code true}
+     * @return 如果请求已被处理则返回 {@code true}
      */
     public boolean handleIqRequest(Iq iq) {
         if (iq.getType() != Iq.Type.GET && iq.getType() != Iq.Type.SET) {
@@ -159,14 +159,23 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     }
 
     /**
-     * 发布正常关闭连接事件。
+     * 发布正常关闭事件。
      */
     public void notifyConnectionClosed() {
         fireEvent(ConnectionEventType.CLOSED);
     }
 
     /**
-     * 发布连接异常关闭事件。
+     * 发布带原因的关闭事件。
+     *
+     * @param e 关闭原因
+     */
+    public void notifyConnectionClosed(Exception e) {
+        fireEvent(ConnectionEventType.CLOSED, e);
+    }
+
+    /**
+     * 发布异常关闭事件。
      *
      * @param e 连接异常
      */
@@ -211,7 +220,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * 创建并注册 stanza collector。
      *
      * @param filter stanza 过滤器
-     * @return 创建后的 collector
+     * @return 新建的 collector
      */
     @Override
     public AsyncStanzaCollector createStanzaCollector(StanzaFilter filter) {
@@ -232,10 +241,10 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     }
 
     /**
-     * 异步发送 IQ stanza 并等待匹配响应。
+     * 发送 IQ 并等待响应。
      *
      * @param iq 待发送的 IQ stanza
-     * @return 响应 Future，若服务端返回 IQ error，则以异常形式结束
+     * @return 响应 Future
      */
     @Override
     public CompletableFuture<XmppStanza> sendIqPacketAsync(Iq iq) {
@@ -243,12 +252,12 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     }
 
     /**
-     * 发送带超时时间的 IQ stanza。
+     * 发送带超时的 IQ。
      *
      * @param iq 待发送的 IQ stanza
      * @param timeout 超时时间
      * @param unit 超时时间单位
-     * @return 响应 Future，成功时返回匹配的结果节，失败时返回异常
+     * @return 响应 Future
      */
     public CompletableFuture<XmppStanza> sendIqPacketAsync(Iq iq, long timeout, TimeUnit unit) {
         validateIqSendArguments(iq, timeout, unit);
@@ -256,11 +265,29 @@ public abstract class AbstractXmppConnection implements XmppConnection {
             return CompletableFuture.failedFuture(new XmppNetworkException("Channel is not active"));
         }
 
-        AsyncStanzaCollector collector = createIqResponseCollector(iq);
-        CompletableFuture<XmppStanza> responseFuture = createIqResponseFuture(collector, timeout, unit);
+        String iqId = iq.getId();
+        AsyncStanzaCollector collector = createStanzaCollector(stanza -> {
+            if (!(stanza instanceof Iq responseIq)) {
+                return false;
+            }
+            return iqId.equals(stanza.getId())
+                    && (responseIq.getType() == Iq.Type.RESULT || responseIq.getType() == Iq.Type.ERROR);
+        });
         CompletableFuture<Void> dispatchFuture = dispatchStanza(iq);
-        propagateDispatchFailure(dispatchFuture, collector);
-        return finalizeIqResponseFuture(responseFuture, collector);
+        dispatchFuture.whenComplete((ignored, dispatchError) -> {
+            if (dispatchError != null) {
+                collector.getFuture().completeExceptionally(dispatchError);
+            }
+        });
+        return collector.getFuture()
+                .orTimeout(timeout, unit)
+                .thenCompose(this::mapIqErrorResponse)
+                .whenComplete((result, ex) -> {
+                    collectors.remove(collector);
+                    if (ex != null) {
+                        collector.getFuture().cancel(true);
+                    }
+                });
     }
 
     private void validateIqSendArguments(Iq iq, long timeout, TimeUnit unit) {
@@ -274,52 +301,11 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         Validate.notBlank(iq.getId(), "IQ must have a non-blank ID");
     }
 
-    private AsyncStanzaCollector createIqResponseCollector(Iq iq) {
-        String iqId = iq.getId();
-        StanzaFilter filter = stanza -> matchesIqResponse(stanza, iqId);
-        return createStanzaCollector(filter);
-    }
-
-    private boolean matchesIqResponse(XmppStanza stanza, String iqId) {
-        if (!(stanza instanceof Iq responseIq)) {
-            return false;
-        }
-        return iqId.equals(stanza.getId())
-                && (responseIq.getType() == Iq.Type.RESULT || responseIq.getType() == Iq.Type.ERROR);
-    }
-
-    private CompletableFuture<XmppStanza> createIqResponseFuture(AsyncStanzaCollector collector,
-                                                                 long timeout,
-                                                                 TimeUnit unit) {
-        return collector.getFuture()
-                .orTimeout(timeout, unit)
-                .thenCompose(this::mapIqErrorResponse);
-    }
-
-    private void propagateDispatchFailure(CompletableFuture<Void> dispatchFuture, AsyncStanzaCollector collector) {
-        dispatchFuture.whenComplete((ignored, dispatchError) -> {
-            if (dispatchError != null) {
-                collector.getFuture().completeExceptionally(dispatchError);
-            }
-        });
-    }
-
-    private CompletableFuture<XmppStanza> finalizeIqResponseFuture(CompletableFuture<XmppStanza> responseFuture,
-                                                                   AsyncStanzaCollector collector) {
-        return responseFuture
-                .whenComplete((result, ex) -> {
-                    collectors.remove(collector);
-                    if (ex != null) {
-                        collector.getFuture().cancel(true);
-                    }
-                });
-    }
-
     /**
-     * 将 stanza 发送到底层传输层，并返回发送结果。
+     * 将 stanza 发送到底层传输层。
      *
      * @param stanza 待发送的 stanza
-     * @return 发送完成 Future；如果发送未能下发到底层通道，则以异常结束
+     * @return 发送完成 Future
      */
     protected abstract CompletableFuture<Void> dispatchStanza(XmppStanza stanza);
 

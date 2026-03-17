@@ -89,6 +89,17 @@ class XmppStreamDecoderTest {
     }
 
     @Test
+    @DisplayName("应正确解析 TLS proceed")
+    void testParseTlsProceed() {
+        sendStreamHeader();
+        sendXml("<proceed xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertSame(TlsElements.TlsProceed.INSTANCE, msg);
+    }
+
+    @Test
     @DisplayName("应正确解析 SASL Auth")
     void testParseSaslAuth() {
         sendStreamHeader();
@@ -101,6 +112,18 @@ class XmppStreamDecoderTest {
         Auth auth = (Auth) msg;
         assertEquals("PLAIN", auth.getMechanism());
         assertEquals("AHVzZXIAcGFzcw==", auth.getContent());
+    }
+
+    @Test
+    @DisplayName("空 SASL auth 内容应解析为 null")
+    void testParseSaslAuthWithEmptyContent() {
+        sendStreamHeader();
+        sendXml("<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'></auth>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(Auth.class, msg);
+        assertNull(((Auth) msg).getContent());
     }
 
     @Test
@@ -119,6 +142,19 @@ class XmppStreamDecoderTest {
     }
 
     @Test
+    @DisplayName("应为缺省 SASL failure 填充默认 condition")
+    void testParseSaslFailureWithDefaultCondition() {
+        sendStreamHeader();
+        sendXml("<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><text>denied</text></failure>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(SaslFailure.class, msg);
+        assertEquals("undefined-condition", ((SaslFailure) msg).getCondition());
+        assertEquals("denied", ((SaslFailure) msg).getText());
+    }
+
+    @Test
     @DisplayName("应正确解析 StreamError")
     void testParseStreamError() {
         sendStreamHeader();
@@ -128,6 +164,23 @@ class XmppStreamDecoderTest {
         assertNotNull(msg);
         assertInstanceOf(StreamError.class, msg);
         assertEquals(StreamError.Condition.NOT_AUTHORIZED, ((StreamError) msg).getCondition());
+    }
+
+    @Test
+    @DisplayName("应解析带 by 的 StreamError")
+    void testParseStreamErrorWithBy() {
+        sendStreamHeader();
+        sendXml("<error xmlns='http://etherx.jabber.org/streams'>"
+                + "<see-other-host/><by>proxy.example.com</by><text>redirect</text></error>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(StreamError.class, msg);
+
+        StreamError error = (StreamError) msg;
+        assertEquals(StreamError.Condition.SEE_OTHER_HOST, error.getCondition());
+        assertEquals("proxy.example.com", error.getBy());
+        assertEquals("redirect", error.getText());
     }
 
     @Test
@@ -193,7 +246,8 @@ class XmppStreamDecoderTest {
     @DisplayName("应正确解析 Message")
     void testParseMessage() {
         sendStreamHeader();
-        sendXml("<message type='chat' id='msg1' from='alice@example.com' to='bob@example.com'><body>Hello, Bob!</body><subject>Greeting</subject></message>");
+        sendXml("<message type='chat' id='msg1' from='alice@example.com' to='bob@example.com'>"
+                + "<body>Hello, Bob!</body><subject>Greeting</subject><thread>thread-1</thread></message>");
 
         Object msg = channel.readInbound();
         assertNotNull(msg);
@@ -204,6 +258,7 @@ class XmppStreamDecoderTest {
         assertEquals("msg1", message.getId());
         assertEquals("Hello, Bob!", message.getBody());
         assertEquals("Greeting", message.getSubject());
+        assertEquals("thread-1", message.getThread());
     }
 
     @Test

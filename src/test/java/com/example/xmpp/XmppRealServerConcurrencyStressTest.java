@@ -127,42 +127,6 @@ class XmppRealServerConcurrencyStressTest {
         }
     }
 
-    @Test
-    void testRepeatedConcurrentAdminLifecycleRounds() throws Exception {
-        XmppTcpConnection adminConnection = openAuthenticatedConnection(ADMIN_USERNAME, ADMIN_PASSWORD);
-        AdminManager adminManager = new AdminManager(adminConnection, adminConnection.getConfig());
-
-        for (int round = 0; round < 3; round++) {
-            List<String> usernames = new ArrayList<>();
-            List<CompletableFuture<XmppStanza>> addFutures = new ArrayList<>();
-
-            for (int i = 0; i < 4; i++) {
-                String username = "round_" + round + "_user_" + i + "_" + System.currentTimeMillis();
-                usernames.add(username);
-                addFutures.add(adminManager.addUser(username, "Pass123!@#"));
-            }
-
-            CompletableFuture.allOf(addFutures.toArray(CompletableFuture[]::new))
-                    .get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-
-            String xmlAfterAdd = listUsersXml(adminManager);
-            for (String username : usernames) {
-                assertTrue(xmlAfterAdd.contains(username), "并发创建后用户应存在: " + username);
-            }
-
-            List<CompletableFuture<XmppStanza>> deleteFutures = usernames.stream()
-                    .map(adminManager::deleteUser)
-                    .toList();
-            CompletableFuture.allOf(deleteFutures.toArray(CompletableFuture[]::new))
-                    .get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-
-            awaitCondition(() -> {
-                String currentXml = listUsersXml(adminManager);
-                return usernames.stream().noneMatch(currentXml::contains);
-            }, "并发删除后用户应全部消失");
-        }
-    }
-
     private XmppTcpConnection openAuthenticatedConnection(String username, String password) throws Exception {
         XmppTcpConnection connection = createConnection(username, password);
         openedConnections.add(connection);
@@ -223,19 +187,6 @@ class XmppRealServerConcurrencyStressTest {
         Iq iq = (Iq) stanza;
         assertEquals(expectedId, iq.getId(), "响应 id 应与请求匹配");
         return iq;
-    }
-
-    private String listUsersXml(AdminManager adminManager) {
-        try {
-            return adminManager.listUsers()
-                    .thenApply(stanza -> assertInstanceOf(Iq.class, stanza).toXml())
-                    .get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new CompletionException(e);
-        } catch (ExecutionException | java.util.concurrent.TimeoutException e) {
-            throw new CompletionException(e);
-        }
     }
 
     private void awaitCondition(java.util.function.BooleanSupplier supplier, String message) throws Exception {

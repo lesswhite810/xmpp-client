@@ -2,7 +2,6 @@ package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
-import com.example.xmpp.net.SrvRecord;
 import com.example.xmpp.protocol.*;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.Message;
@@ -40,16 +39,6 @@ class CoreFunctionalityTest {
         assertEquals(5222, config.getPort());
         assertEquals(XmppClientConfig.SecurityMode.IF_POSSIBLE, config.getSecurityMode());
         assertTrue(config.isSendPresence());
-    }
-
-    @Test
-    void testSrvRecordComparable() {
-        SrvRecord high = new SrvRecord("high.example.com", 5222, 10, 100);
-        SrvRecord low = new SrvRecord("low.example.com", 5222, 20, 50);
-        SrvRecord sameWeight = new SrvRecord("same.example.com", 5222, 10, 50);
-
-        assertTrue(high.compareTo(low) < 0);
-        assertTrue(high.compareTo(sameWeight) < 0);
     }
 
     @Test
@@ -190,12 +179,4 @@ class CoreFunctionalityTest {
         assertEquals("urn:xmpp:ping", Ping.NAMESPACE);
     }
 
-    @Test
-    void testSrvRecordFields() {
-        SrvRecord record = new SrvRecord("xmpp.example.com", 5222, 10, 20);
-        assertEquals("xmpp.example.com", record.target());
-        assertEquals(5222, record.port());
-        assertEquals(10, record.priority());
-        assertEquals(20, record.weight());
-    }
 }

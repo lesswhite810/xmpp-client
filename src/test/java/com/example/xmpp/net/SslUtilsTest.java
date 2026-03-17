@@ -8,7 +8,9 @@ import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.SSLContext;
 import java.security.cert.X509Certificate;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -116,5 +118,56 @@ class SslUtilsTest {
 
         assertNotNull(handler);
         assertNull(handler.engine().getPeerHost());
+    }
+
+    @Test
+    @DisplayName("应优先使用自定义 SSLContext")
+    void testCreateSslHandlerUsesCustomSslContext() throws Exception {
+        SSLContext customContext = SSLContext.getInstance("TLS");
+        customContext.init(null, null, null);
+
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .host("example.com")
+                .customSslContext(customContext)
+                .handshakeTimeoutMs(3000)
+                .build();
+
+        SslHandler handler = SslUtils.createSslHandler(config);
+
+        assertNotNull(handler);
+        assertEquals(3000, handler.getHandshakeTimeoutMillis());
+        assertTrue(handler.engine().getUseClientMode());
+    }
+
+    @Test
+    @DisplayName("未显式配置握手超时时应使用默认值")
+    void testCreateSslHandlerUsesDefaultHandshakeTimeout() throws XmppNetworkException {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .host("example.com")
+                .build();
+
+        SslHandler handler = SslUtils.createSslHandler(config);
+
+        assertEquals(10000, handler.getHandshakeTimeoutMillis());
+    }
+
+    @Test
+    @DisplayName("仅应启用受支持的协议和密码套件")
+    void testCreateSslHandlerFiltersUnsupportedProtocolsAndCiphers() throws XmppNetworkException {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .host("example.com")
+                .enabledSSLProtocols(new String[]{"TLSv1.3", "UNSUPPORTED_PROTOCOL"})
+                .enabledSSLCiphers(new String[]{"TLS_AES_128_GCM_SHA256", "UNSUPPORTED_CIPHER"})
+                .build();
+
+        SslHandler handler = SslUtils.createSslHandler(config);
+
+        assertTrue(List.of(handler.engine().getEnabledProtocols()).contains("TLSv1.3"));
+        assertFalse(List.of(handler.engine().getEnabledProtocols()).contains("UNSUPPORTED_PROTOCOL"));
+        assertTrue(List.of(handler.engine().getEnabledCipherSuites()).contains("TLS_AES_128_GCM_SHA256"));
+        assertFalse(List.of(handler.engine().getEnabledCipherSuites()).contains("UNSUPPORTED_CIPHER"));
     }
 }

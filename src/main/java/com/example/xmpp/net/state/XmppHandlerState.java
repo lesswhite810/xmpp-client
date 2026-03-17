@@ -21,6 +21,7 @@ import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.protocol.model.stream.StreamHeader;
 import com.example.xmpp.protocol.model.stream.TlsElements.StartTls;
 import com.example.xmpp.protocol.model.stream.TlsElements.TlsProceed;
+import com.example.xmpp.util.StanzaIdGenerator;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.ssl.SslHandler;
@@ -63,7 +64,7 @@ public enum XmppHandlerState implements HandlerState {
             }
             log.debug("Opening initial XMPP stream");
             transitionAfterSuccessfulWrite(context, ctx,
-                    context.openStreamAndResetDecoder(ctx),
+                    context.openStream(ctx),
                     "open initial XMPP stream",
                     () -> context.transitionTo(AWAITING_FEATURES, ctx));
         }
@@ -187,9 +188,7 @@ public enum XmppHandlerState implements HandlerState {
                         "send SASL auth stanza",
                         () -> context.transitionTo(SASL_AUTH, ctx));
             } catch (XmppAuthException e) {
-                log.warn("Authentication error");
-                log.debug("Detail", e);
-                log.debug("Authentication error detail", e);
+                log.warn("Authentication error", e);
                 context.closeConnectionOnError(ctx, e);
             }
         }
@@ -201,7 +200,7 @@ public enum XmppHandlerState implements HandlerState {
                     .build();
 
             Iq bindIq = new Iq.Builder(Iq.Type.SET)
-                    .id(context.generateId("bind"))
+                    .id(StanzaIdGenerator.newId("bind"))
                     .childElement(bind)
                     .build();
             transitionAfterSuccessfulWrite(context, ctx,
@@ -240,15 +239,11 @@ public enum XmppHandlerState implements HandlerState {
                 log.debug("SSL handler added to pipeline, handshake starting");
 
             } catch (XmppNetworkException e) {
-                log.warn("Network error while initializing SSL handler");
-                log.debug("Detail", e);
-                log.debug("Network error while initializing SSL handler detail", e);
+                log.warn("Network error while initializing SSL handler", e);
                 context.closeConnectionOnError(ctx, e);
             } catch (IllegalArgumentException e) {
-                log.warn("Invalid SSL configuration");
-                log.debug("Detail", e);
-                log.debug("Invalid SSL configuration detail", e);
-                context.closeConnectionOnError(ctx, e);
+                log.warn("Invalid SSL configuration", e);
+                context.closeConnectionOnError(ctx, new XmppNetworkException("Invalid SSL configuration", e));
             }
         }
 
@@ -276,17 +271,13 @@ public enum XmppHandlerState implements HandlerState {
                     default -> log.debug("Received unexpected message during SASL auth: {}", msg.getClass().getSimpleName());
                 }
             } catch (XmppAuthException e) {
-                log.warn("SASL authentication error");
-                log.debug("Detail", e);
-                log.debug("SASL authentication error detail", e);
+                log.warn("SASL authentication error", e);
                 context.setSaslNegotiator(null);
                 context.closeConnectionOnError(ctx, e);
             } catch (IllegalArgumentException e) {
-                log.warn("Invalid SASL authentication data");
-                log.debug("Detail", e);
-                log.debug("Invalid SASL authentication data detail", e);
+                log.warn("Invalid SASL authentication data", e);
                 context.setSaslNegotiator(null);
-                context.closeConnectionOnError(ctx, e);
+                context.closeConnectionOnError(ctx, new XmppAuthException("Invalid SASL authentication data", e));
             }
         }
 
@@ -303,7 +294,7 @@ public enum XmppHandlerState implements HandlerState {
             }
             log.debug("SASL negotiation completed, reopening stream");
             transitionAfterSuccessfulWrite(context, ctx,
-                    context.openStreamAndResetDecoder(ctx),
+                    context.openStream(ctx),
                     "reopen XMPP stream after SASL success",
                     () -> context.transitionTo(AWAITING_FEATURES, ctx));
         }
@@ -464,7 +455,7 @@ public enum XmppHandlerState implements HandlerState {
                         new XmppNetworkException("Failed to " + action, result.cause()));
                 return;
             }
-            if (context == null) {
+            if (context.isTerminated()) {
                 log.debug("Skipping state follow-up for {} because state context is cleared", action);
                 return;
             }

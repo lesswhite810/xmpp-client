@@ -82,17 +82,6 @@ class XmppExceptionTest {
     }
 
     @Test
-    @DisplayName("XmppDnsException 测试")
-    void testXmppDnsException() {
-        XmppDnsException ex1 = new XmppDnsException("DNS error");
-        XmppDnsException ex2 = new XmppDnsException("DNS error", new RuntimeException());
-        
-        assertEquals("DNS error", ex1.getMessage());
-        assertNotNull(ex2.getCause());
-        assertTrue(ex1 instanceof XmppException);
-    }
-
-    @Test
     @DisplayName("异常可以被抛出和捕获")
     void testExceptionThrowCatch() {
         assertThrows(XmppException.class, () -> {
@@ -110,12 +99,9 @@ class XmppExceptionTest {
         XmppException authEx = new XmppAuthException("auth");
         XmppException netEx = new XmppNetworkException("net");
         XmppException parseEx = new XmppParseException("parse");
-        XmppException dnsEx = new XmppDnsException("dns");
-
         assertTrue(authEx instanceof Exception);
         assertTrue(netEx instanceof Exception);
         assertTrue(parseEx instanceof Exception);
-        assertTrue(dnsEx instanceof Exception);
     }
 
     // XmppProtocolException 测试
@@ -196,7 +182,6 @@ class XmppExceptionTest {
         assertThrows(XmppAuthException.class, () -> { throw new XmppAuthException("test"); });
         assertThrows(XmppNetworkException.class, () -> { throw new XmppNetworkException("test"); });
         assertThrows(XmppParseException.class, () -> { throw new XmppParseException("test"); });
-        assertThrows(XmppDnsException.class, () -> { throw new XmppDnsException("test"); });
         assertThrows(XmppProtocolException.class, () -> { throw new XmppProtocolException("test"); });
         assertThrows(XmppSaslFailureException.class, () -> { throw new XmppSaslFailureException(null); });
         assertThrows(XmppStanzaErrorException.class, () -> { throw new XmppStanzaErrorException("test", null); });

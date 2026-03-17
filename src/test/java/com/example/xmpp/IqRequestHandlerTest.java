@@ -206,11 +206,6 @@ class IqRequestHandlerTest {
             return config;
         }
 
-        @Override
-        public void resetHandlerState() {
-            // 测试用空实现
-        }
-
         XmppStanza getLastSentStanza() {
             return lastSentStanza;
         }

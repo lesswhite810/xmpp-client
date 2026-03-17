@@ -1,9 +1,16 @@
 package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
+import com.example.xmpp.event.ConnectionEventType;
+import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
+import com.example.xmpp.net.XmppNettyHandler;
+import com.example.xmpp.protocol.model.XmlSerializable;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
@@ -14,8 +21,11 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -181,6 +191,117 @@ class XmppTcpConnectionUnitTest {
         assertEquals("127.0.0.1:5222", present.orElseThrow().toString());
     }
 
+    @Test
+    void testDispatchStanzaFailsWhenChannelInactive() {
+        XmppTcpConnection connection = new XmppTcpConnection(newConfig());
+
+        CompletionException exception = assertThrows(CompletionException.class,
+                () -> connection.dispatchStanza(new TestStanza("<message id='m1'/>")).join());
+
+        XmppNetworkException cause = assertInstanceOf(XmppNetworkException.class, exception.getCause());
+        assertTrue(cause.getMessage().contains("Channel is not active"));
+    }
+
+    @Test
+    void testDispatchStanzaFailsWhenSerializationReturnsNullFuture() throws Exception {
+        XmppTcpConnection connection = new XmppTcpConnection(newConfig());
+        RecordingNettyHandler nettyHandler = new RecordingNettyHandler(newConfig(), connection, null);
+        EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
+
+        try {
+            setField(connection, "channel", channel);
+            setField(connection, "nettyHandler", nettyHandler);
+
+            CompletionException exception = assertThrows(CompletionException.class,
+                    () -> connection.dispatchStanza(new TestStanza("<message id='m2'/>")).join());
+
+            XmppNetworkException cause = assertInstanceOf(XmppNetworkException.class, exception.getCause());
+            assertTrue(cause.getMessage().contains("Failed to serialize stanza for sending"));
+            assertNotNull(nettyHandler.lastContext);
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testDispatchStanzaCompletesWhenWriteSucceeds() throws Exception {
+        XmppTcpConnection connection = new XmppTcpConnection(newConfig());
+        EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
+        RecordingNettyHandler nettyHandler = new RecordingNettyHandler(newConfig(), connection, channel.newSucceededFuture());
+
+        try {
+            setField(connection, "channel", channel);
+            setField(connection, "nettyHandler", nettyHandler);
+
+            assertDoesNotThrow(() -> connection.dispatchStanza(new TestStanza("<message id='m3'/>")).join());
+            assertEquals("<message id='m3'/>", nettyHandler.lastStanza.toXml());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testDispatchStanzaFailsWhenWriteFails() throws Exception {
+        XmppTcpConnection connection = new XmppTcpConnection(newConfig());
+        EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
+        ChannelFuture failedFuture = channel.newFailedFuture(new IllegalStateException("boom"));
+        RecordingNettyHandler nettyHandler = new RecordingNettyHandler(newConfig(), connection, failedFuture);
+
+        try {
+            setField(connection, "channel", channel);
+            setField(connection, "nettyHandler", nettyHandler);
+
+            CompletionException exception = assertThrows(CompletionException.class,
+                    () -> connection.dispatchStanza(new TestStanza("<message id='m4'/>")).join());
+
+            XmppNetworkException cause = assertInstanceOf(XmppNetworkException.class, exception.getCause());
+            assertTrue(cause.getMessage().contains("Failed to send stanza"));
+            assertInstanceOf(IllegalStateException.class, cause.getCause());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testFailConnectionPublishesTerminalEventsOnlyOnce() throws Exception {
+        XmppEventBus.getInstance().clear();
+        XmppTcpConnection connection = new XmppTcpConnection(newConfig());
+        AtomicInteger errorCount = new AtomicInteger();
+        AtomicInteger closedCount = new AtomicInteger();
+
+        XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.ERROR, event -> errorCount.incrementAndGet());
+        XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.CLOSED, event -> closedCount.incrementAndGet());
+
+        connection.failConnection(new XmppNetworkException("boom"));
+        connection.failConnection(new XmppNetworkException("boom-again"));
+
+        assertEquals(1, errorCount.get());
+        assertEquals(1, closedCount.get());
+    }
+
+    @Test
+    void testHandleChannelInactiveAfterDisconnectPublishesClosedOnlyOnce() throws Exception {
+        XmppEventBus.getInstance().clear();
+        XmppTcpConnection connection = new XmppTcpConnection(newConfig());
+        EmbeddedChannel channel = new EmbeddedChannel();
+        AtomicInteger errorCount = new AtomicInteger();
+        AtomicInteger closedCount = new AtomicInteger();
+
+        try {
+            setField(connection, "channel", channel);
+            XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.ERROR, event -> errorCount.incrementAndGet());
+            XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.CLOSED, event -> closedCount.incrementAndGet());
+
+            connection.disconnect();
+            connection.handleChannelInactive(channel);
+
+            assertEquals(0, errorCount.get());
+            assertEquals(1, closedCount.get());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
     private XmppClientConfig newConfig() {
         return XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
@@ -220,5 +341,55 @@ class XmppTcpConnectionUnitTest {
         var field = XmppTcpConnection.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         return field.get(target);
+    }
+
+    private static final class TestStanza implements com.example.xmpp.protocol.model.XmppStanza, XmlSerializable {
+
+        private final String xml;
+
+        private TestStanza(String xml) {
+            this.xml = xml;
+        }
+
+        @Override
+        public String getId() {
+            return "test-id";
+        }
+
+        @Override
+        public String getFrom() {
+            return null;
+        }
+
+        @Override
+        public String getTo() {
+            return null;
+        }
+
+        @Override
+        public String toXml() {
+            return xml;
+        }
+    }
+
+    private static final class RecordingNettyHandler extends XmppNettyHandler {
+
+        private final ChannelFuture future;
+
+        private ChannelHandlerContext lastContext;
+
+        private XmlSerializable lastStanza;
+
+        private RecordingNettyHandler(XmppClientConfig config, XmppTcpConnection connection, ChannelFuture future) {
+            super(config, connection);
+            this.future = future;
+        }
+
+        @Override
+        public ChannelFuture sendStanza(ChannelHandlerContext ctx, Object packet) {
+            lastContext = ctx;
+            lastStanza = (XmlSerializable) packet;
+            return future;
+        }
     }
 }

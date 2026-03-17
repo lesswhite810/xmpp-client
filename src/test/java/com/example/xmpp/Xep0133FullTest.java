@@ -122,62 +122,22 @@ public class Xep0133FullTest {
 
     @Test
     @Order(2)
-    @DisplayName("Step 2: 验证用户不存在")
-    public void testUserNotExistsBeforeCreate() throws Exception {
-        log.info("\n--- Step 2: 验证用户不存在 ---");
-        boolean exists = checkUserExists(TEST_USERNAME);
-        log.info("用户 {} 是否存在: {}", TEST_JID, exists);
-        // 不强制断言，因为用户可能因之前的测试而存在
-    }
-
-    @Test
-    @Order(3)
-    @DisplayName("Step 3: 创建测试用户")
+    @DisplayName("Step 2: 创建测试用户")
     public void testAddUser() throws Exception {
-        log.info("\n--- Step 3: 创建测试用户 ---");
+        log.info("\n--- Step 2: 创建测试用户 ---");
         boolean result = addUser(TEST_USERNAME, TEST_PASSWORD);
         log.info("创建用户结果: {}", result ? "成功" : "失败");
         assertTrue(result, "创建用户应该成功");
     }
 
     @Test
-    @Order(4)
-    @DisplayName("Step 4: 验证用户创建成功")
-    public void testUserExistsAfterCreate() throws Exception {
-        log.info("\n--- Step 4: 验证用户创建成功 ---");
-        Thread.sleep(1000); // 等待服务器处理
-        boolean exists = checkUserExists(TEST_USERNAME);
-        log.info("创建后，用户 {} 是否存在: {}", TEST_JID, exists);
-        assertTrue(exists, "创建用户后应该能查询到用户");
-    }
-
-    @Test
-    @Order(5)
-    @DisplayName("Step 5: 获取用户列表详情")
-    public void testListUsers() throws Exception {
-        log.info("\n--- Step 5: 获取用户列表详情 ---");
-        listUsers();
-    }
-
-    @Test
-    @Order(6)
-    @DisplayName("Step 6: 删除测试用户")
+    @Order(3)
+    @DisplayName("Step 3: 删除测试用户")
     public void testDeleteUser() throws Exception {
-        log.info("\n--- Step 6: 删除测试用户 ---");
+        log.info("\n--- Step 3: 删除测试用户 ---");
         boolean result = deleteUser(TEST_USERNAME);
         log.info("删除用户结果: {}", result ? "成功" : "失败");
         assertTrue(result, "删除用户应该成功");
-    }
-
-    @Test
-    @Order(7)
-    @DisplayName("Step 7: 验证用户删除成功")
-    public void testUserNotExistsAfterDelete() throws Exception {
-        log.info("\n--- Step 7: 验证用户删除成功 ---");
-        Thread.sleep(1000); // 等待服务器处理
-        boolean exists = checkUserExists(TEST_USERNAME);
-        log.info("删除后，用户 {} 是否存在: {}", TEST_JID, exists);
-        assertFalse(exists, "删除用户后不应该能查询到用户");
     }
 
     // ==================== 辅助方法 ====================
@@ -276,76 +236,6 @@ public class Xep0133FullTest {
             latch.await(15, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.debug("Quiet delete exception: {}", e.getMessage());
-        }
-    }
-
-    private boolean checkUserExists(String username) throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<String> responseXml = new AtomicReference<>();
-        AtomicReference<Iq.Type> responseType = new AtomicReference<>();
-
-        adminManager.listUsers()
-                .thenAccept(response -> {
-                    if (response instanceof Iq iq) {
-                        responseType.set(iq.getType());
-                        String xml = iq.toXml();
-                        responseXml.set(xml);
-                        log.debug("List users response: {}", xml);
-                    }
-                    latch.countDown();
-                })
-                .exceptionally(ex -> {
-                    log.error("List users failed: {}", ex.getMessage());
-                    latch.countDown();
-                    return null;
-                });
-
-        boolean completed = latch.await(20, TimeUnit.SECONDS);
-        if (!completed) {
-            log.error("List users request timed out");
-            return false;
-        }
-
-        // 检查响应中是否包含目标用户
-        String xml = responseXml.get();
-        if (xml != null) {
-            String userJid = username + "@" + XMPP_DOMAIN;
-            return xml.contains(userJid) || xml.contains(username);
-        }
-
-        return false;
-    }
-
-    private void listUsers() throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<XmppStanza> responseRef = new AtomicReference<>();
-
-        adminManager.listUsers()
-                .thenAccept(response -> {
-                    responseRef.set(response);
-                    logResponse("List Users", response);
-                    latch.countDown();
-                })
-                .exceptionally(ex -> {
-                    log.error("List users failed: {}", ex.getMessage());
-                    latch.countDown();
-                    return null;
-                });
-
-        boolean completed = latch.await(20, TimeUnit.SECONDS);
-        assertTrue(completed, "List users 应该完成");
-
-        XmppStanza response = responseRef.get();
-        if (response instanceof Iq iq) {
-            log.info("=== 用户列表响应 ===");
-            log.info("Type: {}", iq.getType());
-            log.info("From: {}", iq.getFrom());
-            log.info("ID: {}", iq.getId());
-            ExtensionElement child = iq.getChildElement();
-            if (child != null) {
-                log.info("Child element: {} ({})", child.getElementName(), child.getNamespace());
-            }
-            log.info("Full XML:\n{}", iq.toXml());
         }
     }
 

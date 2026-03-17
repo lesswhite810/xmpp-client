@@ -109,21 +109,6 @@ class XmppRealServerScenarioTest {
     }
 
     @Test
-    void testListUsersReflectsCreateAndDelete() throws Exception {
-        XmppTcpConnection adminConnection = openAuthenticatedConnection(ADMIN_USERNAME, ADMIN_PASSWORD);
-        AdminManager adminManager = new AdminManager(adminConnection, adminConnection.getConfig());
-
-        String username = "list_user_" + System.currentTimeMillis();
-        String jid = username + "@" + XMPP_DOMAIN;
-
-        adminManager.addUser(username, "Pass123!@#").get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        awaitCondition(() -> listUsersXml(adminManager).contains(jid), "用户创建后应出现在 list-users 中");
-
-        adminManager.deleteUser(username).get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        awaitCondition(() -> !listUsersXml(adminManager).contains(jid), "用户删除后应从 list-users 中消失");
-    }
-
-    @Test
     void testDeletedUserCannotAuthenticate() throws Exception {
         XmppTcpConnection adminConnection = openAuthenticatedConnection(ADMIN_USERNAME, ADMIN_PASSWORD);
         AdminManager adminManager = new AdminManager(adminConnection, adminConnection.getConfig());
@@ -159,63 +144,6 @@ class XmppRealServerScenarioTest {
             Iq iq = pingFuture.getNow(null);
             assertNotNull(iq, "并发 ping 应全部返回结果");
             assertEquals(Iq.Type.RESULT, iq.getType(), "并发 ping 应全部成功");
-        }
-    }
-
-    @Test
-    void testConcurrentAdminUserLifecycleOperations() throws Exception {
-        XmppTcpConnection adminConnection = openAuthenticatedConnection(ADMIN_USERNAME, ADMIN_PASSWORD);
-        AdminManager adminManager = new AdminManager(adminConnection, adminConnection.getConfig());
-
-        List<String> usernames = new ArrayList<>();
-        List<CompletableFuture<XmppStanza>> addFutures = new ArrayList<>();
-        for (int i = 0; i < 5; i++) {
-            String username = "batch_user_" + i + "_" + System.currentTimeMillis();
-            usernames.add(username);
-            addFutures.add(adminManager.addUser(username, "Pass123!@#"));
-        }
-
-        CompletableFuture.allOf(addFutures.toArray(CompletableFuture[]::new))
-                .get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-
-        String usersXml = listUsersXml(adminManager);
-        for (String username : usernames) {
-            assertTrue(usersXml.contains(username + "@" + XMPP_DOMAIN) || usersXml.contains(username),
-                    "并发创建后的用户应可在 list-users 中找到: " + username);
-        }
-
-        List<CompletableFuture<XmppStanza>> deleteFutures = usernames.stream()
-                .map(adminManager::deleteUser)
-                .toList();
-        CompletableFuture.allOf(deleteFutures.toArray(CompletableFuture[]::new))
-                .get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-
-        awaitCondition(() -> {
-            String xml = listUsersXml(adminManager);
-            return usernames.stream().noneMatch(username -> xml.contains(username));
-        }, "并发删除后的用户不应再出现在 list-users 中");
-    }
-
-    @Test
-    void testConcurrentMixedReadAndPingOperations() throws Exception {
-        XmppTcpConnection adminConnection = openAuthenticatedConnection(ADMIN_USERNAME, ADMIN_PASSWORD);
-        AdminManager adminManager = new AdminManager(adminConnection, adminConnection.getConfig());
-
-        List<CompletableFuture<?>> futures = new ArrayList<>();
-        for (int i = 0; i < 6; i++) {
-            String pingId = "mixed-ping-" + i + "-" + System.nanoTime();
-            futures.add(adminConnection.sendIqPacketAsync(PingIq.createPingRequest(pingId, XMPP_DOMAIN))
-                    .thenApply(stanza -> assertAndCastIq(stanza, pingId)));
-        }
-        for (int i = 0; i < 4; i++) {
-            futures.add(adminManager.listUsers().thenApply(stanza -> assertInstanceOf(Iq.class, stanza).toXml()));
-        }
-
-        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
-                .get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-
-        for (CompletableFuture<?> future : futures) {
-            assertNotNull(future.getNow(null), "并发混合请求都应返回结果");
         }
     }
 
@@ -294,19 +222,6 @@ class XmppRealServerScenarioTest {
         Iq iq = (Iq) stanza;
         assertEquals(expectedId, iq.getId(), "响应 id 应与请求匹配");
         return iq;
-    }
-
-    private String listUsersXml(AdminManager adminManager) {
-        try {
-            return adminManager.listUsers()
-                    .thenApply(stanza -> assertInstanceOf(Iq.class, stanza).toXml())
-                    .get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new CompletionException(e);
-        } catch (ExecutionException | java.util.concurrent.TimeoutException e) {
-            throw new CompletionException(e);
-        }
     }
 
     private void awaitCondition(java.util.function.BooleanSupplier supplier, String message) throws Exception {

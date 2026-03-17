@@ -18,7 +18,7 @@ import java.util.Set;
 /**
  * SSL/TLS 工具类。
  *
- * <p>提供创建 {@link SslHandler} 的工具方法，支持 StartTLS 和 Direct TLS 两种模式。</p>
+ * <p>负责按配置创建 {@link SslHandler}。</p>
  *
  * @since 2026-02-09
  */
@@ -31,11 +31,8 @@ public class SslUtils {
     /**
      * 根据客户端配置创建 {@link SslHandler}。
      *
-     * <p>当前实现不会启用 TLS 主机名校验。
-     * 若业务需要证书主机名校验或自定义 SNI，需要在外层显式扩展。</p>
-     *
      * @param config XMPP 客户端配置
-     * @return 配置好的 SslHandler 实例
+     * @return 配置好的 SslHandler
      * @throws XmppNetworkException 如果创建失败
      */
     public static SslHandler createSslHandler(XmppClientConfig config)
@@ -91,8 +88,6 @@ public class SslUtils {
     /**
      * 配置 SSL 协议。
      *
-     * <p>只启用指定的协议，自动过滤掉不支持的协议。</p>
-     *
      * @param sslEngine SSL 引擎
      * @param enabledProtocols 启用的协议数组
      */
@@ -114,8 +109,6 @@ public class SslUtils {
 
     /**
      * 配置密码套件。
-     *
-     * <p>只启用指定的密码套件，自动过滤掉不支持的套件。</p>
      *
      * @param sslEngine SSL 引擎
      * @param enabledCiphers 启用的密码套件数组

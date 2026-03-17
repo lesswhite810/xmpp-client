@@ -30,7 +30,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @since 2026-02-09
  */
 @Slf4j
-public class PingManager {
+public final class PingManager {
 
     /**
      * 关联的 XMPP 连接。
@@ -203,8 +203,7 @@ public class PingManager {
         connection.sendIqPacketAsync(pingIq)
                 .whenComplete((res, ex) -> {
                     if (ex != null) {
-                        log.warn("Keepalive Ping failed");
-                        log.debug("Detail", ex);
+                        log.warn("Keepalive Ping failed", ex);
                         return;
                     }
                     log.debug("Keepalive Pong received.");

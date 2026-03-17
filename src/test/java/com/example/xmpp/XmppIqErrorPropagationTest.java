@@ -212,10 +212,6 @@ class XmppIqErrorPropagationTest {
             return config;
         }
 
-        @Override
-        public void resetHandlerState() {
-        }
-
         protected java.util.Queue<?> getCollectors() {
             return collectors;
         }

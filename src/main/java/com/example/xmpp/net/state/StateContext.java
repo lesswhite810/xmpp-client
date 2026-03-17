@@ -4,7 +4,6 @@ import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.XmppTcpConnection;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
-import com.example.xmpp.net.XmppStreamDecoder;
 import com.example.xmpp.protocol.model.XmlSerializable;
 import com.example.xmpp.mechanism.SaslNegotiator;
 import com.example.xmpp.util.NettyUtils;
@@ -14,8 +13,6 @@ import io.netty.channel.ChannelHandlerContext;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.UUID;
 
 /**
  * 状态上下文（状态模式）。
@@ -34,6 +31,7 @@ public class StateContext {
 
     private volatile XmppHandlerState currentState = XmppHandlerState.INITIAL;
 
+    private volatile boolean terminated;
 
     @Setter
     private SaslNegotiator saslNegotiator;
@@ -60,18 +58,8 @@ public class StateContext {
      */
     public boolean isAuthenticated() {
         synchronized (stateLock) {
-            return currentState.isSessionActive();
+            return !terminated && currentState.isSessionActive();
         }
-    }
-
-    /**
-     * 生成唯一 ID。
-     *
-     * @param prefix ID 前缀
-     * @return 唯一 ID
-     */
-    public String generateId(String prefix) {
-        return prefix + "_" + UUID.randomUUID();
     }
 
     private final Object stateLock = new Object();
@@ -85,7 +73,7 @@ public class StateContext {
      */
     public void transitionTo(XmppHandlerState newState, ChannelHandlerContext ctx) {
         synchronized (stateLock) {
-            if (currentState == null) {
+            if (terminated) {
                 log.debug("Ignoring transition to {} because state context is cleared", newState);
                 return;
             }
@@ -120,7 +108,7 @@ public class StateContext {
      * @param msg 接收到的消息
      */
     public void handleMessage(ChannelHandlerContext ctx, Object msg) {
-        if (currentState == null) {
+        if (terminated) {
             log.debug("Ignoring inbound message because state context is cleared");
             return;
         }
@@ -128,25 +116,13 @@ public class StateContext {
     }
 
     /**
-     * 重置状态。
-     *
-     * <p>该方法通常在连接重建或处理器状态机重置时调用。</p>
-     *
-     * @param connectingState 新的初始连接状态
-     */
-    public void reset(XmppHandlerState connectingState) {
-        this.currentState = connectingState;
-        this.saslNegotiator = null;
-    }
-
-    /**
      * 清除状态上下文。
      *
      * <p>清除后会忽略后续状态切换与入站消息，避免旧连接上的异步回调继续推进状态机。</p>
      */
-    public void terminate() {
-        this.currentState = null;
+    public void invalidate() {
         this.saslNegotiator = null;
+        this.terminated = true;
     }
 
     /**
@@ -171,27 +147,23 @@ public class StateContext {
      * 关闭连接并记录错误。
      *
      * @param ctx   通道上下文
-     * @param cause 错误原因，可以是异常对象或错误描述
+     * @param exception XMPP 异常
      */
-    public void closeConnectionOnError(ChannelHandlerContext ctx, Object cause) {
-        Exception exception = toException(cause);
+    public void closeConnectionOnError(ChannelHandlerContext ctx, XmppException exception) {
         if (connection != null) {
             connection.failConnection(ctx.channel(), exception);
         }
         ctx.close();
     }
 
-    private Exception toException(Object cause) {
-        if (cause instanceof Exception exception) {
-            if (exception instanceof XmppException xmppException) {
-                return xmppException;
-            }
-            return new XmppException("Connection error: " + exception.getClass().getSimpleName(), exception);
-        }
-        if (cause instanceof Throwable throwable) {
-            return new XmppException("Connection error: " + throwable.getClass().getSimpleName(), throwable);
-        }
-        return new XmppException(String.valueOf(cause));
+    /**
+     * 使用固定错误文案关闭连接。
+     *
+     * @param ctx     通道上下文
+     * @param message 安全的固定错误文案
+     */
+    public void closeConnectionOnError(ChannelHandlerContext ctx, String message) {
+        closeConnectionOnError(ctx, new XmppException(message));
     }
 
     /**
@@ -217,14 +189,4 @@ public class StateContext {
         return NettyUtils.writeAndFlushStringAsync(ctx, xml.toString());
     }
 
-    /**
-     * 重置解码器并打开流。
-     *
-     * <p>当前实现仅重新发送 stream 头，保留该方法用于后续扩展解码器重置逻辑。</p>
-     *
-     * @param ctx 通道上下文
-     */
-    public ChannelFuture openStreamAndResetDecoder(ChannelHandlerContext ctx) {
-        return openStream(ctx);
-    }
 }

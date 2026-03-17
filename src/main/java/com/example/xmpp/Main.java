@@ -6,14 +6,7 @@ import com.example.xmpp.exception.XmppException;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * XMPP 客户端示例程序主入口。
- *
- * <p>演示如何使用 XMPP 客户端库连接到 XMPP 服务器。</p>
- *
- * <h3>使用方法</h3>
- * <pre>
- * java -jar xmpp-client.jar &lt;domain&gt; &lt;username&gt; &lt;password&gt;
- * </pre>
+ * XMPP 客户端示例入口。
  *
  * @since 2026-02-09
  */
@@ -23,7 +16,7 @@ public class Main {
     /**
      * 程序主入口。
      *
-     * @param args 命令行参数：domain username password
+     * @param args 命令行参数
      */
     public static void main(String[] args) {
         String domain = "example.com";
@@ -39,19 +32,18 @@ public class Main {
         try {
             runClient(domain, username, password);
         } catch (XmppException e) {
-            log.error("XMPP error");
-            log.debug("Detail", e);
+            log.error("XMPP connection failed: {}", e.getMessage(), e);
             throw new RuntimeException("XMPP connection failed", e);
         }
     }
 
     /**
-     * 运行 XMPP 客户端。
+     * 运行示例客户端。
      *
      * @param domain XMPP 服务域名
      * @param username 用户名
      * @param password 密码
-     * @throws XmppException 如果 XMPP 连接失败
+     * @throws XmppException 如果连接失败
      */
     private static void runClient(String domain, String username, String password)
             throws XmppException {

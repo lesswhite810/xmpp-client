@@ -1,9 +1,8 @@
 package com.example.xmpp.logic;
 
-import com.example.xmpp.event.ConnectionEvent;
+import com.example.xmpp.XmppConnection;
 import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
-import com.example.xmpp.XmppConnection;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.exception.XmppSaslFailureException;
 import com.example.xmpp.exception.XmppStanzaErrorException;
@@ -19,13 +18,22 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * ReconnectionManager 单元测试。
@@ -40,9 +48,7 @@ class ReconnectionManagerTest {
 
     @BeforeEach
     void setUp() {
-        // 清除 XmppEventBus 中的事件订阅
         XmppEventBus.getInstance().clear();
-
         reconnectionManager = new ReconnectionManager(connection);
     }
 
@@ -53,71 +59,61 @@ class ReconnectionManagerTest {
     }
 
     @Test
-    @DisplayName("应支持启用自动重连")
-    void testEnable() {
-        assertDoesNotThrow(() -> reconnectionManager.enable());
+    @DisplayName("ReconnectionManager 应禁止子类覆写构造期间绑定的生命周期方法")
+    void testReconnectionManagerClassIsFinal() {
+        assertTrue(Modifier.isFinal(ReconnectionManager.class.getModifiers()));
     }
 
     @Test
-    @DisplayName("应支持禁用自动重连")
-    void testDisable() {
-        assertDoesNotThrow(() -> reconnectionManager.disable());
+    @DisplayName("ReconnectionManager 不应保留历史状态字段")
+    void testLegacyStateFieldsAreRemoved() {
+        assertThrows(NoSuchFieldException.class, () -> ReconnectionManager.class.getDeclaredField("enabled"));
+        assertThrows(NoSuchFieldException.class, () -> ReconnectionManager.class.getDeclaredField("attemptCount"));
+        assertThrows(NoSuchFieldException.class,
+                () -> ReconnectionManager.class.getDeclaredField("reconnectionScheduledDueToError"));
+        assertThrows(NoSuchFieldException.class,
+                () -> ReconnectionManager.class.getDeclaredField("lastDisconnectError"));
     }
 
     @Test
-    @DisplayName("多次启用/禁用应安全执行")
-    void testMultipleEnableDisable() {
-        assertDoesNotThrow(() -> {
-            reconnectionManager.enable();
-            reconnectionManager.enable();
-            reconnectionManager.disable();
-            reconnectionManager.disable();
-            reconnectionManager.enable();
-        });
+    @DisplayName("事件总线回调应安全执行")
+    void testLifecycleCallbacksAreSafe() {
+        assertDoesNotThrow(() -> publish(ConnectionEventType.CONNECTED));
+        assertDoesNotThrow(() -> publish(ConnectionEventType.AUTHENTICATED));
+        assertDoesNotThrow(() -> publish(ConnectionEventType.CLOSED));
+        assertDoesNotThrow(() -> publish(ConnectionEventType.ERROR, new Exception("boom")));
     }
 
     @Test
-    @DisplayName("onEvent(CONNECTED) 回调应安全执行")
-    void testConnectedEventCallback() {
-        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED)));
+    @DisplayName("shutdown 后错误与关闭事件都不应触发重连")
+    void testShutdownPreventsReconnectEvents() {
+        reconnectionManager.shutdown();
+
+        assertDoesNotThrow(() -> publish(ConnectionEventType.ERROR, new Exception("Test error")));
+        assertDoesNotThrow(() -> publish(ConnectionEventType.CLOSED, new Exception("Test error")));
     }
 
     @Test
-    @DisplayName("onEvent(AUTHENTICATED) 回调应安全执行")
-    void testAuthenticatedEventCallback() {
-        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED)));
-        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED)));
+    @DisplayName("ERROR 事件对重连管理器应无副作用")
+    void testErrorEventOnlyDoesNotScheduleReconnect() throws Exception {
+        publish(ConnectionEventType.ERROR, new Exception("boom"));
+
+        Thread.sleep(3500);
+
+        verify(connection, never()).connect();
     }
 
     @Test
-    @DisplayName("onEvent(CLOSED) 回调应安全执行")
-    void testConnectionClosedEventCallback() {
-        assertDoesNotThrow(() -> reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CLOSED)));
-    }
-
-    @Test
-    @DisplayName("onEvent(ERROR) 回调应安全执行")
-    void testConnectionClosedOnErrorEventCallback() {
-        reconnectionManager.disable(); // 禁用避免实际重连
-
-        assertDoesNotThrow(() -> reconnectionManager.onEvent(
-                new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("Test error"))));
-    }
-
-    @Test
-    @DisplayName("启用状态下错误关闭应触发重连")
-    void testConnectionClosedOnErrorWithEnabled() {
-        reconnectionManager.enable();
-
-        assertDoesNotThrow(() -> reconnectionManager.onEvent(
-                new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("Test error"))));
+    @DisplayName("异常关闭应在 CLOSED 事件到达后触发重连")
+    void testClosedWithErrorSchedulesReconnect() {
+        assertDoesNotThrow(() -> emitClosedWithError(new Exception("Test error")));
+        reconnectionManager.shutdown();
     }
 
     @Test
     @DisplayName("认证失败不应触发自动重连")
     void testAuthenticationFailureDoesNotTriggerReconnect() throws Exception {
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR,
-                new XmppSaslFailureException(SaslFailure.builder().condition("not-authorized").build())));
+        emitClosedWithError(new XmppSaslFailureException(SaslFailure.builder().condition("not-authorized").build()));
 
         Thread.sleep(3500);
 
@@ -135,23 +131,20 @@ class ReconnectionManagerTest {
             throw new XmppSaslFailureException(SaslFailure.builder().condition("not-authorized").build());
         }).when(connection).connect();
 
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR,
-                new XmppNetworkException("temporary network issue")));
+        emitClosedWithError(new XmppNetworkException("temporary network issue"));
 
         Thread.sleep(3500);
 
         verify(connection, times(1)).connect();
         assertEquals(1, attempts.get(), "遇到不可恢复的重连失败后不应继续调度下一次重试");
-        assertEquals(0, getAttemptCount().get(), "不可恢复失败后应重置重连计数");
     }
 
     @Test
     @DisplayName("协议流错误不应触发自动重连")
     void testStreamProtocolFailureDoesNotTriggerReconnect() throws Exception {
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR,
-                new XmppStreamErrorException(StreamError.builder()
-                        .condition(StreamError.Condition.NOT_AUTHORIZED)
-                        .build())));
+        emitClosedWithError(new XmppStreamErrorException(StreamError.builder()
+                .condition(StreamError.Condition.NOT_AUTHORIZED)
+                .build()));
 
         Thread.sleep(3500);
 
@@ -168,8 +161,8 @@ class ReconnectionManagerTest {
                         .text("binding failed")
                         .build())
                 .build();
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR,
-                new XmppStanzaErrorException("bind failed", errorIq)));
+
+        emitClosedWithError(new XmppStanzaErrorException("bind failed", errorIq));
 
         Thread.sleep(3500);
 
@@ -189,7 +182,7 @@ class ReconnectionManagerTest {
             throw new XmppNetworkException("connect failed");
         }).when(connection).connect();
 
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom")));
+        emitClosedWithError(new Exception("boom"));
 
         try {
             assertTrue(attemptsLatch.await(9, TimeUnit.SECONDS), "失败后应继续触发下一次重连");
@@ -200,10 +193,10 @@ class ReconnectionManagerTest {
     }
 
     @Test
-    @DisplayName("禁用重连后不应执行已排队的重连任务")
-    void testDisableCancelsScheduledReconnectBeforeExecution() throws Exception {
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom")));
-        reconnectionManager.disable();
+    @DisplayName("shutdown 后不应执行已排队的重连任务")
+    void testShutdownCancelsScheduledReconnectBeforeExecution() throws Exception {
+        emitClosedWithError(new Exception("boom"));
+        reconnectionManager.shutdown();
 
         Thread.sleep(3500);
 
@@ -225,7 +218,7 @@ class ReconnectionManagerTest {
             throw new XmppNetworkException("connect failed");
         }).when(connection).connect();
 
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom")));
+        emitClosedWithError(new Exception("boom"));
 
         assertTrue(attemptStarted.await(4, TimeUnit.SECONDS), "应至少启动一次重连尝试");
 
@@ -238,59 +231,8 @@ class ReconnectionManagerTest {
     }
 
     @Test
-    @DisplayName("禁用重连时运行中的成功重连应立即关闭连接")
-    void testDisableClosesConnectionWhenRunningReconnectSucceeds() throws Exception {
-        CountDownLatch attemptStarted = new CountDownLatch(1);
-        CountDownLatch releaseAttempt = new CountDownLatch(1);
-
-        when(connection.isConnected()).thenReturn(false);
-        doAnswer(invocation -> {
-            attemptStarted.countDown();
-            assertTrue(releaseAttempt.await(3, TimeUnit.SECONDS), "测试应释放当前重连尝试");
-            return null;
-        }).when(connection).connect();
-
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom")));
-
-        assertTrue(attemptStarted.await(4, TimeUnit.SECONDS), "应启动一次重连尝试");
-        reconnectionManager.disable();
-        releaseAttempt.countDown();
-
-        Thread.sleep(500);
-
-        verify(connection, times(1)).disconnect();
-    }
-
-    @Test
-    @DisplayName("禁用后重新启用应重置重连周期计数")
-    void testDisableThenEnableStartsFreshReconnectCycle() throws Exception {
-        CountDownLatch attemptsLatch = new CountDownLatch(2);
-        AtomicInteger attempts = new AtomicInteger();
-
-        when(connection.isConnected()).thenReturn(false);
-        doAnswer(invocation -> {
-            attempts.incrementAndGet();
-            attemptsLatch.countDown();
-            throw new XmppNetworkException("connect failed");
-        }).when(connection).connect();
-
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom-1")));
-        Thread.sleep(500);
-        reconnectionManager.disable();
-        reconnectionManager.enable();
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom-2")));
-
-        try {
-            assertTrue(attemptsLatch.await(9, TimeUnit.SECONDS), "重新启用后应开启新的重连周期");
-            assertTrue(attempts.get() >= 2, "两轮错误关闭都应触发重连尝试");
-        } finally {
-            reconnectionManager.shutdown();
-        }
-    }
-
-    @Test
-    @DisplayName("连续错误事件不应并发排队多个重连任务")
-    void testRepeatedErrorEventsDoNotScheduleDuplicateReconnectTasks() throws Exception {
+    @DisplayName("连续 CLOSED 错误事件不应并发排队多个重连任务")
+    void testRepeatedClosedEventsDoNotScheduleDuplicateReconnectTasks() throws Exception {
         AtomicInteger attempts = new AtomicInteger();
         CountDownLatch firstAttemptLatch = new CountDownLatch(1);
 
@@ -301,9 +243,9 @@ class ReconnectionManagerTest {
             throw new XmppNetworkException("connect failed");
         }).when(connection).connect();
 
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom-1")));
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom-2")));
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom-3")));
+        publish(ConnectionEventType.CLOSED, new Exception("boom-3"));
+        publish(ConnectionEventType.CLOSED, new Exception("boom-2"));
+        publish(ConnectionEventType.CLOSED, new Exception("boom-1"));
 
         try {
             assertTrue(firstAttemptLatch.await(4, TimeUnit.SECONDS), "应至少执行一次重连尝试");
@@ -316,8 +258,8 @@ class ReconnectionManagerTest {
     @Test
     @DisplayName("排队中的重连任务在连接已人工恢复后不应再次执行")
     void testConnectedEventCancelsQueuedReconnectAttempt() throws Exception {
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom")));
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
+        emitClosedWithError(new Exception("boom"));
+        publish(ConnectionEventType.CONNECTED);
 
         Thread.sleep(3500);
 
@@ -327,43 +269,12 @@ class ReconnectionManagerTest {
     @Test
     @DisplayName("排队中的重连任务在连接已完成认证后不应再次执行")
     void testAuthenticatedEventCancelsQueuedReconnectAttempt() throws Exception {
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom")));
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+        emitClosedWithError(new Exception("boom"));
+        publish(ConnectionEventType.AUTHENTICATED);
 
         Thread.sleep(3500);
 
         verify(connection, never()).connect();
-    }
-
-    @Test
-    @DisplayName("仅 CONNECTED 事件不应重置重连计数")
-    void testConnectedEventDoesNotResetReconnectAttemptCount() throws Exception {
-        getAttemptCount().set(3);
-
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom")));
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
-
-        assertTrue(getAttemptCount().get() >= 3, "TCP 连接成功但未认证前，不应清空重连退避计数");
-    }
-
-    @Test
-    @DisplayName("CONNECTED 事件应清理错误触发的重连标记")
-    void testConnectedEventClearsReconnectScheduledDueToErrorFlag() throws Exception {
-        setReconnectionScheduledDueToError(true);
-
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
-
-        assertFalse(isReconnectionScheduledDueToError(), "TCP 已连接后不应继续保留旧的错误重连标记");
-    }
-
-    @Test
-    @DisplayName("AUTHENTICATED 事件应重置重连计数")
-    void testAuthenticatedEventResetsReconnectAttemptCount() throws Exception {
-        getAttemptCount().set(3);
-
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
-
-        assertEquals(0, getAttemptCount().get());
     }
 
     @Test
@@ -384,11 +295,11 @@ class ReconnectionManagerTest {
             return null;
         }).when(connection).connect();
 
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom-1")));
+        emitClosedWithError(new Exception("boom-1"));
         assertTrue(firstAttemptLatch.await(4, TimeUnit.SECONDS), "第一次错误关闭后应完成一次重连尝试");
 
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom-2")));
+        publish(ConnectionEventType.CONNECTED);
+        emitClosedWithError(new Exception("boom-2"));
 
         try {
             assertTrue(secondAttemptLatch.await(4, TimeUnit.SECONDS), "成功重连后再次错误关闭应重新触发重连");
@@ -399,62 +310,32 @@ class ReconnectionManagerTest {
     }
 
     @Test
-    @DisplayName("达到最大重连次数后不应继续执行新的重连尝试")
-    void testMaxReconnectAttemptsStopsFurtherReconnects() throws Exception {
-        getAttemptCount().set(getMaxReconnectAttempts());
+    @DisplayName("高退避轮次下仍应继续调度重连，只受最大延迟限制")
+    void testHighBackoffAttemptStillSchedulesReconnect() throws Exception {
+        Method method = ReconnectionManager.class.getDeclaredMethod("scheduleReconnect", int.class);
+        method.setAccessible(true);
 
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom")));
+        method.invoke(reconnectionManager, 100);
 
-        Thread.sleep(1000);
-
-        verify(connection, never()).connect();
-        assertEquals(0, getAttemptCount().get(), "达到最大次数后应重置计数");
+        assertNotNull(getCurrentTask(), "高退避轮次下仍应继续调度重连任务");
+        reconnectionManager.shutdown();
     }
 
-    @Test
-    @DisplayName("达到最大重连次数并重置后，新的错误关闭应开启新重连周期")
-    void testReconnectCycleRestartsAfterMaxAttemptsReset() throws Exception {
-        getAttemptCount().set(getMaxReconnectAttempts());
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom-1")));
-
-        CountDownLatch attemptLatch = new CountDownLatch(1);
-        when(connection.isConnected()).thenReturn(false);
-        doAnswer(invocation -> {
-            attemptLatch.countDown();
-            return null;
-        }).when(connection).connect();
-
-        reconnectionManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR, new Exception("boom-2")));
-
-        try {
-            assertTrue(attemptLatch.await(4, TimeUnit.SECONDS), "计数重置后新的错误关闭应重新触发重连");
-            verify(connection, times(1)).connect();
-        } finally {
-            reconnectionManager.shutdown();
-        }
+    private void emitClosedWithError(Exception error) {
+        publish(ConnectionEventType.CLOSED, error);
     }
 
-    private AtomicInteger getAttemptCount() throws Exception {
-        Field field = ReconnectionManager.class.getDeclaredField("attemptCount");
+    private void publish(ConnectionEventType eventType) {
+        XmppEventBus.getInstance().publish(connection, eventType);
+    }
+
+    private void publish(ConnectionEventType eventType, Exception error) {
+        XmppEventBus.getInstance().publish(connection, eventType, error);
+    }
+
+    private Object getCurrentTask() throws Exception {
+        java.lang.reflect.Field field = ReconnectionManager.class.getDeclaredField("currentTask");
         field.setAccessible(true);
-        return (AtomicInteger) field.get(reconnectionManager);
-    }
-
-    private int getMaxReconnectAttempts() throws Exception {
-        Field field = ReconnectionManager.class.getDeclaredField("MAX_RECONNECT_ATTEMPTS");
-        field.setAccessible(true);
-        return field.getInt(null);
-    }
-
-    private boolean isReconnectionScheduledDueToError() throws Exception {
-        Field field = ReconnectionManager.class.getDeclaredField("reconnectionScheduledDueToError");
-        field.setAccessible(true);
-        return field.getBoolean(reconnectionManager);
-    }
-
-    private void setReconnectionScheduledDueToError(boolean value) throws Exception {
-        Field field = ReconnectionManager.class.getDeclaredField("reconnectionScheduledDueToError");
-        field.setAccessible(true);
-        field.setBoolean(reconnectionManager, value);
+        return field.get(reconnectionManager);
     }
 }

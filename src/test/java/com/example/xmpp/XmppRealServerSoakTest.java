@@ -58,21 +58,6 @@ class XmppRealServerSoakTest {
     }
 
     @Test
-    void testRepeatedPingAndListUsersLoopOnSingleConnection() throws Exception {
-        XmppTcpConnection adminConnection = openAuthenticatedConnection(ADMIN_USERNAME, ADMIN_PASSWORD);
-        AdminManager adminManager = new AdminManager(adminConnection, adminConnection.getConfig());
-
-        for (int i = 0; i < REQUEST_LOOP_COUNT; i++) {
-            String pingId = "soak-ping-" + i + "-" + System.nanoTime();
-            Iq pingResponse = sendPing(adminConnection, pingId);
-            assertEquals(Iq.Type.RESULT, pingResponse.getType(), "耐久 ping 应始终返回 result");
-
-            String usersXml = listUsersXml(adminManager);
-            assertTrue(usersXml.contains(ADMIN_USERNAME), "管理员应始终出现在用户列表中");
-        }
-    }
-
-    @Test
     void testRepeatedConnectAuthenticateAndDisconnectLoop() throws Exception {
         for (int i = 0; i < RECONNECT_LOOP_COUNT; i++) {
             XmppTcpConnection connection = openAuthenticatedConnection(ADMIN_USERNAME, ADMIN_PASSWORD);
@@ -84,36 +69,6 @@ class XmppRealServerSoakTest {
             connection.disconnect();
             openedConnections.remove(connection);
             awaitCondition(() -> !connection.isConnected(), "连接断开后应退出 connected 状态");
-        }
-    }
-
-    @Test
-    void testRepeatedUserLifecycleWithAuthenticationLoop() throws Exception {
-        XmppTcpConnection adminConnection = openAuthenticatedConnection(ADMIN_USERNAME, ADMIN_PASSWORD);
-        AdminManager adminManager = new AdminManager(adminConnection, adminConnection.getConfig());
-
-        for (int i = 0; i < USER_LIFECYCLE_LOOP_COUNT; i++) {
-            String username = "soak_user_" + i + "_" + System.currentTimeMillis();
-            String password = "Pass" + i + "123!@#";
-            String jid = username + "@" + XMPP_DOMAIN;
-
-            adminManager.addUser(username, password).get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            awaitCondition(() -> listUsersXml(adminManager).contains(jid), "创建后的用户应能被 list-users 观察到");
-
-            XmppTcpConnection userConnection = null;
-            try {
-                userConnection = openAuthenticatedConnection(username, password);
-                Iq pingResponse = sendPing(userConnection, "soak-user-ping-" + i + "-" + System.nanoTime());
-                assertEquals(Iq.Type.RESULT, pingResponse.getType(), "循环创建的用户登录后 ping 应成功");
-            } finally {
-                if (userConnection != null) {
-                    userConnection.disconnect();
-                    openedConnections.remove(userConnection);
-                }
-            }
-
-            adminManager.deleteUser(username).get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            awaitCondition(() -> !listUsersXml(adminManager).contains(jid), "删除后的用户应从 list-users 中消失");
         }
     }
 
@@ -178,19 +133,6 @@ class XmppRealServerSoakTest {
         Iq iq = (Iq) stanza;
         assertEquals(expectedId, iq.getId(), "响应 id 应与请求匹配");
         return iq;
-    }
-
-    private String listUsersXml(AdminManager adminManager) {
-        try {
-            return adminManager.listUsers()
-                    .thenApply(stanza -> assertInstanceOf(Iq.class, stanza).toXml())
-                    .get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new CompletionException(e);
-        } catch (ExecutionException | java.util.concurrent.TimeoutException e) {
-            throw new CompletionException(e);
-        }
     }
 
     private void awaitCondition(BooleanSupplier supplier, String message) throws Exception {

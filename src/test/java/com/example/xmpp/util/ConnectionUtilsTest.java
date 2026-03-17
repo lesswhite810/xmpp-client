@@ -7,6 +7,7 @@ import io.netty.channel.ChannelFuture;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
+import java.net.InetAddress;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -48,7 +49,7 @@ class ConnectionUtilsTest {
                 () -> ConnectionUtils.connectSync(bootstrap, address));
 
         assertEquals("Failed to connect to example.com:5222", exception.getMessage());
-        assertInstanceOf(IllegalStateException.class, exception.getCause());
+        org.junit.jupiter.api.Assertions.assertNull(exception.getCause());
     }
 
     @Test
@@ -67,7 +68,7 @@ class ConnectionUtilsTest {
                 () -> ConnectionUtils.connectSync(bootstrap, address));
 
         assertEquals("Failed to connect to example.com:5222", exception.getMessage());
-        assertInstanceOf(IllegalStateException.class, exception.getCause());
+        org.junit.jupiter.api.Assertions.assertNull(exception.getCause());
     }
 
     @Test
@@ -76,6 +77,21 @@ class ConnectionUtilsTest {
         ChannelFuture future = mock(ChannelFuture.class);
         Channel channel = mock(Channel.class);
         InetSocketAddress address = InetSocketAddress.createUnresolved("example.com", 5222);
+
+        when(bootstrap.connect(address)).thenReturn(future);
+        when(future.sync()).thenReturn(future);
+        when(future.isSuccess()).thenReturn(true);
+        when(future.channel()).thenReturn(channel);
+
+        assertSame(channel, ConnectionUtils.connectSync(bootstrap, address));
+    }
+
+    @Test
+    void testConnectSyncUsesResolvedAddressDescription() throws Exception {
+        Bootstrap bootstrap = mock(Bootstrap.class);
+        ChannelFuture future = mock(ChannelFuture.class);
+        Channel channel = mock(Channel.class);
+        InetSocketAddress address = new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 5222);
 
         when(bootstrap.connect(address)).thenReturn(future);
         when(future.sync()).thenReturn(future);
