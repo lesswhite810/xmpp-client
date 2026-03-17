@@ -18,8 +18,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -48,7 +50,7 @@ class ReconnectionManagerTest {
 
     @BeforeEach
     void setUp() {
-        XmppEventBus.getInstance().clear();
+        clearEventBusListeners();
         reconnectionManager = new ReconnectionManager(connection);
     }
 
@@ -337,5 +339,16 @@ class ReconnectionManagerTest {
         java.lang.reflect.Field field = ReconnectionManager.class.getDeclaredField("currentTask");
         field.setAccessible(true);
         return field.get(reconnectionManager);
+    }
+
+    private void clearEventBusListeners() {
+        try {
+            Field field = XmppEventBus.class.getDeclaredField("listeners");
+            field.setAccessible(true);
+            Object listenersObject = field.get(XmppEventBus.getInstance());
+            ((Map<?, ?>) listenersObject).clear();
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("无法清理 XmppEventBus 订阅状态", e);
+        }
     }
 }

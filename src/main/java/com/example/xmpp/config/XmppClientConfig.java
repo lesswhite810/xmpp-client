@@ -1,6 +1,5 @@
 package com.example.xmpp.config;
 
-import com.example.xmpp.util.SecurityUtils;
 import com.example.xmpp.util.XmppConstants;
 import lombok.Builder;
 import lombok.Getter;
@@ -147,7 +146,7 @@ public class XmppClientConfig {
      * 密码。
      */
     @Builder.Default
-    private char[] password = null;
+    private char[] password = new char[0];
 
     /**
      * 授权标识符。
@@ -260,22 +259,6 @@ public class XmppClientConfig {
      */
     @Builder.Default
     private Locale language = Locale.getDefault();
-
-    private static String trimToNull(String value) {
-        return Optional.ofNullable(value)
-                .map(String::trim)
-                .filter(trimmed -> !trimmed.isEmpty())
-                .orElse(null);
-    }
-
-    /**
-     * 清除内存中的密码。
-     *
-     * <p>安全地清除认证密码的内存副本，防止密码泄露。</p>
-     */
-    public void clearPassword() {
-        SecurityUtils.clear(password);
-    }
 
     /**
      * 获取 XML 语言标签。

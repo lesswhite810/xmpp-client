@@ -188,48 +188,4 @@ public final class XmppEventBus {
         publish(connection, eventType, null);
     }
 
-    /**
-     * 清除所有订阅者（仅供测试使用）。
-     */
-    public void clear() {
-        listeners.clear();
-        log.debug("All event subscribers cleared");
-    }
-
-    /**
-     * 检查是否有订阅者（仅供测试使用）。
-     */
-    public boolean hasSubscribers(XmppConnection connection, ConnectionEventType eventType) {
-        Map<ConnectionEventType, List<Consumer<ConnectionEvent>>> connectionHandlers = listeners.get(connection);
-        if (connectionHandlers == null) {
-            return false;
-        }
-        List<Consumer<ConnectionEvent>> handlers = connectionHandlers.get(eventType);
-        return handlers != null && !handlers.isEmpty();
-    }
-
-    /**
-     * 获取订阅者数量（仅供测试使用）。
-     */
-    public int getSubscriberCount(XmppConnection connection, ConnectionEventType eventType) {
-        Map<ConnectionEventType, List<Consumer<ConnectionEvent>>> connectionHandlers = listeners.get(connection);
-        if (connectionHandlers == null) {
-            return 0;
-        }
-        List<Consumer<ConnectionEvent>> handlers = connectionHandlers.get(eventType);
-        return handlers != null ? handlers.size() : 0;
-    }
-
-    /**
-     * 获取特定连接的总订阅者数量（仅供测试使用）。
-     */
-    public int getTotalSubscriberCount(XmppConnection connection) {
-        Map<ConnectionEventType, List<Consumer<ConnectionEvent>>> connectionHandlers = listeners.get(connection);
-        if (connectionHandlers == null) {
-            return 0;
-        }
-        return connectionHandlers.values().stream()
-                .mapToInt(List::size)
-                .sum();
-    }
 }

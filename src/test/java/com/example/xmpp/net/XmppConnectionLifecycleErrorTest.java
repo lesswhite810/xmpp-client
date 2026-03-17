@@ -51,7 +51,7 @@ class XmppConnectionLifecycleErrorTest {
 
     @BeforeEach
     void setUp() {
-        XmppEventBus.getInstance().clear();
+        clearEventBusListeners();
     }
 
     @Test
@@ -1309,6 +1309,17 @@ class XmppConnectionLifecycleErrorTest {
                     .sum();
         } catch (ReflectiveOperationException e) {
             throw new AssertionError("无法读取 XmppEventBus 订阅状态", e);
+        }
+    }
+
+    private void clearEventBusListeners() {
+        try {
+            Field field = XmppEventBus.class.getDeclaredField("listeners");
+            field.setAccessible(true);
+            Object listenersObject = field.get(XmppEventBus.getInstance());
+            ((Map<?, ?>) listenersObject).clear();
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("无法清理 XmppEventBus 订阅状态", e);
         }
     }
 }

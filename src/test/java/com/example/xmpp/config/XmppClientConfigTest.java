@@ -22,6 +22,8 @@ class XmppClientConfigTest {
         assertTrue(config.isSendPresence());
         assertFalse(config.isReconnectionEnabled());
         assertFalse(config.isPingEnabled());
+        assertNotNull(config.getPassword());
+        assertEquals(0, config.getPassword().length);
     }
 
     @Test

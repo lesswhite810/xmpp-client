@@ -38,9 +38,7 @@ class PingManagerTest {
 
     @BeforeEach
     void setUp() {
-        // 清除 XmppEventBus 中的事件订阅
-        XmppEventBus.getInstance().clear();
-
+        clearEventBusListeners();
         pingManager = new PingManager(connection);
     }
 
@@ -221,6 +219,17 @@ class PingManagerTest {
                     .sum();
         } catch (ReflectiveOperationException e) {
             throw new AssertionError("无法读取 XmppEventBus 订阅状态", e);
+        }
+    }
+
+    private void clearEventBusListeners() {
+        try {
+            Field field = XmppEventBus.class.getDeclaredField("listeners");
+            field.setAccessible(true);
+            Object listenersObject = field.get(XmppEventBus.getInstance());
+            ((Map<?, ?>) listenersObject).clear();
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("无法清理 XmppEventBus 订阅状态", e);
         }
     }
 }

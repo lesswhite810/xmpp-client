@@ -19,6 +19,7 @@ import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -264,7 +265,7 @@ class XmppTcpConnectionUnitTest {
 
     @Test
     void testFailConnectionPublishesTerminalEventsOnlyOnce() throws Exception {
-        XmppEventBus.getInstance().clear();
+        clearEventBusListeners();
         XmppTcpConnection connection = new XmppTcpConnection(newConfig());
         AtomicInteger errorCount = new AtomicInteger();
         AtomicInteger closedCount = new AtomicInteger();
@@ -281,7 +282,7 @@ class XmppTcpConnectionUnitTest {
 
     @Test
     void testHandleChannelInactiveAfterDisconnectPublishesClosedOnlyOnce() throws Exception {
-        XmppEventBus.getInstance().clear();
+        clearEventBusListeners();
         XmppTcpConnection connection = new XmppTcpConnection(newConfig());
         EmbeddedChannel channel = new EmbeddedChannel();
         AtomicInteger errorCount = new AtomicInteger();
@@ -341,6 +342,17 @@ class XmppTcpConnectionUnitTest {
         var field = XmppTcpConnection.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         return field.get(target);
+    }
+
+    private void clearEventBusListeners() {
+        try {
+            var field = XmppEventBus.class.getDeclaredField("listeners");
+            field.setAccessible(true);
+            Object listenersObject = field.get(XmppEventBus.getInstance());
+            ((Map<?, ?>) listenersObject).clear();
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to clear XmppEventBus listeners", e);
+        }
     }
 
     private static final class TestStanza implements com.example.xmpp.protocol.model.XmppStanza, XmlSerializable {

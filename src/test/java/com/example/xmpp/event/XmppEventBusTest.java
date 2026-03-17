@@ -28,7 +28,7 @@ class XmppEventBusTest {
     @BeforeEach
     void setUp() {
         eventBus = XmppEventBus.getInstance();
-        eventBus.clear();
+        clearEventBusListeners();
 
         // 创建 mock 连接
         mockConnection1 = mock(XmppConnection.class);
@@ -110,7 +110,7 @@ class XmppEventBusTest {
         eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> {});
         eventBus.subscribe(mockConnection1, ConnectionEventType.AUTHENTICATED, event -> {});
 
-        eventBus.clear();
+        clearEventBusListeners();
 
         assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
         assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.AUTHENTICATED));
@@ -435,6 +435,17 @@ class XmppEventBusTest {
             return listeners.getOrDefault(connection, Map.of());
         } catch (ReflectiveOperationException e) {
             throw new AssertionError("无法读取 XmppEventBus 订阅状态", e);
+        }
+    }
+
+    private void clearEventBusListeners() {
+        try {
+            Field field = XmppEventBus.class.getDeclaredField("listeners");
+            field.setAccessible(true);
+            Object listenersObject = field.get(eventBus);
+            ((Map<?, ?>) listenersObject).clear();
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("无法清理 XmppEventBus 订阅状态", e);
         }
     }
 }

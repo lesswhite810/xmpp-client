@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -65,7 +66,7 @@ class XmppNettyHandlerTest {
 
     @Test
     void testChannelActiveIgnoredWhileDisconnectInProgress() {
-        XmppEventBus.getInstance().clear();
+        clearEventBusListeners();
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
@@ -90,7 +91,7 @@ class XmppNettyHandlerTest {
 
     @Test
     void testBindSuccessPublishesAuthenticatedEventOnce() {
-        XmppEventBus.getInstance().clear();
+        clearEventBusListeners();
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
@@ -461,7 +462,7 @@ class XmppNettyHandlerTest {
 
     @Test
     void testDelayedInitialPresenceDoesNotAuthenticateBeforeWriteSucceeds() {
-        XmppEventBus.getInstance().clear();
+        clearEventBusListeners();
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
@@ -508,7 +509,7 @@ class XmppNettyHandlerTest {
 
     @Test
     void testClearedStateContextDoesNotMarkSessionReadyAfterDelayedPresenceWriteSucceeds() {
-        XmppEventBus.getInstance().clear();
+        clearEventBusListeners();
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
@@ -551,7 +552,7 @@ class XmppNettyHandlerTest {
 
     @Test
     void testExceptionCaughtPublishesErrorOnlyOnce() {
-        XmppEventBus.getInstance().clear();
+        clearEventBusListeners();
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
@@ -736,6 +737,17 @@ class XmppNettyHandlerTest {
             field.set(handler, stateContext);
         } catch (ReflectiveOperationException e) {
             throw new AssertionError("Failed to replace handler state", e);
+        }
+    }
+
+    private void clearEventBusListeners() {
+        try {
+            Field field = XmppEventBus.class.getDeclaredField("listeners");
+            field.setAccessible(true);
+            Object listenersObject = field.get(XmppEventBus.getInstance());
+            ((Map<?, ?>) listenersObject).clear();
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to clear XmppEventBus listeners", e);
         }
     }
 
