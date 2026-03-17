@@ -24,15 +24,15 @@ class XmppConstantsTest {
     }
 
     @Test
-    @DisplayName("DEFAULT_CONNECT_TIMEOUT_MS 应为 30000")
+    @DisplayName("DEFAULT_CONNECT_TIMEOUT_SECONDS 应为 30")
     void testConnectTimeout() {
-        assertEquals(30000, XmppConstants.DEFAULT_CONNECT_TIMEOUT_MS);
+        assertEquals(30, XmppConstants.DEFAULT_CONNECT_TIMEOUT_SECONDS);
     }
 
     @Test
-    @DisplayName("DEFAULT_READ_TIMEOUT_MS 应为 60000")
+    @DisplayName("DEFAULT_READ_TIMEOUT_SECONDS 应为 60")
     void testReadTimeout() {
-        assertEquals(60000, XmppConstants.DEFAULT_READ_TIMEOUT_MS);
+        assertEquals(60, XmppConstants.DEFAULT_READ_TIMEOUT_SECONDS);
     }
 
     @Test
@@ -54,9 +54,9 @@ class XmppConstantsTest {
     }
 
     @Test
-    @DisplayName("SHUTDOWN_TIMEOUT_SECONDS 应为 5")
+    @DisplayName("SHUTDOWN_TIMEOUT_SECONDS 应为 3")
     void testShutdownTimeout() {
-        assertEquals(5, XmppConstants.SHUTDOWN_TIMEOUT_SECONDS);
+        assertEquals(3, XmppConstants.SHUTDOWN_TIMEOUT_SECONDS);
     }
 
     @Test
@@ -84,9 +84,21 @@ class XmppConstantsTest {
     }
 
     @Test
-    @DisplayName("DEFAULT_IQ_TIMEOUT_MS 应合理")
+    @DisplayName("DEFAULT_IQ_TIMEOUT_SECONDS 应合理")
     void testIqTimeout() {
-        assertTrue(XmppConstants.DEFAULT_IQ_TIMEOUT_MS > 0);
+        assertTrue(XmppConstants.DEFAULT_IQ_TIMEOUT_SECONDS > 0);
+    }
+
+    @Test
+    @DisplayName("SSL_HANDSHAKE_TIMEOUT_SECONDS 应为 10")
+    void testSslHandshakeTimeout() {
+        assertEquals(10, XmppConstants.SSL_HANDSHAKE_TIMEOUT_SECONDS);
+    }
+
+    @Test
+    @DisplayName("SHUTDOWN_QUIET_PERIOD_SECONDS 应为 1")
+    void testShutdownQuietPeriod() {
+        assertEquals(1, XmppConstants.SHUTDOWN_QUIET_PERIOD_SECONDS);
     }
 
     @Test

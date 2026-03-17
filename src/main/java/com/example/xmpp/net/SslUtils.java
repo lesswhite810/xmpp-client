@@ -14,6 +14,7 @@ import javax.net.ssl.TrustManager;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * SSL/TLS 工具类。
@@ -26,7 +27,7 @@ import java.util.Set;
 @UtilityClass
 public class SslUtils {
 
-    private static final int DEFAULT_HANDSHAKE_TIMEOUT_MS = XmppConstants.SSL_HANDSHAKE_TIMEOUT_MS;
+    private static final int DEFAULT_HANDSHAKE_TIMEOUT_SECONDS = XmppConstants.SSL_HANDSHAKE_TIMEOUT_SECONDS;
 
     /**
      * 根据客户端配置创建 {@link SslHandler}。
@@ -65,7 +66,7 @@ public class SslUtils {
 
             int handshakeTimeout = config.getHandshakeTimeoutMs() > 0
                     ? config.getHandshakeTimeoutMs()
-                    : DEFAULT_HANDSHAKE_TIMEOUT_MS;
+                    : Math.toIntExact(TimeUnit.SECONDS.toMillis(DEFAULT_HANDSHAKE_TIMEOUT_SECONDS));
             sslHandler.setHandshakeTimeoutMillis(handshakeTimeout);
 
             log.debug("SslHandler created successfully");

@@ -483,9 +483,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     private void shutdownWorkerGroup() {
         if (workerGroup != null) {
             workerGroup.shutdownGracefully(
-                    XmppConstants.SHUTDOWN_QUIET_PERIOD_MS,
-                    XmppConstants.SHUTDOWN_TIMEOUT_MS,
-                    TimeUnit.MILLISECONDS);
+                    XmppConstants.SHUTDOWN_QUIET_PERIOD_SECONDS,
+                    XmppConstants.SHUTDOWN_TIMEOUT_SECONDS,
+                    TimeUnit.SECONDS);
             workerGroup = null;
         }
     }

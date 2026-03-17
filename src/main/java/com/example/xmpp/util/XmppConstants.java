@@ -35,9 +35,9 @@ public final class XmppConstants {
 
     public static final int DIRECT_TLS_PORT = 5223;
 
-    public static final int DEFAULT_CONNECT_TIMEOUT_MS = 30000;
+    public static final int DEFAULT_CONNECT_TIMEOUT_SECONDS = 30;
 
-    public static final int DEFAULT_READ_TIMEOUT_MS = 60000;
+    public static final int DEFAULT_READ_TIMEOUT_SECONDS = 60;
 
     public static final int DNS_QUERY_TIMEOUT_SECONDS = 5;
 
@@ -45,7 +45,7 @@ public final class XmppConstants {
 
     public static final int AUTH_TIMEOUT_SECONDS = 10;
 
-    public static final int SHUTDOWN_TIMEOUT_SECONDS = 5;
+    public static final int SHUTDOWN_TIMEOUT_SECONDS = 3;
 
     public static final int RECONNECT_BASE_DELAY_SECONDS = 2;
 
@@ -97,7 +97,7 @@ public final class XmppConstants {
 
     public static final String SASL_MECH_PLAIN = "PLAIN";
 
-    public static final long DEFAULT_IQ_TIMEOUT_MS = 30000;
+    public static final long DEFAULT_IQ_TIMEOUT_SECONDS = 30;
 
     public static final int DEFAULT_XML_BUILDER_CAPACITY = 256;
 
@@ -109,9 +109,7 @@ public final class XmppConstants {
 
     public static final int SSL_SESSION_TIMEOUT_SECONDS = 300;
 
-    public static final int SSL_HANDSHAKE_TIMEOUT_MS = 10000;
+    public static final int SSL_HANDSHAKE_TIMEOUT_SECONDS = 10;
 
-    public static final int SHUTDOWN_QUIET_PERIOD_MS = 100;
-
-    public static final int SHUTDOWN_TIMEOUT_MS = 3000;
+    public static final int SHUTDOWN_QUIET_PERIOD_SECONDS = 1;
 }

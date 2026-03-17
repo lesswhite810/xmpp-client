@@ -78,6 +78,17 @@ class XmppClientConfigTest {
     }
 
     @Test
+    @DisplayName("未显式配置时应返回基于秒常量换算的毫秒默认值")
+    void testDefaultTimeouts() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .build();
+
+        assertEquals(30000, config.getConnectTimeout());
+        assertEquals(60000, config.getReadTimeout());
+        assertEquals(10000, config.getHandshakeTimeoutMs());
+    }
+
+    @Test
     @DisplayName("应正确设置重连参数")
     void testReconnectionSettings() {
         XmppClientConfig config = XmppClientConfig.builder()

@@ -13,6 +13,7 @@ import java.net.InetAddress;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * XMPP 客户端配置类（不可变）。
@@ -115,7 +116,7 @@ public class XmppClientConfig {
      *
      * <p>Builder 原始默认值为 {@code 0}，表示未显式配置。实际生效值由
      * {@link #getConnectTimeout()} 返回，未显式配置时使用
-     * {@link XmppConstants#DEFAULT_CONNECT_TIMEOUT_MS}。</p>
+     * {@link XmppConstants#DEFAULT_CONNECT_TIMEOUT_SECONDS} 换算后的毫秒值。</p>
      */
     @Builder.Default
     private int connectTimeout = 0;
@@ -125,7 +126,7 @@ public class XmppClientConfig {
      *
      * <p>用于连接建立后的服务端响应等待与通道读空闲检测。Builder 原始默认值为 {@code 0}，
      * 表示未显式配置。实际生效值由 {@link #getReadTimeout()} 返回，未显式配置时使用
-     * {@link XmppConstants#DEFAULT_READ_TIMEOUT_MS}。</p>
+     * {@link XmppConstants#DEFAULT_READ_TIMEOUT_SECONDS} 换算后的毫秒值。</p>
      */
     @Builder.Default
     private int readTimeout = 0;
@@ -219,7 +220,7 @@ public class XmppClientConfig {
      *
      * <p>Builder 原始默认值为 {@code 0}，表示未显式配置。实际生效值由
      * {@link #getHandshakeTimeoutMs()} 返回，未显式配置时使用
-     * {@link XmppConstants#SSL_HANDSHAKE_TIMEOUT_MS}。</p>
+     * {@link XmppConstants#SSL_HANDSHAKE_TIMEOUT_SECONDS} 换算后的毫秒值。</p>
      */
     @Builder.Default
     private int handshakeTimeoutMs = 0;
@@ -303,27 +304,36 @@ public class XmppClientConfig {
     /**
      * 获取当前实际生效的连接超时时间。
      *
-     * @return 显式配置值；若原始字段值为 {@code 0}，则返回 {@link XmppConstants#DEFAULT_CONNECT_TIMEOUT_MS}
+     * @return 显式配置值；若原始字段值为 {@code 0}，则返回
+     * {@link XmppConstants#DEFAULT_CONNECT_TIMEOUT_SECONDS} 换算后的毫秒值
      */
     public int getConnectTimeout() {
-        return connectTimeout > 0 ? connectTimeout : XmppConstants.DEFAULT_CONNECT_TIMEOUT_MS;
+        return connectTimeout > 0
+                ? connectTimeout
+                : Math.toIntExact(TimeUnit.SECONDS.toMillis(XmppConstants.DEFAULT_CONNECT_TIMEOUT_SECONDS));
     }
 
     /**
      * 获取当前实际生效的读超时时间。
      *
-     * @return 显式配置值；若原始字段值为 {@code 0}，则返回 {@link XmppConstants#DEFAULT_READ_TIMEOUT_MS}
+     * @return 显式配置值；若原始字段值为 {@code 0}，则返回
+     * {@link XmppConstants#DEFAULT_READ_TIMEOUT_SECONDS} 换算后的毫秒值
      */
     public int getReadTimeout() {
-        return readTimeout > 0 ? readTimeout : XmppConstants.DEFAULT_READ_TIMEOUT_MS;
+        return readTimeout > 0
+                ? readTimeout
+                : Math.toIntExact(TimeUnit.SECONDS.toMillis(XmppConstants.DEFAULT_READ_TIMEOUT_SECONDS));
     }
 
     /**
      * 获取当前实际生效的 SSL 握手超时时间。
      *
-     * @return 显式配置值；若原始字段值为 {@code 0}，则返回 {@link XmppConstants#SSL_HANDSHAKE_TIMEOUT_MS}
+     * @return 显式配置值；若原始字段值为 {@code 0}，则返回
+     * {@link XmppConstants#SSL_HANDSHAKE_TIMEOUT_SECONDS} 换算后的毫秒值
      */
     public int getHandshakeTimeoutMs() {
-        return handshakeTimeoutMs > 0 ? handshakeTimeoutMs : XmppConstants.SSL_HANDSHAKE_TIMEOUT_MS;
+        return handshakeTimeoutMs > 0
+                ? handshakeTimeoutMs
+                : Math.toIntExact(TimeUnit.SECONDS.toMillis(XmppConstants.SSL_HANDSHAKE_TIMEOUT_SECONDS));
     }
 }
