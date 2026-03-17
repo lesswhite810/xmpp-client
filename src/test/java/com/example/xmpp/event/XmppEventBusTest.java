@@ -402,8 +402,9 @@ class XmppEventBusTest {
 
             assertTrue(str.contains("ConnectionEvent"));
             assertTrue(str.contains("ERROR"));
-            assertTrue(str.contains("error="));
-            assertTrue(str.contains("Test error message"));
+            assertTrue(str.contains("errorType="));
+            assertTrue(str.contains("RuntimeException"));
+            assertFalse(str.contains("Test error message"));
         }
     }
 

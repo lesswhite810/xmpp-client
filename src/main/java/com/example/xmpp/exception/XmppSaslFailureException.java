@@ -38,9 +38,6 @@ public class XmppSaslFailureException extends XmppAuthException {
         if (saslFailure.getCondition() != null && !saslFailure.getCondition().isBlank()) {
             builder.append(": ").append(saslFailure.getCondition());
         }
-        if (saslFailure.getText() != null && !saslFailure.getText().isBlank()) {
-            builder.append(" (").append(saslFailure.getText()).append(")");
-        }
         return builder.toString();
     }
 }

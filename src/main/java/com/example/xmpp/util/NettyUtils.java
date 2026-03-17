@@ -70,8 +70,8 @@ public class NettyUtils {
 
         future.addListener(f -> {
             if (!f.isSuccess() && buf.refCnt() > 0) {
-                log.warn("Failed to write ByteBuf, releasing buffer. Error: {}",
-                        f.cause() != null ? f.cause().getMessage() : "unknown");
+                log.warn("Failed to write ByteBuf, releasing buffer. ErrorType: {}",
+                        f.cause() != null ? f.cause().getClass().getSimpleName() : "unknown");
                 buf.release();
             }
         });

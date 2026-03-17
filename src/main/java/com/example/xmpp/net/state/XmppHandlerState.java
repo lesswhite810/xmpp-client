@@ -300,8 +300,8 @@ public enum XmppHandlerState implements HandlerState {
         }
 
         private void handleSaslFailure(StateContext context, ChannelHandlerContext ctx, SaslFailure failure) {
-            log.warn("SASL authentication failed - condition: {}, text: {}",
-                    failure.getCondition(), failure.getText());
+            log.warn("SASL authentication failed - condition: {}",
+                    failure.getCondition());
             context.setSaslNegotiator(null);
             context.closeConnectionOnError(ctx, new XmppSaslFailureException(failure));
         }
@@ -356,8 +356,8 @@ public enum XmppHandlerState implements HandlerState {
 
         private String formatBindErrorDetail(XmppError error) {
             return error != null
-                    ? String.format("condition=%s, type=%s, text=%s",
-                    error.getCondition(), error.getType(), error.getText())
+                    ? String.format("condition=%s, type=%s",
+                    error.getCondition(), error.getType())
                     : "unknown";
         }
 

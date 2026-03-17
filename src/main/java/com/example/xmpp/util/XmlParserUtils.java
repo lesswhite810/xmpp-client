@@ -45,8 +45,7 @@ public class XmlParserUtils {
      * @return null，表示拒绝解析外部实体
      */
     private static final XMLResolver SECURE_XML_RESOLVER = (publicID, systemID, baseURI, namespace) -> {
-        log.warn("Blocked external entity reference - publicID: {}, systemID: {}, baseURI: {}",
-                publicID, systemID, baseURI);
+        log.warn("Blocked external entity reference");
         return null;
     };
 
@@ -85,7 +84,7 @@ public class XmlParserUtils {
             factory.setProperty(name, value);
             log.debug("Set XML parser property: {} = {}", name, value);
         } catch (Exception e) {
-            log.trace("XML parser property {} not supported: {}", name, e.getMessage());
+            log.trace("XML parser property {} not supported - ErrorType: {}", name, e.getClass().getSimpleName());
         }
     }
 

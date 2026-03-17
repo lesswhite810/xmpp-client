@@ -58,10 +58,6 @@ public final class PingManager {
     private Runnable unsubscribe;
 
     /**
-     * 关闭标记。
-     */
-
-    /**
      * 构造 PingManager。
      *
      * @param connection XMPP 连接实例
@@ -161,9 +157,9 @@ public final class PingManager {
      */
     private void stopKeepAliveInternal() {
         ScheduledFuture<?> task = keepAliveTask;
+        keepAliveTask = null;
         if (task != null) {
             task.cancel(true);
-            keepAliveTask = null;
         }
     }
 
@@ -203,7 +199,11 @@ public final class PingManager {
         connection.sendIqPacketAsync(pingIq)
                 .whenComplete((res, ex) -> {
                     if (ex != null) {
-                        log.warn("Keepalive Ping failed", ex);
+                        Throwable cause = ex instanceof java.util.concurrent.CompletionException completionException
+                                && completionException.getCause() != null
+                                ? completionException.getCause()
+                                : ex;
+                        log.warn("Keepalive Ping failed - ErrorType: {}", cause.getClass().getSimpleName());
                         return;
                     }
                     log.debug("Keepalive Pong received.");

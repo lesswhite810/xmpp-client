@@ -84,14 +84,13 @@ public final class ReconnectionManager {
             log.debug("Reconnection manager already shutdown, ignoring close event");
             return;
         }
+        stopReconnectTask();
         Exception disconnectError = event.error();
         if (disconnectError == null) {
-            stopReconnectTask();
             log.debug("Connection closed normally");
             return;
         }
         if (isNonRecoverableError(disconnectError)) {
-            stopReconnectTask();
             log.info("Connection closed after non-recoverable error. Skipping reconnection: {}",
                     disconnectError.getClass().getSimpleName());
             return;
@@ -116,9 +115,10 @@ public final class ReconnectionManager {
      * <p>取消当前待执行的重连任务。</p>
      */
     private synchronized void stopReconnectTask() {
-        if (currentTask != null) {
-            currentTask.cancel(true);
-            currentTask = null;
+        ScheduledFuture<?> task = currentTask;
+        currentTask = null;
+        if (task != null) {
+            task.cancel(true);
         }
     }
 
@@ -184,33 +184,45 @@ public final class ReconnectionManager {
             connection.connect();
             log.info("Reconnection successful");
         } catch (XmppException e) {
-            handleReconnectFailure(retryIndex, e, false);
+            handleXmppReconnectFailure(retryIndex, e);
         } catch (RuntimeException e) {
-            handleReconnectFailure(retryIndex, e, true);
+            handleUnexpectedReconnectFailure(retryIndex, e);
         }
     }
 
     /**
-     * 处理重连失败。
+     * 处理预期内的重连失败。
      *
      * @param retryIndex 当前退避轮次
      * @param error 失败异常
-     * @param unexpectedRuntime 是否为非预期运行时异常
      */
-    private void handleReconnectFailure(int retryIndex, Exception error, boolean unexpectedRuntime) {
-        if (unexpectedRuntime) {
-            log.error("Unexpected runtime error during reconnection", error);
-        } else {
-            log.warn("Reconnection failed", error);
-        }
-        if (!unexpectedRuntime && isNonRecoverableError(error)) {
+    private void handleXmppReconnectFailure(int retryIndex, XmppException error) {
+        log.warn("Reconnection failed - type: {}, retryIndex: {}",
+                error.getClass().getSimpleName(), retryIndex + 1, error);
+        if (isNonRecoverableError(error)) {
             stopReconnectTask();
             log.info("Stopping reconnection after non-recoverable reconnect failure: {}",
                     error.getClass().getSimpleName());
             return;
         }
+        scheduleNextReconnectIfActive(retryIndex + 1);
+    }
+
+    /**
+     * 处理非预期运行时异常。
+     *
+     * @param retryIndex 当前退避轮次
+     * @param error 失败异常
+     */
+    private void handleUnexpectedReconnectFailure(int retryIndex, RuntimeException error) {
+        log.error("Unexpected runtime error during reconnection - type: {}, retryIndex: {}",
+                error.getClass().getSimpleName(), retryIndex + 1);
+        scheduleNextReconnectIfActive(retryIndex + 1);
+    }
+
+    private void scheduleNextReconnectIfActive(int nextRetryIndex) {
         if (!isShutdown()) {
-            scheduleReconnect(retryIndex + 1);
+            scheduleReconnect(nextRetryIndex);
             return;
         }
         log.debug("Reconnection manager already shutdown after failed attempt, not scheduling retry");

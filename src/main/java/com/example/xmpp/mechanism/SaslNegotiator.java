@@ -135,7 +135,7 @@ public class SaslNegotiator {
     private ChannelFuture sendStanza(Object packet) throws XmppAuthException {
         if (packet instanceof ExtensionElement element) {
             String xmlString = element.toXml();
-            log.debug("Sending SASL stanza: {}", SecurityUtils.filterSensitiveXml(xmlString));
+            log.debug("Sending SASL stanza: {}", SecurityUtils.summarizeXml(xmlString));
 
             int bufferSize = xmlString.length() * UTF8_MAX_BYTES_PER_CHAR;
             ByteBuf buf = ctx.alloc().buffer(bufferSize);

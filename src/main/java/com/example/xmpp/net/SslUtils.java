@@ -74,7 +74,7 @@ public class SslUtils {
             return sslHandler;
 
         } catch (Exception e) {
-            throw new XmppNetworkException("Failed to create SslHandler: " + e.getMessage(), e);
+            throw new XmppNetworkException("Failed to create SslHandler", e);
         }
     }
 

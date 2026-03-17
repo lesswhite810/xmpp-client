@@ -172,8 +172,8 @@ public final class XmppEventBus {
             try {
                 handler.accept(event);
             } catch (Exception e) {
-                log.error("Error handling event {}@{}: {}",
-                        event.eventType(), connection, e.getMessage(), e);
+                log.error("Error handling event {}@{} - ErrorType: {}",
+                        event.eventType(), connection, e.getClass().getSimpleName(), e);
             }
         }
     }

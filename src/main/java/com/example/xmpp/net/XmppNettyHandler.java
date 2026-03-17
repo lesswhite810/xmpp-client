@@ -94,27 +94,26 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
      */
     private void logCaughtException(String stateName, Object remoteAddress, Throwable cause, boolean terminated) {
         String errorType = cause.getClass().getSimpleName();
-        String errorMessage = cause.getMessage();
         if (terminated) {
-            log.debug("Ignoring exception for terminated channel - State: {}, Remote: {}, ErrorType: {}, Error: {}",
-                    stateName, remoteAddress, errorType, errorMessage);
+            log.debug("Ignoring exception for terminated channel - State: {}, Remote: {}, ErrorType: {}",
+                    stateName, remoteAddress, errorType);
             return;
         }
 
         if (cause instanceof XmppException) {
-            log.warn("XMPP exception caught - State: {}, Remote: {}, ErrorType: {}, Error: {}",
-                    stateName, remoteAddress, errorType, errorMessage);
+            log.warn("XMPP exception caught - State: {}, Remote: {}, ErrorType: {}",
+                    stateName, remoteAddress, errorType);
             return;
         }
 
         if (cause instanceof IOException) {
-            log.warn("I/O exception caught - State: {}, Remote: {}, ErrorType: {}, Error: {}",
-                    stateName, remoteAddress, errorType, errorMessage);
+            log.warn("I/O exception caught - State: {}, Remote: {}, ErrorType: {}",
+                    stateName, remoteAddress, errorType);
             return;
         }
 
-        log.error("Exception caught - State: {}, Remote: {}, ErrorType: {}, Error: {}",
-                stateName, remoteAddress, errorType, errorMessage);
+        log.error("Exception caught - State: {}, Remote: {}, ErrorType: {}",
+                stateName, remoteAddress, errorType);
     }
 
     @Override
@@ -144,8 +143,8 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         if (isStaleChannel(ctx)) {
-            log.debug("Ignoring exception from stale channel - Remote: {}, Error: {}",
-                    ctx.channel().remoteAddress(), cause.getMessage());
+            log.debug("Ignoring exception from stale channel - Remote: {}, ErrorType: {}",
+                    ctx.channel().remoteAddress(), cause.getClass().getSimpleName());
             ctx.close();
             return;
         }
@@ -191,8 +190,8 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
             return;
         }
         if (msg instanceof StreamError streamError) {
-            log.warn("Received stream error - condition: {}, text: {}",
-                    streamError.getCondition(), streamError.getText());
+            log.warn("Received stream error - condition: {}",
+                    streamError.getCondition());
             connection.failConnection(ctx.channel(), new com.example.xmpp.exception.XmppStreamErrorException(streamError));
             ctx.close();
             return;
@@ -261,10 +260,9 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
 
     private void handleTlsHandshakeFailure(ChannelHandlerContext ctx, SslHandshakeCompletionEvent event) {
         Throwable cause = event.cause();
-        log.warn("SSL handshake failed - Remote: {}, ErrorType: {}, Error: {}",
+        log.warn("SSL handshake failed - Remote: {}, ErrorType: {}",
                 ctx.channel().remoteAddress(),
-                cause != null ? cause.getClass().getSimpleName() : "unknown",
-                cause != null ? cause.getMessage() : "unknown");
+                cause != null ? cause.getClass().getSimpleName() : "unknown");
         connection.failConnection(ctx.channel(), new XmppNetworkException("SSL handshake failed"));
         ctx.close();
     }
@@ -282,7 +280,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
                 .map(XmlSerializable::toXml)
                 .filter(xml -> !xml.isEmpty())
                 .map(xml -> {
-                    log.debug("Sending stanza: {}", SecurityUtils.filterSensitiveXml(xml));
+                    log.debug("Sending stanza: {}", SecurityUtils.summarizeXml(xml));
                     return NettyUtils.writeAndFlushStringAsync(ctx, xml);
                 })
                 .orElse(null);

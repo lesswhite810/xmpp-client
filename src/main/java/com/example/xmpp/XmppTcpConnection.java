@@ -206,13 +206,15 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     private void shutdownLifecycleManagers() {
-        if (pingManager != null) {
-            pingManager.shutdown();
-            pingManager = null;
+        PingManager currentPingManager = pingManager;
+        pingManager = null;
+        if (currentPingManager != null) {
+            currentPingManager.shutdown();
         }
-        if (reconnectionManager != null) {
-            reconnectionManager.shutdown();
-            reconnectionManager = null;
+        ReconnectionManager currentReconnectionManager = reconnectionManager;
+        reconnectionManager = null;
+        if (currentReconnectionManager != null) {
+            currentReconnectionManager.shutdown();
         }
     }
 

@@ -53,8 +53,8 @@ public record ConnectionEvent(XmppConnection connection, ConnectionEventType eve
     @Override
     public String toString() {
         if (error != null) {
-            return "ConnectionEvent{connection=%s, type=%s, error=%s}".formatted(
-                    connection, eventType, error.getMessage());
+            return "ConnectionEvent{connection=%s, type=%s, errorType=%s}".formatted(
+                    connection, eventType, error.getClass().getSimpleName());
         }
         return "ConnectionEvent{connection=%s, type=%s}".formatted(connection, eventType);
     }

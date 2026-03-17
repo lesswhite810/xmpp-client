@@ -134,7 +134,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         List<Object> elements = new ArrayList<>();
         int readerIndex = buf.readerIndex();
         while (readerIndex < buf.writerIndex()) {
-            readerIndex = skipLeadingWhitespace(buf, readerIndex);
+            readerIndex = findFirstNonWhitespaceIndex(buf, readerIndex);
             if (readerIndex >= buf.writerIndex()) {
                 break;
             }
@@ -174,7 +174,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             reader = INPUT_FACTORY.createXMLEventReader(new StringReader(wrappedXml));
             return parseWrappedFrame(reader);
         } catch (XMLStreamException e) {
-            log.warn("XML parsing error: {}", e.getMessage());
+            log.warn("XML parsing error - ErrorType: {}", e.getClass().getSimpleName());
             return Optional.empty();
         } finally {
             if (reader != null) {
@@ -208,13 +208,13 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     }
 
     private void skipLeadingWhitespace(ByteBuf in) {
-        int newReaderIndex = skipLeadingWhitespace(in, in.readerIndex());
+        int newReaderIndex = findFirstNonWhitespaceIndex(in, in.readerIndex());
         if (newReaderIndex > in.readerIndex()) {
             in.readerIndex(newReaderIndex);
         }
     }
 
-    private int skipLeadingWhitespace(ByteBuf in, int index) {
+    private int findFirstNonWhitespaceIndex(ByteBuf in, int index) {
         while (index < in.writerIndex() && Character.isWhitespace((char) in.getByte(index))) {
             index++;
         }
@@ -254,20 +254,21 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         if (openingTagEnd.isEmpty()) {
             return Optional.empty();
         }
+        int openingTagEndIndex = openingTagEnd.orElseThrow();
 
-        String tagName = readTagName(in, startIndex + 1, openingTagEnd.orElseThrow()).orElse("");
+        String tagName = readTagName(in, startIndex + 1, openingTagEndIndex).orElse("");
         if (tagName.isBlank()) {
             return Optional.empty();
         }
         if (isStreamOpenTag(tagName)) {
-            return Optional.of(new FrameBoundary(FrameType.SKIP, openingTagEnd.orElseThrow() - startIndex));
+            return Optional.of(new FrameBoundary(FrameType.SKIP, openingTagEndIndex - startIndex));
         }
-        if (isSelfClosingTag(in, openingTagEnd.orElseThrow())) {
-            return Optional.of(new FrameBoundary(FrameType.ELEMENT, openingTagEnd.orElseThrow() - startIndex));
+        if (isSelfClosingTag(in, openingTagEndIndex)) {
+            return Optional.of(new FrameBoundary(FrameType.ELEMENT, openingTagEndIndex - startIndex));
         }
 
         int depth = 1;
-        int index = openingTagEnd.orElseThrow();
+        int index = openingTagEndIndex;
         while (index < in.writerIndex()) {
             int nextTagStart = findNextTagStart(in, index);
             if (nextTagStart < 0) {
@@ -303,20 +304,21 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             if (tagEnd.isEmpty()) {
                 return Optional.empty();
             }
+            int tagEndIndex = tagEnd.orElseThrow();
 
             if (matches(in, nextTagStart, "</")) {
                 depth--;
-                index = tagEnd.orElseThrow();
+                index = tagEndIndex;
                 if (depth == 0) {
-                    return Optional.of(new FrameBoundary(FrameType.ELEMENT, tagEnd.orElseThrow() - startIndex));
+                    return Optional.of(new FrameBoundary(FrameType.ELEMENT, tagEndIndex - startIndex));
                 }
                 continue;
             }
 
-            if (!isSelfClosingTag(in, tagEnd.orElseThrow())) {
+            if (!isSelfClosingTag(in, tagEndIndex)) {
                 depth++;
             }
-            index = tagEnd.orElseThrow();
+            index = tagEndIndex;
         }
         return Optional.empty();
     }
@@ -477,7 +479,8 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         try {
             return Optional.ofNullable(extProvider.get().parse(reader));
         } catch (XmppParseException e) {
-            log.warn("Extension provider failed to parse {}: {}", localName, e.getMessage());
+            log.warn("Extension provider failed to parse {} - ErrorType: {}",
+                    localName, e.getClass().getSimpleName());
             return Optional.empty();
         }
     }
@@ -714,25 +717,42 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     private void parseExtensionElement(XMLEventReader reader, StartElement start,
                                        String name, String namespace,
                                        Consumer<ExtensionElement> addExtension) {
+        if (parseWithRegisteredProvider(reader, name, namespace, addExtension)) {
+            return;
+        }
+        log.debug("No provider for <{} xmlns=\"{}\">, using generic parser", name, namespace);
+        parseWithGenericProvider(reader, start, name, namespace, addExtension);
+    }
+
+    private boolean parseWithRegisteredProvider(XMLEventReader reader, String name, String namespace,
+                                                Consumer<ExtensionElement> addExtension) {
         Optional<ExtensionElementProvider<?>> provider =
                 ProviderRegistry.getInstance().getExtensionProvider(name, namespace);
-        if (provider.isPresent()) {
-            try {
-                Object parsed = provider.get().parse(reader);
-                if (parsed instanceof ExtensionElement ext) {
-                    addExtension.accept(ext);
-                }
-            } catch (XmppParseException e) {
-                log.warn("Provider failed to parse <{} xmlns=\"{}\">: {}", name, namespace, e.getMessage());
-            }
-        } else {
-            log.debug("No provider for <{} xmlns=\"{}\">, using generic parser", name, namespace);
-            try {
-                GenericExtensionElement ext = GenericExtensionProvider.INSTANCE.parse(reader, start);
+        if (provider.isEmpty()) {
+            return false;
+        }
+
+        try {
+            Object parsed = provider.orElseThrow().parse(reader);
+            if (parsed instanceof ExtensionElement ext) {
                 addExtension.accept(ext);
-            } catch (XmppParseException e) {
-                log.warn("Generic parser failed for <{} xmlns=\"{}\">: {}", name, namespace, e.getMessage());
             }
+            return true;
+        } catch (XmppParseException e) {
+            log.warn("Provider failed to parse <{} xmlns=\"{}\"> - ErrorType: {}",
+                    name, namespace, e.getClass().getSimpleName());
+            return true;
+        }
+    }
+
+    private void parseWithGenericProvider(XMLEventReader reader, StartElement start, String name, String namespace,
+                                          Consumer<ExtensionElement> addExtension) {
+        try {
+            GenericExtensionElement ext = GenericExtensionProvider.INSTANCE.parse(reader, start);
+            addExtension.accept(ext);
+        } catch (XmppParseException e) {
+            log.warn("Generic parser failed for <{} xmlns=\"{}\"> - ErrorType: {}",
+                    name, namespace, e.getClass().getSimpleName());
         }
     }
 

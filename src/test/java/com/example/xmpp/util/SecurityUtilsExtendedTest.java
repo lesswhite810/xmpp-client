@@ -46,11 +46,12 @@ class SecurityUtilsExtendedTest {
     }
 
     @Test
-    @DisplayName("filterSensitiveXml 应保留非敏感内容")
+    @DisplayName("filterSensitiveXml 不应保留元素正文")
     void testFilterSensitiveXmlNonSensitive() {
         String xml = "<message><body>Hello</body></message>";
         String result = SecurityUtils.filterSensitiveXml(xml);
-        
-        assertTrue(result.contains("Hello"));
+
+        assertEquals("message", result);
+        assertFalse(result.contains("Hello"));
     }
 }
