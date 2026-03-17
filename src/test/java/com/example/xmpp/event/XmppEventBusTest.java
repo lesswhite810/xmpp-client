@@ -6,6 +6,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -54,17 +56,17 @@ class XmppEventBusTest {
                 ConnectionEventType.CONNECTED,
                 event -> handled.set(true));
 
-        assertTrue(eventBus.hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
-        assertEquals(1, eventBus.getSubscriberCount(mockConnection1, ConnectionEventType.CONNECTED));
+        assertTrue(hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
+        assertEquals(1, getSubscriberCount(mockConnection1, ConnectionEventType.CONNECTED));
 
         // 触发事件
-        eventBus.publish(mockConnection1, ConnectionEventType.CONNECTED);
+        publish(mockConnection1, ConnectionEventType.CONNECTED);
 
         assertTrue(handled.get());
 
         // 取消订阅
         unsubscribe.run();
-        assertFalse(eventBus.hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
+        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
     }
 
     @Test
@@ -75,7 +77,7 @@ class XmppEventBusTest {
         eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> counter.incrementAndGet());
         eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> counter.incrementAndGet());
 
-        eventBus.publish(mockConnection1, ConnectionEventType.CONNECTED);
+        publish(mockConnection1, ConnectionEventType.CONNECTED);
 
         assertEquals(2, counter.get());
     }
@@ -90,7 +92,7 @@ class XmppEventBusTest {
         Runnable unsub = eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, handler);
         unsub.run();
 
-        eventBus.publish(mockConnection1, ConnectionEventType.CONNECTED);
+        publish(mockConnection1, ConnectionEventType.CONNECTED);
 
         assertFalse(handled.get());
     }
@@ -99,7 +101,7 @@ class XmppEventBusTest {
     @DisplayName("无订阅者时发布事件应正常返回")
     void testPublishNoSubscribers() {
         assertDoesNotThrow(() ->
-            eventBus.publish(mockConnection1, ConnectionEventType.CONNECTED));
+            publish(mockConnection1, ConnectionEventType.CONNECTED));
     }
 
     @Test
@@ -110,8 +112,8 @@ class XmppEventBusTest {
 
         eventBus.clear();
 
-        assertFalse(eventBus.hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
-        assertFalse(eventBus.hasSubscribers(mockConnection1, ConnectionEventType.AUTHENTICATED));
+        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
+        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.AUTHENTICATED));
     }
 
     @Test
@@ -123,8 +125,8 @@ class XmppEventBusTest {
         eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> connectedCount.incrementAndGet());
         eventBus.subscribe(mockConnection1, ConnectionEventType.AUTHENTICATED, event -> authCount.incrementAndGet());
 
-        eventBus.publish(mockConnection1, ConnectionEventType.CONNECTED);
-        eventBus.publish(mockConnection1, ConnectionEventType.AUTHENTICATED);
+        publish(mockConnection1, ConnectionEventType.CONNECTED);
+        publish(mockConnection1, ConnectionEventType.AUTHENTICATED);
 
         assertEquals(1, connectedCount.get());
         assertEquals(1, authCount.get());
@@ -142,7 +144,7 @@ class XmppEventBusTest {
         eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> firstHandlerCalled.set(true));
         eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> thirdHandlerCalled.set(true));
 
-        assertDoesNotThrow(() -> eventBus.publish(mockConnection1, ConnectionEventType.CONNECTED));
+        assertDoesNotThrow(() -> publish(mockConnection1, ConnectionEventType.CONNECTED));
 
         assertTrue(firstHandlerCalled.get());
         assertTrue(thirdHandlerCalled.get());
@@ -151,7 +153,7 @@ class XmppEventBusTest {
     @Test
     @DisplayName("获取不存在的订阅者数量应返回 0")
     void testGetSubscriberCountNonexistent() {
-        assertEquals(0, eventBus.getSubscriberCount(mockConnection1, ConnectionEventType.CONNECTED));
+        assertEquals(0, getSubscriberCount(mockConnection1, ConnectionEventType.CONNECTED));
     }
 
     // 连接隔离测试
@@ -166,9 +168,9 @@ class XmppEventBusTest {
         eventBus.subscribe(mockConnection2, ConnectionEventType.CONNECTED, event -> count2.incrementAndGet());
 
         // 向 connection1 发布
-        eventBus.publish(mockConnection1, ConnectionEventType.CONNECTED);
+        publish(mockConnection1, ConnectionEventType.CONNECTED);
         // 向 connection2 发布
-        eventBus.publish(mockConnection2, ConnectionEventType.CONNECTED);
+        publish(mockConnection2, ConnectionEventType.CONNECTED);
 
         assertEquals(1, count1.get());
         assertEquals(1, count2.get());
@@ -186,7 +188,7 @@ class XmppEventBusTest {
         eventBus.subscribe(mockConnection2, ConnectionEventType.CONNECTED, event -> handled2.set(true));
 
         // 只向 connection1 发布
-        eventBus.publish(mockConnection1, ConnectionEventType.CONNECTED);
+        publish(mockConnection1, ConnectionEventType.CONNECTED);
 
         assertTrue(handled1.get());
         assertFalse(handled2.get());
@@ -207,12 +209,12 @@ class XmppEventBusTest {
         eventBus.unsubscribeAll(mockConnection1);
 
         // connection1 的订阅应该被取消
-        assertEquals(0, eventBus.getTotalSubscriberCount(mockConnection1));
+        assertEquals(0, getTotalSubscriberCount(mockConnection1));
         // connection2 的订阅应该还在
-        assertEquals(1, eventBus.getTotalSubscriberCount(mockConnection2));
+        assertEquals(1, getTotalSubscriberCount(mockConnection2));
 
-        eventBus.publish(mockConnection1, ConnectionEventType.CONNECTED);
-        eventBus.publish(mockConnection1, ConnectionEventType.AUTHENTICATED);
+        publish(mockConnection1, ConnectionEventType.CONNECTED);
+        publish(mockConnection1, ConnectionEventType.AUTHENTICATED);
 
         assertFalse(handled1.get());
         assertFalse(handled2.get());
@@ -234,7 +236,7 @@ class XmppEventBusTest {
         // 再次取消应该没问题
         unsub.run();
 
-        eventBus.publish(mockConnection1, ConnectionEventType.CONNECTED);
+        publish(mockConnection1, ConnectionEventType.CONNECTED);
 
         assertFalse(handled.get());
     }
@@ -290,13 +292,13 @@ class XmppEventBusTest {
         ));
 
         // 验证订阅成功
-        assertTrue(eventBus.hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
-        assertTrue(eventBus.hasSubscribers(mockConnection1, ConnectionEventType.AUTHENTICATED));
-        assertTrue(eventBus.hasSubscribers(mockConnection1, ConnectionEventType.ERROR));
+        assertTrue(hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
+        assertTrue(hasSubscribers(mockConnection1, ConnectionEventType.AUTHENTICATED));
+        assertTrue(hasSubscribers(mockConnection1, ConnectionEventType.ERROR));
 
         // 发布事件
-        eventBus.publish(mockConnection1, ConnectionEventType.CONNECTED);
-        eventBus.publish(mockConnection1, ConnectionEventType.AUTHENTICATED);
+        publish(mockConnection1, ConnectionEventType.CONNECTED);
+        publish(mockConnection1, ConnectionEventType.AUTHENTICATED);
         eventBus.publish(mockConnection1, ConnectionEventType.ERROR, new RuntimeException("test"));
 
         assertEquals(1, connectedCount.get());
@@ -306,9 +308,9 @@ class XmppEventBusTest {
         // 批量取消
         unsubscribe.run();
 
-        assertFalse(eventBus.hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
-        assertFalse(eventBus.hasSubscribers(mockConnection1, ConnectionEventType.AUTHENTICATED));
-        assertFalse(eventBus.hasSubscribers(mockConnection1, ConnectionEventType.ERROR));
+        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
+        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.AUTHENTICATED));
+        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.ERROR));
     }
 
     @Test
@@ -317,7 +319,7 @@ class XmppEventBusTest {
         Runnable unsubscribe = eventBus.subscribeAll(mockConnection1, Map.of());
 
         // 不应有订阅
-        assertFalse(eventBus.hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
+        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
 
         // 空 Runnable 不应抛异常
         assertDoesNotThrow(unsubscribe::run);
@@ -328,7 +330,7 @@ class XmppEventBusTest {
     void testSubscribeAllNullHandlers() {
         Runnable unsubscribe = eventBus.subscribeAll(mockConnection1, null);
 
-        assertEquals(0, eventBus.getTotalSubscriberCount(mockConnection1));
+        assertEquals(0, getTotalSubscriberCount(mockConnection1));
         assertDoesNotThrow(unsubscribe::run);
     }
 
@@ -344,15 +346,15 @@ class XmppEventBusTest {
     void testPublishWhenConnectionExistsButEventHasNoHandlers() {
         eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> { });
 
-        assertDoesNotThrow(() -> eventBus.publish(mockConnection1, ConnectionEventType.ERROR));
-        assertFalse(eventBus.hasSubscribers(mockConnection1, ConnectionEventType.ERROR));
+        assertDoesNotThrow(() -> publish(mockConnection1, ConnectionEventType.ERROR));
+        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.ERROR));
     }
 
     @Test
     @DisplayName("unsubscribeAll 对不存在的连接应安全返回")
     void testUnsubscribeAllForUnknownConnection() {
         assertDoesNotThrow(() -> eventBus.unsubscribeAll(mockConnection1));
-        assertEquals(0, eventBus.getTotalSubscriberCount(mockConnection1));
+        assertEquals(0, getTotalSubscriberCount(mockConnection1));
     }
 
     @Nested
@@ -402,6 +404,37 @@ class XmppEventBusTest {
             assertTrue(str.contains("ERROR"));
             assertTrue(str.contains("error="));
             assertTrue(str.contains("Test error message"));
+        }
+    }
+
+    private void publish(XmppConnection connection, ConnectionEventType eventType) {
+        eventBus.publish(connection, eventType, null);
+    }
+
+    private boolean hasSubscribers(XmppConnection connection, ConnectionEventType eventType) {
+        return getSubscriberCount(connection, eventType) > 0;
+    }
+
+    private int getSubscriberCount(XmppConnection connection, ConnectionEventType eventType) {
+        return getConnectionHandlers(connection).getOrDefault(eventType, List.of()).size();
+    }
+
+    private int getTotalSubscriberCount(XmppConnection connection) {
+        return getConnectionHandlers(connection).values().stream()
+                .mapToInt(List::size)
+                .sum();
+    }
+
+    private Map<ConnectionEventType, List<Consumer<ConnectionEvent>>> getConnectionHandlers(XmppConnection connection) {
+        try {
+            Field field = XmppEventBus.class.getDeclaredField("listeners");
+            field.setAccessible(true);
+            Object listenersObject = field.get(eventBus);
+            Map<XmppConnection, Map<ConnectionEventType, List<Consumer<ConnectionEvent>>>> listeners =
+                    (Map<XmppConnection, Map<ConnectionEventType, List<Consumer<ConnectionEvent>>>>) listenersObject;
+            return listeners.getOrDefault(connection, Map.of());
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("无法读取 XmppEventBus 订阅状态", e);
         }
     }
 }

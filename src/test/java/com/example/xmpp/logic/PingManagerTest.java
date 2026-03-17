@@ -14,6 +14,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -120,11 +122,11 @@ class PingManagerTest {
     @Test
     @DisplayName("shutdown 后应清空事件订阅")
     void testShutdownClearsEventSubscriptions() {
-        assertTrue(XmppEventBus.getInstance().getTotalSubscriberCount(connection) > 0);
+        assertTrue(getTotalSubscriberCount(connection) > 0);
 
         pingManager.shutdown();
 
-        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+        assertEquals(0, getTotalSubscriberCount(connection));
     }
 
     @Test
@@ -202,5 +204,23 @@ class PingManagerTest {
         Field field = PingManager.class.getDeclaredField("keepAliveTask");
         field.setAccessible(true);
         return (ScheduledFuture<?>) field.get(pingManager);
+    }
+
+    private int getTotalSubscriberCount(XmppConnection targetConnection) {
+        try {
+            Field field = XmppEventBus.class.getDeclaredField("listeners");
+            field.setAccessible(true);
+            Object listenersObject = field.get(XmppEventBus.getInstance());
+            Map<XmppConnection, Map<?, List<?>>> listeners = (Map<XmppConnection, Map<?, List<?>>>) listenersObject;
+            Map<?, List<?>> connectionListeners = listeners.get(targetConnection);
+            if (connectionListeners == null) {
+                return 0;
+            }
+            return connectionListeners.values().stream()
+                    .mapToInt(List::size)
+                    .sum();
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("无法读取 XmppEventBus 订阅状态", e);
+        }
     }
 }

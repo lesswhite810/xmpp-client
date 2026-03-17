@@ -25,6 +25,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletableFuture;
@@ -417,11 +418,11 @@ class XmppConnectionLifecycleErrorTest {
                 .build();
         XmppTcpConnection connection = new XmppTcpConnection(config);
 
-        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+        assertEquals(0, getTotalSubscriberCount(connection));
 
         connection.disconnect();
 
-        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+        assertEquals(0, getTotalSubscriberCount(connection));
     }
 
     @Test
@@ -468,7 +469,7 @@ class XmppConnectionLifecycleErrorTest {
         XmppTcpConnection connection = new XmppTcpConnection(config);
 
         assertThrows(Exception.class, connection::connect);
-        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+        assertEquals(0, getTotalSubscriberCount(connection));
     }
 
     @Test
@@ -628,7 +629,7 @@ class XmppConnectionLifecycleErrorTest {
         XmppTcpConnection connection = new XmppTcpConnection(config);
 
         assertThrows(Exception.class, connection::connect);
-        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+        assertEquals(0, getTotalSubscriberCount(connection));
     }
 
     @Test
@@ -706,10 +707,10 @@ class XmppConnectionLifecycleErrorTest {
         XmppTcpConnection connection = new XmppTcpConnection(config);
 
         assertThrows(Exception.class, connection::connect);
-        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+        assertEquals(0, getTotalSubscriberCount(connection));
 
         assertThrows(Exception.class, connection::connect);
-        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+        assertEquals(0, getTotalSubscriberCount(connection));
     }
 
     @Test
@@ -739,7 +740,7 @@ class XmppConnectionLifecycleErrorTest {
 
         assertNotSame(failedFuture, retriedFuture);
         assertTrue(retriedFuture.isCompletedExceptionally());
-        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+        assertEquals(0, getTotalSubscriberCount(connection));
     }
 
     @Test
@@ -769,7 +770,7 @@ class XmppConnectionLifecycleErrorTest {
 
             CompletionException exception = assertThrows(CompletionException.class, readyFuture::join);
             assertInstanceOf(XmppNetworkException.class, exception.getCause());
-            assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+            assertEquals(0, getTotalSubscriberCount(connection));
             waitUntilDisconnected(connection);
             assertFalse(connection.isConnected());
         }
@@ -795,7 +796,7 @@ class XmppConnectionLifecycleErrorTest {
         connection.disconnect();
         connection.disconnect();
 
-        assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+        assertEquals(0, getTotalSubscriberCount(connection));
         assertFalse(connection.isConnected());
     }
 
@@ -831,7 +832,7 @@ class XmppConnectionLifecycleErrorTest {
             assertNotSame(firstFuture, secondFuture);
             connection.disconnect();
             assertThrows(CompletionException.class, secondFuture::join);
-            assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+            assertEquals(0, getTotalSubscriberCount(connection));
         }
     }
 
@@ -863,7 +864,7 @@ class XmppConnectionLifecycleErrorTest {
             waitUntilDisconnected(connection);
             assertFalse(connection.isConnected());
             assertNull(connection.getChannel());
-            assertEquals(0, XmppEventBus.getInstance().getTotalSubscriberCount(connection));
+            assertEquals(0, getTotalSubscriberCount(connection));
         }
     }
 
@@ -1290,5 +1291,24 @@ class XmppConnectionLifecycleErrorTest {
                 throw new CompletionException(e);
             }
         }, executor);
+    }
+
+    private int getTotalSubscriberCount(XmppTcpConnection connection) {
+        try {
+            Field field = XmppEventBus.class.getDeclaredField("listeners");
+            field.setAccessible(true);
+            Object listenersObject = field.get(XmppEventBus.getInstance());
+            Map<XmppTcpConnection, Map<?, List<?>>> listeners =
+                    (Map<XmppTcpConnection, Map<?, List<?>>>) listenersObject;
+            Map<?, List<?>> connectionListeners = listeners.get(connection);
+            if (connectionListeners == null) {
+                return 0;
+            }
+            return connectionListeners.values().stream()
+                    .mapToInt(List::size)
+                    .sum();
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("无法读取 XmppEventBus 订阅状态", e);
+        }
     }
 }

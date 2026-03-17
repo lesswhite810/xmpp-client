@@ -106,7 +106,7 @@ public final class XmppEventBus {
 
         return () -> {
             for (Subscription sub : subscriptions) {
-                unsubscribeSilent(connection, sub.eventType(), sub.handler());
+                unsubscribe(connection, sub.eventType(), sub.handler());
             }
             log.debug("Batch unsubscribed {} handlers for connection {}", handlers.size(), connection);
         };
@@ -137,30 +137,6 @@ public final class XmppEventBus {
             }
         }
     }
-    /**
-     * 静默取消订阅。
-     *
-     * @param connection 连接实例
-     * @param eventType 事件类型
-     * @param handler 事件处理器
-     */
-    private void unsubscribeSilent(XmppConnection connection, ConnectionEventType eventType,
-                                   Consumer<ConnectionEvent> handler) {
-        Map<ConnectionEventType, List<Consumer<ConnectionEvent>>> connectionHandlers = listeners.get(connection);
-        if (connectionHandlers != null) {
-            List<Consumer<ConnectionEvent>> handlerList = connectionHandlers.get(eventType);
-            if (handlerList != null) {
-                handlerList.removeIf(h -> h == handler);
-
-                if (handlerList.isEmpty()) {
-                    connectionHandlers.remove(eventType);
-                }
-            }
-            if (connectionHandlers.isEmpty()) {
-                listeners.remove(connection);
-            }
-        }
-    }
 
     /**
      * 取消特定连接的所有订阅。
@@ -173,16 +149,6 @@ public final class XmppEventBus {
     }
 
     /**
-     * 发布事件。
-     *
-     * @param connection 关联的连接
-     * @param eventType  事件类型
-     */
-    public void publish(XmppConnection connection, ConnectionEventType eventType) {
-        publish(connection, eventType, null);
-    }
-
-    /**
      * 发布带异常的事件。
      *
      * @param connection 关联的连接
@@ -191,11 +157,6 @@ public final class XmppEventBus {
      */
     public void publish(XmppConnection connection, ConnectionEventType eventType, Exception error) {
         ConnectionEvent event = new ConnectionEvent(connection, eventType, error);
-        publishEvent(event);
-    }
-
-    private void publishEvent(ConnectionEvent event) {
-        XmppConnection connection = event.connection();
         Map<ConnectionEventType, List<Consumer<ConnectionEvent>>> connectionHandlers = listeners.get(connection);
         if (connectionHandlers == null) {
             return;
@@ -218,11 +179,25 @@ public final class XmppEventBus {
     }
 
     /**
-     * 检查是否有订阅者。
+     * 发布事件（便捷方法，无异常）。
      *
-     * @param connection 连接实例
-     * @param eventType  事件类型
-     * @return 如果有订阅者返回 true
+     * @param connection 关联的连接
+     * @param eventType 事件类型
+     */
+    public void publish(XmppConnection connection, ConnectionEventType eventType) {
+        publish(connection, eventType, null);
+    }
+
+    /**
+     * 清除所有订阅者（仅供测试使用）。
+     */
+    public void clear() {
+        listeners.clear();
+        log.debug("All event subscribers cleared");
+    }
+
+    /**
+     * 检查是否有订阅者（仅供测试使用）。
      */
     public boolean hasSubscribers(XmppConnection connection, ConnectionEventType eventType) {
         Map<ConnectionEventType, List<Consumer<ConnectionEvent>>> connectionHandlers = listeners.get(connection);
@@ -234,11 +209,7 @@ public final class XmppEventBus {
     }
 
     /**
-     * 获取订阅者数量。
-     *
-     * @param connection 连接实例
-     * @param eventType  事件类型
-     * @return 订阅者数量
+     * 获取订阅者数量（仅供测试使用）。
      */
     public int getSubscriberCount(XmppConnection connection, ConnectionEventType eventType) {
         Map<ConnectionEventType, List<Consumer<ConnectionEvent>>> connectionHandlers = listeners.get(connection);
@@ -250,10 +221,7 @@ public final class XmppEventBus {
     }
 
     /**
-     * 获取特定连接的总订阅者数量。
-     *
-     * @param connection 连接实例
-     * @return 总订阅者数量
+     * 获取特定连接的总订阅者数量（仅供测试使用）。
      */
     public int getTotalSubscriberCount(XmppConnection connection) {
         Map<ConnectionEventType, List<Consumer<ConnectionEvent>>> connectionHandlers = listeners.get(connection);
@@ -263,13 +231,5 @@ public final class XmppEventBus {
         return connectionHandlers.values().stream()
                 .mapToInt(List::size)
                 .sum();
-    }
-
-    /**
-     * 清除所有订阅者。
-     */
-    public void clear() {
-        listeners.clear();
-        log.debug("All event subscribers cleared");
     }
 }

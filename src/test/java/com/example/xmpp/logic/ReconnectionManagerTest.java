@@ -326,7 +326,7 @@ class ReconnectionManagerTest {
     }
 
     private void publish(ConnectionEventType eventType) {
-        XmppEventBus.getInstance().publish(connection, eventType);
+        XmppEventBus.getInstance().publish(connection, eventType, null);
     }
 
     private void publish(ConnectionEventType eventType, Exception error) {
