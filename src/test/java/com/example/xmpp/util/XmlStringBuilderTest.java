@@ -227,8 +227,31 @@ class XmlStringBuilderTest {
         @DisplayName("wrapElement() 内容为 null 时应保留空元素体")
         void testWrapElementNullContent() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.wrapElement("response", null);
+            builder.wrapElement("response", (String) null);
             assertEquals("<response></response>", builder.toString());
+        }
+
+        @Test
+        @DisplayName("wrapElement() Consumer 版本应包装带命名空间的构建内容")
+        void testWrapElementWithNamespaceConsumer() {
+            XmlStringBuilder builder = new XmlStringBuilder();
+            builder.wrapElement("bind", "urn:ietf:params:xml:ns:xmpp-bind",
+                    (java.util.function.Consumer<XmlStringBuilder>) xml -> xml.optTextElement("resource", "mobile")
+                            .optTextElement("jid", "user@example.com/mobile"));
+            assertEquals(
+                    "<bind xmlns=\"urn:ietf:params:xml:ns:xmpp-bind\"><resource>mobile</resource>"
+                            + "<jid>user@example.com/mobile</jid></bind>",
+                    builder.toString());
+        }
+
+        @Test
+        @DisplayName("wrapElement() Consumer 版本应支持转义内容")
+        void testWrapElementConsumerEscapedContent() {
+            XmlStringBuilder builder = new XmlStringBuilder();
+            builder.wrapElement("success", "urn:ietf:params:xml:ns:xmpp-sasl",
+                    (java.util.function.Consumer<XmlStringBuilder>) xml -> xml.escapedContent("<ok>&\""));
+            assertEquals("<success xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\">"
+                    + "&lt;ok&gt;&amp;&quot;</success>", builder.toString());
         }
     }
 

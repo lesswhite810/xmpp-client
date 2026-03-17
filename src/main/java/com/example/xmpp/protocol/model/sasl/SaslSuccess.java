@@ -61,9 +61,7 @@ public class SaslSuccess implements ExtensionElement {
     @Override
     public String toXml() {
         return new XmlStringBuilder()
-                .openElement("success", NAMESPACE)
-                .escapedContent(content)
-                .closeElement("success")
+                .wrapElement(ELEMENT, NAMESPACE, xml -> xml.escapedContent(content))
                 .toString();
     }
 }

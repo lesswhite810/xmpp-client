@@ -309,6 +309,43 @@ public class XmlStringBuilder {
     }
 
     /**
+     * 包装元素内容（使用 Consumer 构建子元素）。
+     *
+     * <p>生成形如 {@code <name>content</name>} 的完整元素。使用 Consumer 可以链式添加多个子元素。</p>
+     *
+     * @param name 元素名称
+     * @param content Consumer 用于构建元素内容
+     * @return 当前 XmlStringBuilder 实例，用于链式调用
+     */
+    public XmlStringBuilder wrapElement(String name, java.util.function.Consumer<XmlStringBuilder> content) {
+        return openElement(name)
+                .append(content != null ? buildContent(content) : "")
+                .closeElement(name);
+    }
+
+    /**
+     * 包装带命名空间的元素内容（使用 Consumer 构建子元素）。
+     *
+     * <p>生成形如 {@code <name xmlns="namespace">content</name>} 的完整元素。使用 Consumer 可以链式添加多个子元素。</p>
+     *
+     * @param name 元素名称
+     * @param namespace 命名空间 URI，null 值将不添加 xmlns 属性
+     * @param content Consumer 用于构建元素内容
+     * @return 当前 XmlStringBuilder 实例，用于链式调用
+     */
+    public XmlStringBuilder wrapElement(String name, String namespace, java.util.function.Consumer<XmlStringBuilder> content) {
+        return openElement(name, namespace)
+                .append(content != null ? buildContent(content) : "")
+                .closeElement(name);
+    }
+
+    private String buildContent(java.util.function.Consumer<XmlStringBuilder> content) {
+        XmlStringBuilder builder = new XmlStringBuilder();
+        content.accept(builder);
+        return builder.toString();
+    }
+
+    /**
      * 添加空元素（自闭合标签）。
      *
      * <p>生成形如 {@code <element/>} 的自闭合标签。</p>
