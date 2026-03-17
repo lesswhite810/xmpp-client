@@ -39,8 +39,6 @@ public final class XmppConstants {
 
     public static final int DEFAULT_READ_TIMEOUT_SECONDS = 60;
 
-    public static final int DNS_QUERY_TIMEOUT_SECONDS = 5;
-
     public static final int PING_RESPONSE_TIMEOUT_SECONDS = 10;
 
     public static final int AUTH_TIMEOUT_SECONDS = 10;

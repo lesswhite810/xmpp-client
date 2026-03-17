@@ -36,12 +36,6 @@ class XmppConstantsTest {
     }
 
     @Test
-    @DisplayName("DNS_QUERY_TIMEOUT_SECONDS 应为 5")
-    void testDnsTimeout() {
-        assertEquals(5, XmppConstants.DNS_QUERY_TIMEOUT_SECONDS);
-    }
-
-    @Test
     @DisplayName("PING_RESPONSE_TIMEOUT_SECONDS 应为 10")
     void testPingTimeout() {
         assertEquals(10, XmppConstants.PING_RESPONSE_TIMEOUT_SECONDS);
