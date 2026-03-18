@@ -1,6 +1,7 @@
 package com.example.xmpp.protocol;
 
 import com.example.xmpp.protocol.provider.BindProvider;
+import com.example.xmpp.protocol.provider.ConnectionRequestProvider;
 import com.example.xmpp.protocol.provider.PingProvider;
 import lombok.extern.slf4j.Slf4j;
 
@@ -182,6 +183,7 @@ public final class ProviderRegistry {
     private void registerBuiltInProviders() {
         registerProvider(new BindProvider());
         registerProvider(new PingProvider());
+        registerProvider(new ConnectionRequestProvider());
     }
 
     private void discoverSpiProviders() {
