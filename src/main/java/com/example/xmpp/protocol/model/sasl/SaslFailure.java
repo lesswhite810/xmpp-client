@@ -65,11 +65,14 @@ public class SaslFailure implements ExtensionElement {
      */
     @Override
     public String toXml() {
-        XmlStringBuilder xml = new XmlStringBuilder().openElement("failure", NAMESPACE);
+        XmlStringBuilder xml = new XmlStringBuilder();
+        xml.openElement("failure", NAMESPACE);
         if (condition != null) {
             xml.emptyElement(condition);
         }
-        return xml.optTextElement("text", text).closeElement("failure").toString();
+        return xml.wrapElement("text", NAMESPACE, text)
+                .closeElement("failure")
+                .toString();
     }
 
     /**
