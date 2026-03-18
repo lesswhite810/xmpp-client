@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  * @since 2026-03-13
  */
 @Slf4j
+@RealServerTest
 class Xep0133ServerDiagnosticsTest {
 
     private XmppTcpConnection connection;

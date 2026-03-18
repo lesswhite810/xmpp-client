@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -117,13 +118,40 @@ class XmppTcpConnectionUnitTest {
     }
 
     @Test
-    void testBindActiveChannelRejectsNullAndDisconnectRequested() throws Exception {
+    void testResetForNewConnectionAttemptClosesPreviousResources() throws Exception {
+        XmppTcpConnection connection = new XmppTcpConnection(newConfig());
+        EmbeddedChannel channel = new EmbeddedChannel();
+        NioEventLoopGroup workerGroup = new NioEventLoopGroup(1);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        try {
+            setField(connection, "channel", channel);
+            setField(connection, "workerGroup", workerGroup);
+            setField(connection, "connectionReadyFuture", future);
+
+            invoke(connection, "resetForNewConnectionAttempt");
+
+            assertNull(getField(connection, "channel"));
+            assertNull(getField(connection, "workerGroup"));
+            assertFalse(channel.isOpen());
+            assertTrue(workerGroup.isShuttingDown() || workerGroup.isShutdown());
+            assertNotSame(future, getField(connection, "connectionReadyFuture"));
+        } finally {
+            channel.finishAndReleaseAll();
+            workerGroup.shutdownGracefully().syncUninterruptibly();
+        }
+    }
+
+    @Test
+    void testBindActiveChannelRejectsNullAndClosedConnectionState() throws Exception {
         XmppTcpConnection connection = new XmppTcpConnection(newConfig());
         EmbeddedChannel channel = new EmbeddedChannel();
 
         try {
             assertFalse(connection.bindActiveChannel(null));
-            setField(connection, "disconnectRequested", true);
+            Class<?> stateClass = Class.forName("com.example.xmpp.XmppTcpConnection$TerminalEventState");
+            Object closedOnly = Enum.valueOf((Class<Enum>) stateClass.asSubclass(Enum.class), "CLOSED_ONLY");
+            setField(connection, "terminalEventState", closedOnly);
             assertFalse(connection.bindActiveChannel(channel));
         } finally {
             channel.finishAndReleaseAll();

@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @Slf4j
 @Disabled("需要真实的 Openfire 服务器")
+@RealServerTest
 class OpenfireConnectionTest {
 
     /**

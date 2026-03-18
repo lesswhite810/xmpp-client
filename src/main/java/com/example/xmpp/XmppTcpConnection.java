@@ -48,6 +48,12 @@ import java.util.concurrent.TimeoutException;
 @Getter
 public class XmppTcpConnection extends AbstractXmppConnection {
 
+    private enum TerminalEventState {
+        NONE,
+        CLOSED_ONLY,
+        ERROR_AND_CLOSED
+    }
+
     private final XmppClientConfig config;
 
     private EventLoopGroup workerGroup;
@@ -62,11 +68,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     private volatile CompletableFuture<Void> connectionReadyFuture = new CompletableFuture<>();
 
-    private volatile boolean disconnectRequested;
-
-    private volatile boolean errorEventPublished;
-
-    private volatile boolean closedEventPublished;
+    private TerminalEventState terminalEventState = TerminalEventState.NONE;
 
     /**
      * 创建 TCP XMPP 连接。
@@ -115,21 +117,27 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             return reusableFuture;
         }
 
-        cleanupFailedConnectionAttemptIfNeeded();
-        prepareNewConnectionAttempt();
-
         List<ConnectionTarget> targets = resolveConnectionTargets();
-        ensureConnectionTargetsAvailable(targets);
+        if (targets.isEmpty()) {
+            XmppNetworkException exception = new XmppNetworkException("No connection targets available");
+            connectionReadyFuture.completeExceptionally(exception);
+            shutdownLifecycleManagers();
+            shutdownWorkerGroup();
+            throw exception;
+        }
 
+        resetForNewConnectionAttempt();
         try {
-            startConnectionAttempt(targets);
+            initializeConnectionInfrastructure();
+            this.channel = connectToTargets(targets)
+                    .orElseThrow(() -> new XmppNetworkException("All connection attempts failed"));
             return connectionReadyFuture;
         } catch (XmppException e) {
-            rollbackFailedConnectionAttempt(e);
+            failConnectionAttempt(e);
             throw e;
         } catch (RuntimeException e) {
             XmppNetworkException exception = new XmppNetworkException("Failed to establish XMPP connection", e);
-            rollbackFailedConnectionAttempt(exception);
+            failConnectionAttempt(exception);
             throw exception;
         }
     }
@@ -149,42 +157,20 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         return null;
     }
 
-    private void cleanupFailedConnectionAttemptIfNeeded() {
-        CompletableFuture<Void> currentFuture = connectionReadyFuture;
-        Channel currentChannel = channel;
-        boolean failedFuture = currentFuture != null
-                && (currentFuture.isCompletedExceptionally() || currentFuture.isCancelled());
-        boolean hasActiveResources = (currentChannel != null && currentChannel.isActive()) || workerGroup != null;
-        if (failedFuture && hasActiveResources) {
-            disconnect();
-        }
-    }
-
-    private void prepareNewConnectionAttempt() {
-        disconnectRequested = false;
-        errorEventPublished = false;
-        closedEventPublished = false;
+    private void resetForNewConnectionAttempt() {
+        shutdownLifecycleManagers();
+        Channel previousChannel = channel;
+        channel = null;
+        clearHandlerState();
+        EventLoopGroup previousWorkerGroup = workerGroup;
+        workerGroup = null;
+        closeChannel(previousChannel);
+        shutdownWorkerGroup(previousWorkerGroup);
+        terminalEventState = TerminalEventState.NONE;
         connectionReadyFuture = new CompletableFuture<>();
     }
 
-    private void ensureConnectionTargetsAvailable(List<ConnectionTarget> targets) throws XmppNetworkException {
-        if (!targets.isEmpty()) {
-            return;
-        }
-        XmppNetworkException exception = new XmppNetworkException("No connection targets available");
-        connectionReadyFuture.completeExceptionally(exception);
-        shutdownLifecycleManagers();
-        shutdownWorkerGroup();
-        throw exception;
-    }
-
-    private void startConnectionAttempt(List<ConnectionTarget> targets) throws XmppException {
-        initializeConnectionInfrastructure();
-        this.channel = connectToTargets(targets)
-                .orElseThrow(() -> new XmppNetworkException("All connection attempts failed"));
-    }
-
-    private void rollbackFailedConnectionAttempt(Exception exception) {
+    private void failConnectionAttempt(Exception exception) {
         connectionReadyFuture.completeExceptionally(exception);
         shutdownLifecycleManagers();
         shutdownWorkerGroup();
@@ -364,20 +350,20 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             return;
         }
 
-        boolean manualDisconnect = disconnectRequested;
+        boolean closedByClient = terminalEventState == TerminalEventState.CLOSED_ONLY;
         XmppNetworkException closeException = new XmppNetworkException(
-                manualDisconnect ? "Connection closed" : "Connection closed unexpectedly");
+                closedByClient ? "Connection closed" : "Connection closed unexpectedly");
         failPendingCollectors(closeException);
         cleanupCollectors();
         failReadyFuture(new XmppNetworkException(
-                manualDisconnect
+                closedByClient
                         ? "Connection closed before session became ready"
                         : "Connection closed unexpectedly before session became ready"));
 
         channel = null;
         clearHandlerState();
         shutdownWorkerGroup();
-        if (manualDisconnect) {
+        if (closedByClient) {
             publishClosedEvent(null);
             return;
         }
@@ -404,7 +390,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         if (candidate == null) {
             return false;
         }
-        if (disconnectRequested) {
+        if (terminalEventState != TerminalEventState.NONE) {
             return false;
         }
         if (channel == null) {
@@ -419,7 +405,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     @Override
     public synchronized void disconnect() {
-        disconnectRequested = true;
         shutdownLifecycleManagers();
 
         failPendingCollectors(new XmppNetworkException("Connection closed"));
@@ -444,23 +429,19 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     private void publishTerminalError(Exception exception) {
-        publishErrorEvent(exception);
-        publishClosedEvent(exception);
-    }
-
-    private void publishErrorEvent(Exception exception) {
-        if (errorEventPublished) {
+        if (terminalEventState != TerminalEventState.NONE) {
             return;
         }
-        errorEventPublished = true;
+        terminalEventState = TerminalEventState.ERROR_AND_CLOSED;
         notifyConnectionClosedOnError(exception);
+        notifyConnectionClosed(exception);
     }
 
     private void publishClosedEvent(Exception exception) {
-        if (closedEventPublished) {
+        if (terminalEventState != TerminalEventState.NONE) {
             return;
         }
-        closedEventPublished = true;
+        terminalEventState = TerminalEventState.CLOSED_ONLY;
         if (exception == null) {
             notifyConnectionClosed();
             return;
@@ -482,14 +463,26 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         shutdownWorkerGroup();
     }
 
-    private void shutdownWorkerGroup() {
-        if (workerGroup != null) {
-            workerGroup.shutdownGracefully(
-                    XmppConstants.SHUTDOWN_QUIET_PERIOD_SECONDS,
-                    XmppConstants.SHUTDOWN_TIMEOUT_SECONDS,
-                    TimeUnit.SECONDS);
-            workerGroup = null;
+    private void closeChannel(Channel currentChannel) {
+        if (currentChannel != null && currentChannel.isOpen()) {
+            currentChannel.close();
         }
+    }
+
+    private void shutdownWorkerGroup() {
+        EventLoopGroup currentWorkerGroup = workerGroup;
+        workerGroup = null;
+        shutdownWorkerGroup(currentWorkerGroup);
+    }
+
+    private void shutdownWorkerGroup(EventLoopGroup group) {
+        if (group == null) {
+            return;
+        }
+        group.shutdownGracefully(
+                XmppConstants.SHUTDOWN_QUIET_PERIOD_SECONDS,
+                XmppConstants.SHUTDOWN_TIMEOUT_SECONDS,
+                TimeUnit.SECONDS);
     }
 
     /**

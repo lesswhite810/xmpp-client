@@ -35,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  * @since 2026-03-13
  */
 @Disabled("需要真实的 XMPP 服务器 (Openfire)")
+@RealServerTest
 class XmppRealServerSoakTest {
 
     private static final String XMPP_DOMAIN = "lesswhite";

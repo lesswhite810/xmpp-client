@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * @since 2026-03-13
  */
 @Slf4j
+@RealServerTest
 class XmppRealServerEdgeCaseTest {
 
     private static final String XMPP_DOMAIN = "lesswhite";

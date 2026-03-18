@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @Slf4j
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@RealServerTest
 public class Xep0133FullTest {
 
     private static final String XMPP_DOMAIN = "lesswhite";

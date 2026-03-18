@@ -46,6 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * @since 2026-03-13
  */
+@RealServerTest
 class XmppRealServerProtocolMatrixTest {
 
     private static final String XMPP_DOMAIN = "lesswhite";

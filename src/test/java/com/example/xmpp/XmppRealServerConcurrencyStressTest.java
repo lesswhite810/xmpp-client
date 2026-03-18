@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @Slf4j
 @Disabled("需要真实的 XMPP 服务器 (Openfire)")
+@RealServerTest
 class XmppRealServerConcurrencyStressTest {
 
     private static final String XMPP_DOMAIN = "lesswhite";

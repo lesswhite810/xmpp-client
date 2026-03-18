@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 测试与主流 XMPP 服务器的兼容性，包括连接、认证、IQ、Message、Presence 等功能。
  */
 @Slf4j
+@RealServerTest
 public class XmppServerIntegrationTest {
 
     private static final String XMPP_DOMAIN = "example.com";

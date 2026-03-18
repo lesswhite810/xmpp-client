@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
  * XEP-0133 Service Administration 综合测试
  */
 @Slf4j
+@RealServerTest
 public class Xep0133ComprehensiveTest {
 
     private XmppTcpConnection connection;
