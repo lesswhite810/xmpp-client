@@ -116,6 +116,7 @@ public final class Iq extends Stanza {
                 .id(request.getId())
                 .to(request.getFrom())
                 .from(request.getTo())
+                .childElement(request.getChildElement())
                 .error(error)
                 .build();
     }

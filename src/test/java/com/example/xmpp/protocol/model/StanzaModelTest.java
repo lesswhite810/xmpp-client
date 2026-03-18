@@ -36,7 +36,13 @@ class StanzaModelTest {
         @Test
         @DisplayName("Iq.createErrorResponse 应创建错误响应")
         void testCreateErrorResponse() {
-            Iq request = new Iq.Builder(Iq.Type.GET).id("req-1").from("user1@domain.com").to("user2@domain.com").build();
+            Ping ping = new Ping();
+            Iq request = new Iq.Builder(Iq.Type.GET)
+                    .id("req-1")
+                    .from("user1@domain.com")
+                    .to("user2@domain.com")
+                    .childElement(ping)
+                    .build();
             XmppError error = new XmppError.Builder(XmppError.Condition.BAD_REQUEST).text("Bad request").build();
 
             Iq errorResponse = Iq.createErrorResponse(request, error);
@@ -45,7 +51,9 @@ class StanzaModelTest {
             assertEquals("req-1", errorResponse.getId());
             assertEquals("user1@domain.com", errorResponse.getTo());
             assertEquals("user2@domain.com", errorResponse.getFrom());
+            assertSame(ping, errorResponse.getChildElement());
             assertNotNull(errorResponse.getError());
+            assertTrue(errorResponse.toXml().contains("<ping xmlns=\"urn:xmpp:ping\"/>"));
         }
 
         @Test
@@ -97,8 +105,7 @@ class StanzaModelTest {
             Iq iq = new Iq.Builder(Iq.Type.GET).id("iq-1").build();
 
             String xml = iq.toXml();
-            assertTrue(xml.contains("<iq type=\"get\" id=\"iq-1\">"));
-            assertTrue(xml.contains("</iq>"));
+            assertEquals("<iq type=\"get\" id=\"iq-1\"/>", xml);
         }
 
         @Test
@@ -152,7 +159,7 @@ class StanzaModelTest {
         void testIqToXmlNoId() {
             Iq iq = new Iq.Builder(Iq.Type.GET).build();
             String xml = iq.toXml();
-            assertTrue(xml.contains("<iq type=\"get\">"));
+            assertEquals("<iq type=\"get\"/>", xml);
             assertFalse(xml.contains("id=\""));
         }
 
@@ -420,10 +427,9 @@ class StanzaModelTest {
         }
 
         @Test
-        @DisplayName("Presence 类型为 null 时默认为 available")
-        void testPresenceTypeNullDefaultsToAvailable() {
-            Presence presence = new Presence.Builder((Presence.Type) null).build();
-            assertEquals(Presence.Type.AVAILABLE, presence.getType());
+        @DisplayName("Presence 显式传入 null 类型时应抛出异常")
+        void testPresenceTypeNullRejected() {
+            assertThrows(NullPointerException.class, () -> new Presence.Builder((Presence.Type) null));
         }
 
         @Test
@@ -574,15 +580,18 @@ class StanzaModelTest {
         }
 
         @Test
-        @DisplayName("Presence 字符串类型构造器和设置器应支持命中与空值")
+        @DisplayName("Presence 字符串类型构造器和设置器应拒绝无效值")
         void testPresenceStringTypeBuilder() {
             Presence valid = new Presence.Builder("subscribe").build();
-            Presence invalid = new Presence.Builder("missing").build();
             Presence updated = new Presence.Builder().type("unavailable").build();
 
             assertEquals(Presence.Type.SUBSCRIBE, valid.getType());
-            assertEquals(Presence.Type.AVAILABLE, invalid.getType());
             assertEquals(Presence.Type.UNAVAILABLE, updated.getType());
+            assertThrows(IllegalArgumentException.class, () -> new Presence.Builder("missing"));
+            assertThrows(NullPointerException.class, () -> new Presence.Builder((String) null));
+            assertThrows(IllegalArgumentException.class, () -> new Presence.Builder().type("missing"));
+            assertThrows(NullPointerException.class, () -> new Presence.Builder().type((String) null));
+            assertThrows(NullPointerException.class, () -> new Presence.Builder().type((Presence.Type) null));
         }
 
         @Test

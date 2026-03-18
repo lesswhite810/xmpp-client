@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -223,7 +224,7 @@ public final class Presence extends Stanza {
          * @param type Presence 类型
          */
         public Builder(Type type) {
-            this.type = type;
+            this.type = Objects.requireNonNull(type, "Presence type cannot be null");
         }
 
         /**
@@ -232,7 +233,7 @@ public final class Presence extends Stanza {
          * @param type Presence 类型字符串
          */
         public Builder(String type) {
-            this.type = Type.fromString(type).orElse(null);
+            this.type = parseType(type);
         }
 
         @Override
@@ -247,7 +248,7 @@ public final class Presence extends Stanza {
          * @return this
          */
         public Builder type(Type type) {
-            this.type = type;
+            this.type = Objects.requireNonNull(type, "Presence type cannot be null");
             return self();
         }
 
@@ -258,8 +259,14 @@ public final class Presence extends Stanza {
          * @return this
          */
         public Builder type(String type) {
-            this.type = Type.fromString(type).orElse(null);
+            this.type = parseType(type);
             return self();
+        }
+
+        private Type parseType(String type) {
+            Objects.requireNonNull(type, "Presence type cannot be null");
+            return Type.fromString(type)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid presence type: " + type));
         }
 
         /**
