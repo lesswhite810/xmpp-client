@@ -19,17 +19,6 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>集中管理所有连接参数，支持连接、认证、安全和心跳配置。</p>
  *
- * <p>使用示例：</p>
- * <pre>{@code
- * XmppClientConfig config = XmppClientConfig.builder()
- *     .xmppServiceDomain("example.com")
- *     .username("user")
- *     .password("password".toCharArray())
- *     .securityMode(SecurityMode.REQUIRED)
- *     .pingEnabled(true)
- *     .build();
- * }</pre>
- *
  * @since 2026-02-09
  */
 @Getter

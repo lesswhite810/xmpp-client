@@ -7,12 +7,6 @@ import java.util.UUID;
  *
  * <p>使用 UUID 生成唯一 ID，确保多线程环境下的 ID 唯一性。</p>
  *
- * <p>使用示例：</p>
- * <pre>{@code
- * String id = StanzaIdGenerator.newId();                    // "a1b2c3d4-e5f6-..."
- * String id = StanzaIdGenerator.newId("ping");              // "ping-a1b2c3d4-..."
- * }</pre>
- *
  * @since 2026-02-09
  */
 public final class StanzaIdGenerator {

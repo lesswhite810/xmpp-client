@@ -8,25 +8,6 @@ import com.example.xmpp.XmppConnection;
  * <p>表示 XMPP 连接生命周期中发生的各种事件。
  * 使用 {@link ConnectionEventType} 枚举区分事件类型。</p>
  *
- * <p>使用示例：</p>
- * <pre>{@code
- * // 创建事件
- * ConnectionEvent event = new ConnectionEvent(connection, ConnectionEventType.CONNECTED);
- *
- * // 订阅特定连接的事件
- * eventBus.subscribe(connection, ConnectionEventType.CONNECTED, e -> {
- *     log.info("Connected: {}", e.connection().getConfig().getUser());
- * });
- *
- * // 订阅全局事件（所有连接）
- * eventBus.subscribe(ConnectionEventType.AUTHENTICATED, e -> {
- *     log.info("User authenticated: {}", e.connection().getUser());
- * });
- *
- * // 发布事件
- * eventBus.publish(connection, new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
- * }</pre>
- *
  * @since 2026-03-03
  */
 public record ConnectionEvent(XmppConnection connection, ConnectionEventType eventType, Exception error) {

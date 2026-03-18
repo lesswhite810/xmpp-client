@@ -10,12 +10,6 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <p>处理 XMPP 服务器发来的 Ping 请求，自动响应 Pong。</p>
  *
- * <p>使用示例：</p>
- * <pre>{@code
- * XmppTcpConnection connection = new XmppTcpConnection(config);
- * connection.registerIqRequestHandler(new PingIqRequestHandler());
- * }</pre>
- *
  * @since 2026-02-26
  */
 @Slf4j

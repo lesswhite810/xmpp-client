@@ -22,22 +22,6 @@ import java.util.List;
  * </ul>
  * </p>
  *
- * <p>使用示例：</p>
- * <pre>{@code
- * // 创建获取请求
- * Iq iq = new Iq.Builder(Type.GET)
- *     .id("request-1")
- *     .to("user@example.com")
- *     .childElement(new Ping())
- *     .build();
- *
- * // 创建错误响应
- * Iq errorResponse = Iq.createErrorResponse(request, XmppError.fromCondition(...));
- *
- * // 创建结果响应
- * Iq resultResponse = Iq.createResultResponse(request, resultElement);
- * }</pre>
- *
  * @since 2026-02-09
  */
 @Getter

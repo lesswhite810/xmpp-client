@@ -17,22 +17,6 @@ import java.io.Serial;
  *   <li>命令执行过程中缺少必要数据（如无 session ID）</li>
  * </ul>
  *
- * <h3>使用示例</h3>
- * <pre>{@code
- * adminManager.addUser("user", "password")
- *     .whenComplete((result, ex) -> {
- *         if (ex == null) {
- *             return;
- *         }
- *         if (ex instanceof AdminCommandException ace) {
- *             if (ace.hasErrorResponse()) {
- *                 Iq error = ace.getErrorResponse();
- *                 // 处理服务器错误
- *             }
- *         }
- *     });
- * }</pre>
- *
  * @since 2026-03-09
  */
 public class AdminCommandException extends XmppException {

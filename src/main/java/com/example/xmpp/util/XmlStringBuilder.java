@@ -3,18 +3,7 @@ package com.example.xmpp.util;
 /**
  * XML 字符串构建器。
  *
- * <p>提供流式 API 构建 XML 文档，自动处理 XML 特殊字符转义。
- * 支持链式调用，示例：</p>
- * <pre>{@code
- * new XmlStringBuilder()
- *     .element("iq")
- *     .attribute("type", "set")
- *     .attribute("id", "123")
- *     .rightAngleBracket()
- *     .openElement("bind")
- *     .attribute("xmlns", "urn:ietf:params:xml:ns:xmpp-bind")
- *     .closeElement("bind")
- * }</pre>
+ * <p>提供流式 API 构建 XML 文档，自动处理 XML 特殊字符转义。支持链式调用。</p>
  *
  * @since 2026-02-09
  */
