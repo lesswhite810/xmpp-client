@@ -2,6 +2,7 @@ package com.example.xmpp.protocol.model.stream;
 
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.protocol.model.ExtensionElement;
+import com.example.xmpp.util.XmlStringBuilder;
 
 /**
  * TLS 相关元素集合，用于 XMPP 连接 TLS 协商。
@@ -60,7 +61,9 @@ public final class TlsElements {
          */
         @Override
         public String toXml() {
-            return "<starttls xmlns=\"" + NAMESPACE + "\"/>";
+            return new XmlStringBuilder()
+                    .wrapElement(getElementName(), NAMESPACE, "")
+                    .toString();
         }
     }
 
@@ -104,7 +107,9 @@ public final class TlsElements {
          */
         @Override
         public String toXml() {
-            return "<proceed xmlns=\"" + NAMESPACE + "\"/>";
+            return new XmlStringBuilder()
+                    .wrapElement(getElementName(), NAMESPACE, "")
+                    .toString();
         }
     }
 }

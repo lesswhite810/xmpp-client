@@ -5,7 +5,9 @@ import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -156,18 +158,14 @@ public final class Presence extends Stanza {
         return "presence";
     }
 
-    /**
-     * 追加属性到 XML 构建器。
-     *
-     * @param xml XML 构建器
-     * @throws NullPointerException 当 xml 参数为 null 时
-     */
     @Override
-    protected void appendAttributes(XmlStringBuilder xml) {
+    protected Map<String, Object> buildAttributes() {
+        Map<String, Object> attributes = new LinkedHashMap<>();
         if (type != null && type != Type.AVAILABLE) {
-            xml.attribute("type", type);
+            attributes.put("type", type);
         }
-        super.appendAttributes(xml);
+        attributes.putAll(super.buildAttributes());
+        return attributes;
     }
 
     /**
@@ -178,10 +176,14 @@ public final class Presence extends Stanza {
      */
     @Override
     protected void appendExtensions(XmlStringBuilder xml) {
-        xml.optTextElement("show", show)
-           .optTextElement("status", status);
+        if (show != null) {
+            xml.wrapElement("show", show);
+        }
+        if (status != null) {
+            xml.wrapElement("status", status);
+        }
         if (priority != null) {
-            xml.textElement("priority", String.valueOf(priority));
+            xml.wrapElement("priority", String.valueOf(priority));
         }
         super.appendExtensions(xml);
     }

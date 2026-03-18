@@ -50,9 +50,14 @@ public final class Bind implements ExtensionElement {
     @Override
     public String toXml() {
         return new XmlStringBuilder()
-                .wrapElement(ELEMENT, NAMESPACE, xml -> xml
-                        .optTextElement("resource", resource)
-                        .optTextElement("jid", jid))
+                .wrapElement(ELEMENT, NAMESPACE, xml -> {
+                    if (resource != null) {
+                        xml.wrapElement("resource", resource);
+                    }
+                    if (jid != null) {
+                        xml.wrapElement("jid", jid);
+                    }
+                })
                 .toString();
     }
 }

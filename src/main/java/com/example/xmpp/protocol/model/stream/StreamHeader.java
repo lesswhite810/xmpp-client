@@ -6,6 +6,9 @@ import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * XMPP 流头元素，实现 RFC 6120 §4.7 Stream Start。
  * <p>
@@ -88,16 +91,16 @@ public class StreamHeader implements ExtensionElement {
      */
     @Override
     public String toXml() {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("from", from);
+        attributes.put("to", to);
+        attributes.put("id", id);
+        attributes.put("version", version);
+        attributes.put("xml:lang", lang);
+        attributes.put("xmlns", namespace);
+        attributes.put("xmlns:stream", NAMESPACE_STREAM);
         return new XmlStringBuilder()
-                .element("stream", "stream", null)
-                .attribute("from", from)
-                .attribute("to", to)
-                .attribute("id", id)
-                .attribute("version", version)
-                .attribute("xml:lang", lang)
-                .attribute("xmlns", namespace)
-                .attribute("xmlns:stream", NAMESPACE_STREAM)
-                .rightAngleBracket()
+                .openElement("stream", "stream", null, attributes)
                 .toString();
     }
 }

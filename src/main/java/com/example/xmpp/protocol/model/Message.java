@@ -5,7 +5,9 @@ import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -127,16 +129,12 @@ public final class Message extends Stanza {
         return "message";
     }
 
-    /**
-     * 追加属性到 XML 构建器。
-     *
-     * @param xml XML 构建器
-     * @throws NullPointerException 当 xml 参数为 null 时
-     */
     @Override
-    protected void appendAttributes(XmlStringBuilder xml) {
-        xml.attribute("type", type);
-        super.appendAttributes(xml);
+    protected Map<String, Object> buildAttributes() {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("type", type);
+        attributes.putAll(super.buildAttributes());
+        return attributes;
     }
 
     /**
@@ -147,9 +145,15 @@ public final class Message extends Stanza {
      */
     @Override
     protected void appendExtensions(XmlStringBuilder xml) {
-        xml.optTextElement("subject", subject)
-           .optTextElement("body", body)
-           .optTextElement("thread", thread);
+        if (subject != null) {
+            xml.wrapElement("subject", subject);
+        }
+        if (body != null) {
+            xml.wrapElement("body", body);
+        }
+        if (thread != null) {
+            xml.wrapElement("thread", thread);
+        }
         super.appendExtensions(xml);
     }
 

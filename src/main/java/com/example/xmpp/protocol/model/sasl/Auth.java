@@ -5,6 +5,8 @@ import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
+import java.util.Map;
+
 /**
  * SASL 认证元素，用于 XMPP SASL 握手流程。
  * <p>
@@ -61,11 +63,11 @@ public final class Auth implements ExtensionElement {
     @Override
     public String toXml() {
         return new XmlStringBuilder()
-                .element(ELEMENT, NAMESPACE)
-                .attribute("mechanism", mechanism)
-                .rightAngleBracket()
-                .append(content != null ? content : "")
-                .closeElement(ELEMENT)
+                .wrapElement(ELEMENT, NAMESPACE, Map.of("mechanism", mechanism), xml -> {
+                    if (content != null) {
+                        xml.append(content);
+                    }
+                })
                 .toString();
     }
 }

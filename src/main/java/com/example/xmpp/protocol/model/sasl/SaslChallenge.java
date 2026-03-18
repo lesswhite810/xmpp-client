@@ -71,7 +71,7 @@ public class SaslChallenge implements ExtensionElement {
     @Override
     public String toXml() {
         return new XmlStringBuilder()
-                .wrapElement(ELEMENT, NAMESPACE, xml -> xml.escapedContent(content))
+                .wrapElement(ELEMENT, NAMESPACE, content)
                 .toString();
     }
 }

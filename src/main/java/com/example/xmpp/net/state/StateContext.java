@@ -5,6 +5,7 @@ import com.example.xmpp.XmppTcpConnection;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.protocol.model.XmlSerializable;
+import com.example.xmpp.protocol.model.stream.StreamHeader;
 import com.example.xmpp.mechanism.SaslNegotiator;
 import com.example.xmpp.util.NettyUtils;
 import com.example.xmpp.util.XmlStringBuilder;
@@ -174,17 +175,16 @@ public class StateContext {
      * @param ctx 通道上下文
      */
     public ChannelFuture openStream(ChannelHandlerContext ctx) {
+        StreamHeader streamHeader = StreamHeader.builder()
+                .to(config.getXmppServiceDomain())
+                .version(XmppConstants.XMPP_VERSION)
+                .lang(config.getXmlLang())
+                .namespace(XmppConstants.NS_JABBER_CLIENT)
+                .build();
+
         XmlStringBuilder xml = new XmlStringBuilder(XmppConstants.DEFAULT_XML_BUILDER_CAPACITY);
-        xml.append("<?xml version='1.0'?>");
-        xml.element("stream", "stream", null)
-           .attribute("to", config.getXmppServiceDomain())
-           .attribute("xmlns", XmppConstants.NS_JABBER_CLIENT)
-           .attribute("xmlns:stream", XmppConstants.NS_XMPP_STREAMS)
-           .attribute("version", XmppConstants.XMPP_VERSION);
-        if (config.getXmlLang() != null) {
-            xml.attribute("xml:lang", config.getXmlLang());
-        }
-        xml.rightAngleBracket();
+        xml.append("<?xml version='1.0'?>")
+                .append(streamHeader.toXml());
 
         return NettyUtils.writeAndFlushStringAsync(ctx, xml.toString());
     }

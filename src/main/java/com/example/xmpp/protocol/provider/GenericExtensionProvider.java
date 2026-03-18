@@ -65,8 +65,6 @@ public class GenericExtensionProvider {
 
         builder.addAttributes(XmlParserUtils.getAttributes(start));
 
-        StringBuilder textBuilder = new StringBuilder();
-
         while (reader.hasNext()) {
             XMLEvent event = reader.nextEvent();
 
@@ -79,13 +77,11 @@ public class GenericExtensionProvider {
                 GenericExtensionElement child = parseElement(reader, event.asStartElement());
                 builder.addChild(child);
             } else if (event.isCharacters()) {
-                textBuilder.append(event.asCharacters().getData());
+                String text = event.asCharacters().getData();
+                if (!text.isBlank()) {
+                    builder.text(text);
+                }
             }
-        }
-
-        String text = textBuilder.toString().trim();
-        if (!text.isEmpty()) {
-            builder.text(text);
         }
 
         return builder.build();
@@ -100,7 +96,7 @@ public class GenericExtensionProvider {
      */
     public GenericExtensionElement parseCurrentElement(XMLEventReader reader) throws XmppParseException {
         try {
-            XMLEvent event = reader.peek();
+            XMLEvent event = reader.nextEvent();
             if (event == null || !event.isStartElement()) {
                 throw new XmppParseException("Reader is not positioned at a start element");
             }

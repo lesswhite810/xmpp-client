@@ -449,6 +449,29 @@ class XmppStreamDecoderTest {
     }
 
     @Test
+    @DisplayName("未知扩展 mixed content 应保留文本与子元素顺序")
+    void testFallbackToGenericExtensionParserPreservesMixedContentOrder() {
+        sendStreamHeader();
+        sendXml("<message type='chat' id='msg-mixed-generic'>"
+                + "<x xmlns='urn:test:generic'>before<item>value</item>after</x>"
+                + "</message>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(Message.class, msg);
+
+        Message message = (Message) msg;
+        assertEquals(1, message.getExtensions().size());
+        assertInstanceOf(GenericExtensionElement.class, message.getExtensions().getFirst());
+
+        GenericExtensionElement extension = (GenericExtensionElement) message.getExtensions().getFirst();
+        assertEquals(3, extension.getContentNodes().size());
+        assertEquals("beforeafter", extension.getText());
+        assertEquals("<x xmlns=\"urn:test:generic\">before<item xmlns=\"urn:test:generic\">value</item>after</x>",
+                extension.toXml());
+    }
+
+    @Test
     @DisplayName("Provider 解析失败时应忽略该扩展")
     void testIgnoreExtensionWhenProviderThrowsParseException() {
         ProviderRegistry registry = ProviderRegistry.getInstance();

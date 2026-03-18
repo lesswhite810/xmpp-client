@@ -4,7 +4,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * XmlStringBuilder 单元测试。
@@ -19,8 +24,7 @@ class XmlStringBuilderTest {
         @DisplayName("应正确创建空的 XmlStringBuilder")
         void testEmptyBuilder() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            assertEquals(0, builder.length());
-            assertTrue(builder.isEmpty());
+            assertEquals("", builder.toString());
         }
 
         @Test
@@ -29,14 +33,6 @@ class XmlStringBuilderTest {
             XmlStringBuilder builder = new XmlStringBuilder();
             builder.append("<test>");
             assertEquals("<test>", builder.toString());
-        }
-
-        @Test
-        @DisplayName("应正确追加字符")
-        void testAppendChar() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.append('<').append('>').append('/');
-            assertEquals("<>/", builder.toString());
         }
 
         @Test
@@ -61,66 +57,32 @@ class XmlStringBuilderTest {
     class ElementTests {
 
         @Test
-        @DisplayName("element() 应添加开标签前缀")
-        void testElement() {
+        @DisplayName("openElement() 带前缀和命名空间")
+        void testOpenElementWithPrefix() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.element("iq").rightAngleBracket();
-            assertEquals("<iq>", builder.toString());
-        }
-
-        @Test
-        @DisplayName("element() 带命名空间")
-        void testElementWithNamespace() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.element("bind", "urn:ietf:params:xml:ns:xmpp-bind").rightAngleBracket();
-            String result = builder.toString();
-            assertTrue(result.contains("<bind"));
-            assertTrue(result.contains("xmlns=\"urn:ietf:params:xml:ns:xmpp-bind\""));
-            assertTrue(result.contains(">"));
-        }
-
-        @Test
-        @DisplayName("element() 带前缀和命名空间")
-        void testElementWithPrefix() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.element("stream", "stream", "http://etherx.jabber.org/streams").rightAngleBracket();
+            builder.openElement("stream", "stream", "http://etherx.jabber.org/streams", null);
             String result = builder.toString();
             assertTrue(result.contains("<stream:stream"));
             assertTrue(result.contains("xmlns=\"http://etherx.jabber.org/streams\""));
         }
 
         @Test
-        @DisplayName("openElement() 应添加完整开标签")
-        void testOpenElement() {
+        @DisplayName("append() 应支持追加闭标签")
+        void testAppendCloseElement() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.openElement("body");
-            assertEquals("<body>", builder.toString());
-        }
-
-        @Test
-        @DisplayName("openElement() 带命名空间")
-        void testOpenElementWithNamespace() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.openElement("ping", "urn:xmpp:ping");
-            assertTrue(builder.toString().contains("<ping"));
-            assertTrue(builder.toString().contains("xmlns=\"urn:xmpp:ping\""));
-            assertTrue(builder.toString().contains(">"));
-        }
-
-        @Test
-        @DisplayName("closeElement() 应添加闭标签")
-        void testCloseElement() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.closeElement("iq");
+            builder.append("</iq>");
             assertEquals("</iq>", builder.toString());
         }
 
         @Test
-        @DisplayName("rightAngleBracket() 应添加右尖括号")
-        void testRightAngleBracket() {
+        @DisplayName("openElement() 应支持属性")
+        void testOpenElementWithAttributes() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.element("iq").rightAngleBracket();
-            assertTrue(builder.toString().endsWith(">"));
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            attributes.put("type", "get");
+            attributes.put("id", "test1");
+            builder.openElement("iq", null, attributes);
+            assertEquals("<iq type=\"get\" id=\"test1\">", builder.toString());
         }
     }
 
@@ -129,36 +91,45 @@ class XmlStringBuilderTest {
     class AttributeTests {
 
         @Test
-        @DisplayName("应正确追加属性")
+        @DisplayName("openElement() 应正确追加属性")
         void testAttribute() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.element("iq").attribute("type", "get").attribute("id", "test1").rightAngleBracket();
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            attributes.put("type", "get");
+            attributes.put("id", "test1");
+            builder.openElement("iq", null, attributes);
             String result = builder.toString();
             assertTrue(result.contains("type=\"get\""));
             assertTrue(result.contains("id=\"test1\""));
         }
 
         @Test
-        @DisplayName("应正确处理 null 属性值")
+        @DisplayName("openElement() 应正确处理 null 属性值")
         void testNullAttribute() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.element("iq").attribute("type", (String) null).rightAngleBracket();
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            attributes.put("type", null);
+            builder.openElement("iq", null, attributes);
             assertFalse(builder.toString().contains("type="));
         }
 
         @Test
-        @DisplayName("应正确追加枚举属性")
+        @DisplayName("openElement() 应正确追加枚举属性")
         void testEnumAttribute() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.element("iq").attribute("type", TestType.GET).rightAngleBracket();
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            attributes.put("type", TestType.GET);
+            builder.openElement("iq", null, attributes);
             assertTrue(builder.toString().contains("type=\"get\""));
         }
 
         @Test
-        @DisplayName("枚举属性为 null 时不添加")
+        @DisplayName("openElement() 枚举属性为 null 时不添加")
         void testNullEnumAttribute() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.element("iq").attribute("type", (Enum<?>) null).rightAngleBracket();
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            attributes.put("type", null);
+            builder.openElement("iq", null, attributes);
             assertFalse(builder.toString().contains("type="));
         }
 
@@ -168,50 +139,26 @@ class XmlStringBuilderTest {
     }
 
     @Nested
-    @DisplayName("文本元素方法")
-    class TextElementTests {
+    @DisplayName("闭合标签方法")
+    class WrappedElementTests {
 
         @Test
-        @DisplayName("textElement() 应创建完整元素")
-        void testTextElement() {
+        @DisplayName("wrapElement() 应创建完整元素")
+        void testWrapElement() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.textElement("body", "Hello World");
+            builder.wrapElement("body", "Hello World");
             assertEquals("<body>Hello World</body>", builder.toString());
         }
 
         @Test
-        @DisplayName("textElement() 应转义特殊字符")
-        void testTextElementEscape() {
+        @DisplayName("wrapElement() 应转义特殊字符")
+        void testWrapElementEscape() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.textElement("body", "<>&'\"");
+            builder.wrapElement("body", "<>&'\"");
             String result = builder.toString();
             assertTrue(result.contains("&lt;"));
             assertTrue(result.contains("&gt;"));
             assertTrue(result.contains("&amp;"));
-        }
-
-        @Test
-        @DisplayName("optTextElement() 内容为 null 时不添加")
-        void testOptTextElementNull() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.optTextElement("body", null);
-            assertEquals("", builder.toString());
-        }
-
-        @Test
-        @DisplayName("optTextElement() 内容非 null 时添加")
-        void testOptTextElement() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.optTextElement("body", "content");
-            assertEquals("<body>content</body>", builder.toString());
-        }
-
-        @Test
-        @DisplayName("wrapElement() 应包装原始内容")
-        void testWrapElement() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.wrapElement("body", "<inner/>");
-            assertEquals("<body><inner/></body>", builder.toString());
         }
 
         @Test
@@ -224,11 +171,11 @@ class XmlStringBuilderTest {
         }
 
         @Test
-        @DisplayName("wrapElement() 内容为 null 时应保留空元素体")
+        @DisplayName("wrapElement() 内容为 null 时应生成自闭合标签")
         void testWrapElementNullContent() {
             XmlStringBuilder builder = new XmlStringBuilder();
             builder.wrapElement("response", (String) null);
-            assertEquals("<response></response>", builder.toString());
+            assertEquals("<response/>", builder.toString());
         }
 
         @Test
@@ -236,8 +183,10 @@ class XmlStringBuilderTest {
         void testWrapElementWithNamespaceConsumer() {
             XmlStringBuilder builder = new XmlStringBuilder();
             builder.wrapElement("bind", "urn:ietf:params:xml:ns:xmpp-bind",
-                    (java.util.function.Consumer<XmlStringBuilder>) xml -> xml.optTextElement("resource", "mobile")
-                            .optTextElement("jid", "user@example.com/mobile"));
+                    (java.util.function.Consumer<XmlStringBuilder>) xml -> {
+                        xml.wrapElement("resource", "mobile");
+                        xml.wrapElement("jid", "user@example.com/mobile");
+                    });
             assertEquals(
                     "<bind xmlns=\"urn:ietf:params:xml:ns:xmpp-bind\"><resource>mobile</resource>"
                             + "<jid>user@example.com/mobile</jid></bind>",
@@ -253,25 +202,59 @@ class XmlStringBuilderTest {
             assertEquals("<success xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\">"
                     + "&lt;ok&gt;&amp;&quot;</success>", builder.toString());
         }
+
+        @Test
+        @DisplayName("wrapElement() 应支持带属性的转义内容")
+        void testWrapElementWithAttributesAndStringContent() {
+            XmlStringBuilder builder = new XmlStringBuilder();
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            attributes.put("id", "iq-1");
+            attributes.put("type", "get");
+            builder.wrapElement("iq", "jabber:client", attributes, "<ping/>");
+            assertEquals("<iq xmlns=\"jabber:client\" id=\"iq-1\" type=\"get\">&lt;ping/&gt;</iq>", builder.toString());
+        }
+
+        @Test
+        @DisplayName("wrapElement() 应支持带属性的子元素构建")
+        void testWrapElementWithAttributesAndConsumerContent() {
+            XmlStringBuilder builder = new XmlStringBuilder();
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            attributes.put("from", "a@example.com");
+            attributes.put("to", "b@example.com");
+            builder.wrapElement("message", "jabber:client", attributes, xml -> xml.wrapElement("body", "hello"));
+            assertEquals("<message xmlns=\"jabber:client\" from=\"a@example.com\" to=\"b@example.com\">"
+                    + "<body>hello</body></message>", builder.toString());
+        }
+
+        @Test
+        @DisplayName("wrapElement() 空内容时应生成自闭合标签")
+        void testWrapElementWithNullAttributeValue() {
+            XmlStringBuilder builder = new XmlStringBuilder();
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            attributes.put("id", "p1");
+            attributes.put("lang", null);
+            builder.wrapElement("presence", "jabber:client", attributes, "");
+            assertEquals("<presence xmlns=\"jabber:client\" id=\"p1\"/>", builder.toString());
+        }
     }
 
     @Nested
-    @DisplayName("空元素方法")
-    class EmptyElementTests {
+    @DisplayName("空内容标签")
+    class EmptyContentElementTests {
 
         @Test
-        @DisplayName("emptyElement() 应创建自闭合标签")
-        void testEmptyElement() {
+        @DisplayName("wrapElement() 应创建空内容自闭合标签")
+        void testWrapElementEmptyContent() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.emptyElement("ping");
+            builder.wrapElement("ping", "");
             assertEquals("<ping/>", builder.toString());
         }
 
         @Test
-        @DisplayName("emptyElement() 带命名空间")
-        void testEmptyElementWithNamespace() {
+        @DisplayName("wrapElement() 带命名空间时应创建空内容自闭合标签")
+        void testWrapElementEmptyContentWithNamespace() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.emptyElement("ping", "urn:xmpp:ping");
+            builder.wrapElement("ping", "urn:xmpp:ping", "");
             String result = builder.toString();
             assertTrue(result.contains("<ping"));
             assertTrue(result.contains("xmlns=\"urn:xmpp:ping\""));
@@ -279,10 +262,10 @@ class XmlStringBuilderTest {
         }
 
         @Test
-        @DisplayName("emptyElement() 命名空间为 null 时忽略")
-        void testEmptyElementNullNamespace() {
+        @DisplayName("wrapElement() 命名空间为 null 时忽略")
+        void testWrapElementEmptyContentNullNamespace() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.emptyElement("ping", null);
+            builder.wrapElement("ping", (String) null, "");
             assertEquals("<ping/>", builder.toString());
         }
     }
@@ -321,14 +304,14 @@ class XmlStringBuilderTest {
         @DisplayName("应正确构建 IQ 节")
         void testBuildIq() {
             XmlStringBuilder xml = new XmlStringBuilder();
-            xml.element("iq")
-               .attribute("type", "get")
-               .attribute("id", "123")
-               .attribute("from", "user@example.com")
-               .attribute("to", "server.example.com")
-               .rightAngleBracket()
-               .textElement("body", "Hello")
-               .closeElement("iq");
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            attributes.put("type", "get");
+            attributes.put("id", "123");
+            attributes.put("from", "user@example.com");
+            attributes.put("to", "server.example.com");
+            xml.openElement("iq", null, attributes)
+               .wrapElement("body", "Hello")
+               .append("</iq>");
 
             String result = xml.toString();
             assertTrue(result.startsWith("<iq "));
@@ -342,14 +325,13 @@ class XmlStringBuilderTest {
         @DisplayName("应正确构建消息节")
         void testBuildMessage() {
             XmlStringBuilder xml = new XmlStringBuilder();
-            xml.element("message")
-               .attribute("type", "chat")
-               .attribute("to", "friend@example.com")
-               .rightAngleBracket()
-               .optTextElement("subject", "Hello")
-               .optTextElement("body", "How are you?")
-               .optTextElement("thread", null)
-               .closeElement("message");
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            attributes.put("type", "chat");
+            attributes.put("to", "friend@example.com");
+            xml.openElement("message", null, attributes);
+            xml.wrapElement("subject", "Hello")
+               .wrapElement("body", "How are you?")
+               .append("</message>");
 
             String result = xml.toString();
             assertTrue(result.contains("<subject>Hello</subject>"));
@@ -361,11 +343,11 @@ class XmlStringBuilderTest {
         @DisplayName("应正确构建流头")
         void testBuildStreamHeader() {
             XmlStringBuilder xml = new XmlStringBuilder();
-            xml.element("stream", "stream", "http://etherx.jabber.org/streams")
-               .attribute("from", "user@example.com")
-               .attribute("to", "server.example.com")
-               .attribute("version", "1.0")
-               .rightAngleBracket();
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            attributes.put("from", "user@example.com");
+            attributes.put("to", "server.example.com");
+            attributes.put("version", "1.0");
+            xml.openElement("stream", "stream", "http://etherx.jabber.org/streams", attributes);
 
             String result = xml.toString();
             assertTrue(result.contains("<stream:stream"));
@@ -378,7 +360,7 @@ class XmlStringBuilderTest {
         void testLength() {
             XmlStringBuilder builder = new XmlStringBuilder();
             builder.append("test");
-            assertEquals(4, builder.length());
+            assertEquals(4, builder.toString().length());
         }
 
         @Test
@@ -393,7 +375,7 @@ class XmlStringBuilderTest {
         @DisplayName("应正确处理命名空间")
         void testNamespace() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.element("iq").attribute("xmlns", "jabber:client").rightAngleBracket();
+            builder.openElement("iq", null, Map.of("xmlns", "jabber:client"));
             assertTrue(builder.toString().contains("xmlns=\"jabber:client\""));
         }
     }

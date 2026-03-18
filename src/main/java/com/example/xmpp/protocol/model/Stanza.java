@@ -5,7 +5,9 @@ import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -157,24 +159,22 @@ public abstract sealed class Stanza implements XmppStanza, XmlSerializable permi
      */
     @Override
     public String toXml() {
-        XmlStringBuilder xml = new XmlStringBuilder(XmppConstants.DEFAULT_XML_BUILDER_CAPACITY);
-        xml.element(getElementName());
-        appendAttributes(xml);
-        xml.rightAngleBracket();
-        appendExtensions(xml);
-        xml.closeElement(getElementName());
-        return xml.toString();
+        return new XmlStringBuilder(XmppConstants.DEFAULT_XML_BUILDER_CAPACITY)
+                .wrapElement(getElementName(), buildAttributes(), this::appendExtensions)
+                .toString();
     }
 
     /**
-     * 追加属性。
+     * 构建节属性。
      *
-     * @param xml XML 构建器
+     * @return 节属性映射
      */
-    protected void appendAttributes(XmlStringBuilder xml) {
-        xml.attribute("id", id)
-           .attribute("from", from)
-           .attribute("to", to);
+    protected Map<String, Object> buildAttributes() {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("id", id);
+        attributes.put("from", from);
+        attributes.put("to", to);
+        return attributes;
     }
 
     /**

@@ -89,10 +89,9 @@ class XmppErrorTest {
             XmppError error = new XmppError.Builder(null).build();
 
             String xml = error.toXml();
-            assertTrue(xml.contains("<error>"));
+            assertTrue(xml.contains("<error/>"));
             assertFalse(xml.contains("type="));
             assertFalse(xml.contains("<bad-request"));
-            assertTrue(xml.contains("</error>"));
         }
 
         @Test

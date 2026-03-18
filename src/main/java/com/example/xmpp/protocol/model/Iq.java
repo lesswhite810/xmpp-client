@@ -5,7 +5,9 @@ import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * IQ (Info/Query) 节。
@@ -201,15 +203,12 @@ public final class Iq extends Stanza {
         return "iq";
     }
 
-    /**
-     * 追加属性到 XML 构建器。
-     *
-     * @param xml XML 构建器
-     */
     @Override
-    protected void appendAttributes(XmlStringBuilder xml) {
-        xml.attribute("type", type);
-        super.appendAttributes(xml);
+    protected Map<String, Object> buildAttributes() {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("type", type);
+        attributes.putAll(super.buildAttributes());
+        return attributes;
     }
 
     /**

@@ -5,6 +5,9 @@ import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * XEP-0133: Service Administration - 管理命令抽象基类。
  *
@@ -87,70 +90,51 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
      */
     @Override
     public String toXml() {
-        XmlStringBuilder xml = new XmlStringBuilder();
-        xml.element("command");
-        xml.attribute("xmlns", NAMESPACE);
-        xml.attribute("node", getCommandNode());
-        xml.attribute("action", action);
+        Map<String, Object> commandAttributes = new LinkedHashMap<>();
+        commandAttributes.put("node", getCommandNode());
+        commandAttributes.put("action", action);
 
         if (ACTION_EXECUTE.equals(action)) {
-            xml.rightAngleBracket();
-            xml.closeElement("command");
-            return xml.toString();
+            return new XmlStringBuilder().wrapElement("command", NAMESPACE, commandAttributes, "").toString();
         }
 
         if (sessionId != null) {
-            xml.attribute("sessionid", sessionId);
+            commandAttributes.put("sessionid", sessionId);
         }
-        xml.rightAngleBracket();
-
-        // 添加 Data Form
-        xml.element("x");
-        xml.attribute("xmlns", DATA_FORMS_NS);
-        xml.attribute("type", "submit");
-        xml.rightAngleBracket();
-
-        // 添加隐藏字段
-        appendHiddenField(xml, "FORM_TYPE", "http://jabber.org/protocol/admin");
-
-        // 添加业务字段
-        appendFields(xml);
-
-        xml.closeElement("x");
-        xml.closeElement("command");
-        return xml.toString();
+        return new XmlStringBuilder()
+                .wrapElement("command", NAMESPACE, commandAttributes, xml -> xml.wrapElement("x",
+                        DATA_FORMS_NS,
+                        Map.of("type", "submit"),
+                        formXml -> {
+                            appendHiddenField(formXml, "FORM_TYPE", "http://jabber.org/protocol/admin");
+                            appendFields(formXml);
+                        }))
+                .toString();
     }
 
     /**
      * 添加隐藏字段。
      *
-     * @param xml  XML 构建器
-     * @param var  字段名
+     * @param xml   XML 构建器
+     * @param var   字段名
      * @param value 字段值
      */
     protected void appendHiddenField(XmlStringBuilder xml, String var, String value) {
-        xml.element("field");
-        xml.attribute("var", var);
-        xml.attribute("type", "hidden");
-        xml.rightAngleBracket();
-        xml.textElement("value", value);
-        xml.closeElement("field");
+        xml.wrapElement("field", Map.of("var", var, "type", "hidden"),
+                fieldXml -> fieldXml.wrapElement("value", value));
     }
 
     /**
      * 添加普通文本字段。
      *
-     * @param xml    XML 构建器
-     * @param var    字段名
-     * @param value  字段值
+     * @param xml   XML 构建器
+     * @param var   字段名
+     * @param value 字段值
      */
     protected void appendField(XmlStringBuilder xml, String var, String value) {
         if (value != null) {
-            xml.element("field");
-            xml.attribute("var", var);
-            xml.rightAngleBracket();
-            xml.textElement("value", value);
-            xml.closeElement("field");
+            xml.wrapElement("field", Map.of("var", var),
+                    fieldXml -> fieldXml.wrapElement("value", value));
         }
     }
 }

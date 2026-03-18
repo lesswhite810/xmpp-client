@@ -8,6 +8,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -64,7 +65,7 @@ class GenericExtensionElementTest {
 
         String xml = element.toXml();
 
-        assertEquals("<x xmlns=\"urn:test\" quote=\"&quot;value&quot;\" nullable=\"\"/>", xml);
+        assertEquals("<x xmlns=\"urn:test\" quote=\"&quot;value&quot;\"/>", xml);
     }
 
     @Test
@@ -85,6 +86,38 @@ class GenericExtensionElementTest {
         assertTrue(xml.contains("root&amp;text"));
         assertTrue(xml.contains("<item xmlns=\"urn:test:child\">child&lt;&amp;&gt;</item>"));
         assertTrue(xml.endsWith("</query>"));
+    }
+
+    @Test
+    @DisplayName("mixed content 应按追加顺序输出")
+    void testToXmlPreservesMixedContentOrder() {
+        GenericExtensionElement child = GenericExtensionElement.builder("item", "urn:test:child")
+                .text("value")
+                .build();
+        GenericExtensionElement element = GenericExtensionElement.builder("query", "urn:test")
+                .text("before ")
+                .addChild(child)
+                .text(" after")
+                .build();
+
+        String xml = element.toXml();
+
+        assertEquals("<query xmlns=\"urn:test\">before <item xmlns=\"urn:test:child\">value</item> after</query>", xml);
+    }
+
+    @Test
+    @DisplayName("getContentNodes 应返回保序内容节点")
+    void testGetContentNodes() {
+        GenericExtensionElement child = GenericExtensionElement.builder("item", "urn:test:child")
+                .build();
+        GenericExtensionElement element = GenericExtensionElement.builder("query", "urn:test")
+                .text("before")
+                .addChild(child)
+                .build();
+
+        assertEquals(2, element.getContentNodes().size());
+        assertInstanceOf(GenericExtensionElement.TextContent.class, element.getContentNodes().get(0));
+        assertInstanceOf(GenericExtensionElement.ElementContent.class, element.getContentNodes().get(1));
     }
 
     @Test

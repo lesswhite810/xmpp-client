@@ -30,6 +30,21 @@ class GenericExtensionProviderTest {
         assertEquals("query", element.getElementName());
         assertEquals("urn:test", element.getNamespace());
         assertEquals("root", element.getAttributeValue("node"));
+        assertEquals("alpha", element.getText());
+    }
+
+    @Test
+    void testParseCurrentElementPreservesMixedContentOrder() throws Exception {
+        XMLEventReader reader = newReader("""
+                <query xmlns="urn:test">before<item xmlns="urn:test:child">value</item>after</query>
+                """);
+
+        GenericExtensionElement element = GenericExtensionProvider.INSTANCE.parseCurrentElement(reader);
+
+        assertEquals(3, element.getContentNodes().size());
+        assertEquals("beforeafter", element.getText());
+        assertEquals("before<item xmlns=\"urn:test:child\">value</item>after",
+                element.toXml().replace("<query xmlns=\"urn:test\">", "").replace("</query>", ""));
     }
 
     @Test

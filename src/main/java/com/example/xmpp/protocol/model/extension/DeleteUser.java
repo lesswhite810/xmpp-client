@@ -76,11 +76,8 @@ public class DeleteUser extends AbstractAdminCommand {
     @Override
     protected void appendFields(XmlStringBuilder xml) {
         if (accountJid != null) {
-            xml.element("field");
-            xml.attribute("var", "accountjids");
-            xml.rightAngleBracket();
-            xml.textElement("value", accountJid);
-            xml.closeElement("field");
+            xml.wrapElement("field", java.util.Map.of("var", "accountjids"),
+                    fieldXml -> fieldXml.wrapElement("value", accountJid));
         }
     }
 }

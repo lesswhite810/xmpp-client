@@ -64,14 +64,19 @@ public class StreamError implements ExtensionElement {
      */
     @Override
     public String toXml() {
-        XmlStringBuilder xml = new XmlStringBuilder().openElement("stream:error");
-        if (condition != null) {
-            xml.append("<").append(condition.getElementName())
-                    .append(" xmlns=\"").append(NAMESPACE).append("\"/>");
-        }
-        xml.optTextElement("text", NAMESPACE, text)
-                .optTextElement("by", NAMESPACE, by);
-        return xml.closeElement("stream:error").toString();
+        return new XmlStringBuilder()
+                .wrapElement("stream:error", xml -> {
+                    if (condition != null) {
+                        xml.wrapElement(condition.getElementName(), NAMESPACE, "");
+                    }
+                    if (text != null) {
+                        xml.wrapElement("text", NAMESPACE, text);
+                    }
+                    if (by != null) {
+                        xml.wrapElement("by", NAMESPACE, by);
+                    }
+                })
+                .toString();
     }
 
     /**

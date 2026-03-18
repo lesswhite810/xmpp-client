@@ -157,6 +157,31 @@ class SaslModelTest {
         assertTrue(xml.contains("</failure>"));
     }
 
+    @Test
+    @DisplayName("SaslFailure.toXml 在 text 为空时不应输出空 text 元素")
+    void testSaslFailureToXmlWithoutTextElementWhenTextIsNull() {
+        SaslFailure failure = SaslFailure.builder()
+                .condition("not-authorized")
+                .build();
+
+        String xml = failure.toXml();
+
+        assertFalse(xml.contains("<text"));
+    }
+
+    @Test
+    @DisplayName("SaslFailure.toXml 应转义 text 中的 XML 特殊字符")
+    void testSaslFailureToXmlEscapesText() {
+        SaslFailure failure = SaslFailure.builder()
+                .condition("not-authorized")
+                .text("bad <xml> & reason")
+                .build();
+
+        String xml = failure.toXml();
+
+        assertTrue(xml.contains("bad &lt;xml&gt; &amp; reason"));
+    }
+
     // SaslChallenge toXml 测试
 
     @Test
@@ -179,8 +204,7 @@ class SaslModelTest {
                 .build();
 
         String xml = challenge.toXml();
-        assertTrue(xml.contains("<challenge xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\">"));
-        assertTrue(xml.contains("</challenge>"));
+        assertTrue(xml.contains("<challenge xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\"/>"));
     }
 
     // SaslSuccess toXml 测试
@@ -205,8 +229,7 @@ class SaslModelTest {
                 .build();
 
         String xml = success.toXml();
-        assertTrue(xml.contains("<success xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\">"));
-        assertTrue(xml.contains("</success>"));
+        assertTrue(xml.contains("<success xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\"/>"));
     }
 
     // Auth toXml 测试
@@ -228,8 +251,7 @@ class SaslModelTest {
         Auth auth = new Auth("ANONYMOUS", null);
 
         String xml = auth.toXml();
-        assertTrue(xml.contains("<auth xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\" mechanism=\"ANONYMOUS\">"));
-        assertTrue(xml.contains("</auth>"));
+        assertTrue(xml.contains("<auth xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\" mechanism=\"ANONYMOUS\"/>"));
     }
 
     // SaslResponse toXml 测试
@@ -251,8 +273,7 @@ class SaslModelTest {
         SaslResponse response = new SaslResponse(null);
 
         String xml = response.toXml();
-        assertTrue(xml.contains("<response xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\">"));
-        assertTrue(xml.contains("</response>"));
+        assertTrue(xml.contains("<response xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\"/>"));
     }
 
     // Condition 枚举测试

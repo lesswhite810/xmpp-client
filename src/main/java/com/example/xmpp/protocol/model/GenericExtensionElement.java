@@ -23,6 +23,7 @@ public class GenericExtensionElement implements ExtensionElement {
     private final String elementName;
     private final String namespace;
     private final Map<String, String> attributes;
+    private final List<ContentNode> contentNodes;
     private final List<GenericExtensionElement> children;
     private final String text;
 
@@ -32,10 +33,12 @@ public class GenericExtensionElement implements ExtensionElement {
         this.attributes = builder.attributes != null
                 ? Collections.unmodifiableMap(new LinkedHashMap<>(builder.attributes))
                 : Collections.emptyMap();
-        this.children = builder.children != null
-                ? Collections.unmodifiableList(new ArrayList<>(builder.children))
-                : Collections.emptyList();
-        this.text = builder.text;
+        List<ContentNode> nodes = builder.contentNodes != null
+                ? List.copyOf(builder.contentNodes)
+                : List.of();
+        this.contentNodes = nodes;
+        this.children = Collections.unmodifiableList(extractChildren(nodes));
+        this.text = mergeText(nodes);
     }
 
     /**
@@ -84,6 +87,15 @@ public class GenericExtensionElement implements ExtensionElement {
      */
     public List<GenericExtensionElement> getChildren() {
         return children;
+    }
+
+    /**
+     * 获取保序内容节点。
+     *
+     * @return 内容节点列表
+     */
+    public List<ContentNode> getContentNodes() {
+        return contentNodes;
     }
 
     /**
@@ -143,34 +155,21 @@ public class GenericExtensionElement implements ExtensionElement {
      */
     @Override
     public String toXml() {
-        XmlStringBuilder xml = new XmlStringBuilder();
-
-        if (children.isEmpty() && (text == null || text.isEmpty())) {
+        if (contentNodes.isEmpty()) {
             return buildEmptyElementXml();
         }
 
-        xml.element(elementName);
-
-        if (!namespace.isEmpty()) {
-            xml.attribute("xmlns", namespace);
-        }
-
-        for (Map.Entry<String, String> attr : attributes.entrySet()) {
-            xml.attribute(attr.getKey(), attr.getValue());
-        }
-
-        xml.rightAngleBracket();
-
-        if (text != null && !text.isEmpty()) {
-            xml.escapedContent(text);
-        }
-
-        for (GenericExtensionElement child : children) {
-            xml.append(child.toXml());
-        }
-
-        xml.closeElement(elementName);
-        return xml.toString();
+        return new XmlStringBuilder()
+                .wrapElement(elementName, namespace.isEmpty() ? null : namespace, attributes, xml -> {
+                    for (ContentNode contentNode : contentNodes) {
+                        if (contentNode instanceof TextContent textContent) {
+                            xml.escapedContent(textContent.text());
+                        } else if (contentNode instanceof ElementContent elementContent) {
+                            xml.append(elementContent.element().toXml());
+                        }
+                    }
+                })
+                .toString();
     }
 
     /**
@@ -179,36 +178,29 @@ public class GenericExtensionElement implements ExtensionElement {
      * @return XML 字符串
      */
     private String buildEmptyElementXml() {
-        StringBuilder sb = new StringBuilder();
-        sb.append('<').append(elementName);
-
-        if (!namespace.isEmpty()) {
-            sb.append(" xmlns=\"").append(escapeXml(namespace)).append('"');
-        }
-
-        for (Map.Entry<String, String> attr : attributes.entrySet()) {
-            sb.append(' ').append(attr.getKey()).append("=\"")
-              .append(escapeXml(attr.getValue())).append('"');
-        }
-
-        sb.append("/>");
-        return sb.toString();
+        return new XmlStringBuilder()
+                .wrapElement(elementName, namespace.isEmpty() ? null : namespace, attributes, "")
+                .toString();
     }
 
-    /**
-     * XML 转义。
-     *
-     * @param value 需要转义的值
-     * @return 转义后的字符串
-     */
-    private String escapeXml(String value) {
-        if (value == null) {
-            return "";
+    private static List<GenericExtensionElement> extractChildren(List<ContentNode> nodes) {
+        List<GenericExtensionElement> result = new ArrayList<>();
+        for (ContentNode node : nodes) {
+            if (node instanceof ElementContent elementContent) {
+                result.add(elementContent.element());
+            }
         }
-        return value.replace("&", "&amp;")
-                   .replace("<", "&lt;")
-                   .replace(">", "&gt;")
-                   .replace("\"", "&quot;");
+        return result;
+    }
+
+    private static String mergeText(List<ContentNode> nodes) {
+        StringBuilder builder = new StringBuilder();
+        for (ContentNode node : nodes) {
+            if (node instanceof TextContent textContent) {
+                builder.append(textContent.text());
+            }
+        }
+        return builder.isEmpty() ? null : builder.toString();
     }
 
     /**
@@ -228,9 +220,37 @@ public class GenericExtensionElement implements ExtensionElement {
                 "elementName='" + elementName + '\'' +
                 ", namespace='" + namespace + '\'' +
                 ", attributes=" + attributes +
-                ", children=" + children.size() +
+                ", contentNodes=" + contentNodes.size() +
                 ", text='" + text + '\'' +
                 '}';
+    }
+
+    /**
+     * 通用 XML 内容节点。
+     */
+    public sealed interface ContentNode permits TextContent, ElementContent {
+    }
+
+    /**
+     * 文本内容节点。
+     *
+     * @param text 文本内容
+     */
+    public record TextContent(String text) implements ContentNode {
+        public TextContent {
+            Objects.requireNonNull(text, "text must not be null");
+        }
+    }
+
+    /**
+     * 子元素内容节点。
+     *
+     * @param element 子元素
+     */
+    public record ElementContent(GenericExtensionElement element) implements ContentNode {
+        public ElementContent {
+            Objects.requireNonNull(element, "element must not be null");
+        }
     }
 
     /**
@@ -242,8 +262,7 @@ public class GenericExtensionElement implements ExtensionElement {
         private final String elementName;
         private final String namespace;
         private Map<String, String> attributes;
-        private List<GenericExtensionElement> children;
-        private String text;
+        private List<ContentNode> contentNodes;
 
         /**
          * 构造 Builder 实例。
@@ -295,10 +314,10 @@ public class GenericExtensionElement implements ExtensionElement {
          * @return Builder 实例
          */
         public Builder addChild(GenericExtensionElement child) {
-            if (children == null) {
-                children = new ArrayList<>();
+            if (contentNodes == null) {
+                contentNodes = new ArrayList<>();
             }
-            children.add(child);
+            contentNodes.add(new ElementContent(child));
             return this;
         }
 
@@ -309,7 +328,13 @@ public class GenericExtensionElement implements ExtensionElement {
          * @return Builder 实例
          */
         public Builder text(String text) {
-            this.text = text;
+            if (text == null) {
+                return this;
+            }
+            if (contentNodes == null) {
+                contentNodes = new ArrayList<>();
+            }
+            contentNodes.add(new TextContent(text));
             return this;
         }
 

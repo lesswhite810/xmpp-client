@@ -79,26 +79,27 @@ public class StreamFeatures implements ExtensionElement {
      */
     @Override
     public String toXml() {
-        XmlStringBuilder xml = new XmlStringBuilder().openElement("stream:features");
-        if (starttlsAvailable) {
-            if (starttlsRequired) {
-                xml.openElement("starttls", "urn:ietf:params:xml:ns:xmpp-tls")
-                        .emptyElement("required")
-                        .closeElement("starttls");
-            } else {
-                xml.emptyElement("starttls", "urn:ietf:params:xml:ns:xmpp-tls");
-            }
-        }
-        if (mechanisms != null && !mechanisms.isEmpty()) {
-            xml.openElement("mechanisms", "urn:ietf:params:xml:ns:xmpp-sasl");
-            for (String mechanism : mechanisms) {
-                xml.textElement("mechanism", mechanism);
-            }
-            xml.closeElement("mechanisms");
-        }
-        if (bindAvailable) {
-            xml.emptyElement("bind", "urn:ietf:params:xml:ns:xmpp-bind");
-        }
-        return xml.closeElement("stream:features").toString();
+        return new XmlStringBuilder()
+                .wrapElement("stream:features", xml -> {
+                    if (starttlsAvailable) {
+                        if (starttlsRequired) {
+                            xml.wrapElement("starttls", "urn:ietf:params:xml:ns:xmpp-tls",
+                                    startTls -> startTls.wrapElement("required", ""));
+                        } else {
+                            xml.wrapElement("starttls", "urn:ietf:params:xml:ns:xmpp-tls", "");
+                        }
+                    }
+                    if (mechanisms != null && !mechanisms.isEmpty()) {
+                        xml.wrapElement("mechanisms", "urn:ietf:params:xml:ns:xmpp-sasl", mechanismXml -> {
+                            for (String mechanism : mechanisms) {
+                                mechanismXml.wrapElement("mechanism", mechanism);
+                            }
+                        });
+                    }
+                    if (bindAvailable) {
+                        xml.wrapElement("bind", "urn:ietf:params:xml:ns:xmpp-bind", "");
+                    }
+                })
+                .toString();
     }
 }

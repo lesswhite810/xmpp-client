@@ -4,6 +4,9 @@ import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * XMPP 错误节元素。
  *
@@ -57,24 +60,21 @@ public class XmppError implements XmppExtension {
      */
     @Override
     public String toXml() {
-        XmlStringBuilder xml = new XmlStringBuilder().element(ELEMENT);
-        if (type != null) {
-            xml.attribute("type", type);
-        }
-        xml.rightAngleBracket();
-
-        if (condition != null) {
-            xml.append('<').append(condition.getElementName())
-                    .append(" xmlns=\"").append(NAMESPACE).append("\"/>");
-        }
-
-        xml.optTextElement("text", NAMESPACE, text);
-
-        if (extension != null) {
-            xml.append(extension.toXml());
-        }
-
-        return xml.closeElement(ELEMENT).toString();
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("type", type);
+        return new XmlStringBuilder()
+                .wrapElement(ELEMENT, attributes, xml -> {
+                    if (condition != null) {
+                        xml.wrapElement(condition.getElementName(), NAMESPACE, "");
+                    }
+                    if (text != null) {
+                        xml.wrapElement("text", NAMESPACE, text);
+                    }
+                    if (extension != null) {
+                        xml.append(extension.toXml());
+                    }
+                })
+                .toString();
     }
 
     /**
