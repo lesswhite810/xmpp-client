@@ -11,7 +11,6 @@ import com.example.xmpp.protocol.model.Presence;
 import com.example.xmpp.protocol.model.extension.Bind;
 import com.example.xmpp.util.XmlParser;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -38,7 +37,6 @@ public class XmppServerIntegrationTest {
     /**
      * 测试基本连接和认证功能
      */
-    @Disabled("需要实际的 XMPP 服务器")
     @Test
     public void testConnectionAndAuthentication() throws Exception {
         XmppClientConfig config = XmppClientConfig.builder()
@@ -86,7 +84,6 @@ public class XmppServerIntegrationTest {
     /**
      * 测试 Ping 请求和响应（XEP-0199）
      */
-    @Disabled("需要实际的 XMPP 服务器")
     @Test
     public void testPingRequestResponse() throws Exception {
         XmppClientConfig config = XmppClientConfig.builder()

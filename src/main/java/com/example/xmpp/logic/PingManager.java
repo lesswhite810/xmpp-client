@@ -17,15 +17,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * XMPP Ping 管理器（XEP-0199）。
+ * XMPP Ping 管理器。
  *
- * <p>实现 XMPP Ping 协议的客户端 Ping 功能：</p>
- * <ul>
- *   <li>定期发送 Keepalive Ping 保持连接活跃</li>
- *   <li>支持自定义 Ping 间隔时间</li>
- * </ul>
- *
- * <p>服务端 Ping 请求由 {@link PingIqRequestHandler} 处理。</p>
+ * <p>负责客户端保活 Ping。</p>
  *
  * @since 2026-02-09
  */
@@ -77,8 +71,6 @@ public final class PingManager {
     /**
      * 处理连接事件。
      *
-     * <p>该方法主要用于测试或显式触发场景，生产环境通常通过 {@link XmppEventBus} 自动回调。</p>
-     *
      * @param event 连接事件
      */
     public void onEvent(ConnectionEvent event) {
@@ -119,8 +111,6 @@ public final class PingManager {
 
     /**
      * 启动保活任务。
-     *
-     * <p>发送定期 Ping 请求以保持 XMPP 连接活跃。</p>
      */
     public void startKeepAlive() {
         taskLock.lock();
@@ -140,8 +130,6 @@ public final class PingManager {
 
     /**
      * 停止保活任务。
-     *
-     * <p>取消定期 Ping 请求，但保持与 XMPP 服务器的连接。</p>
      */
     public void stopKeepAlive() {
         taskLock.lock();
@@ -165,8 +153,6 @@ public final class PingManager {
 
     /**
      * 关闭 PingManager。
-     *
-     * <p>停止保活任务并释放相关资源。此方法不会关闭 XMPP 连接。</p>
      */
     public void shutdown() {
         taskLock.lock();
@@ -184,8 +170,6 @@ public final class PingManager {
 
     /**
      * 发送 Ping 请求。
-     *
-     * <p>向 XMPP 服务器发送 Keepalive Ping 以检测连接状态。仅在连接已建立且完成认证后发送。</p>
      */
     private void sendPing() {
         if (!connection.isConnected() || !connection.isAuthenticated()) {

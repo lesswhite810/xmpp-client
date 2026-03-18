@@ -11,7 +11,6 @@ import com.example.xmpp.protocol.model.PingIq;
 import com.example.xmpp.protocol.model.XmppStanza;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -33,7 +32,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * @since 2026-03-13
  */
 @Slf4j
-@Disabled("需要真实的 XMPP 服务器 (Openfire)")
 @RealServerTest
 class XmppRealServerScenarioTest {
 

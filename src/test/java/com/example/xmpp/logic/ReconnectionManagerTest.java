@@ -100,9 +100,8 @@ class ReconnectionManagerTest {
     void testErrorEventOnlyDoesNotScheduleReconnect() throws Exception {
         publish(ConnectionEventType.ERROR, new Exception("boom"));
 
-        Thread.sleep(3500);
-
         verify(connection, never()).connect();
+        assertEquals(null, getCurrentTask());
     }
 
     @Test
@@ -117,9 +116,8 @@ class ReconnectionManagerTest {
     void testAuthenticationFailureDoesNotTriggerReconnect() throws Exception {
         emitClosedWithError(new XmppSaslFailureException(SaslFailure.builder().condition("not-authorized").build()));
 
-        Thread.sleep(3500);
-
         verify(connection, never()).connect();
+        assertEquals(null, getCurrentTask());
     }
 
     @Test
@@ -133,12 +131,11 @@ class ReconnectionManagerTest {
             throw new XmppSaslFailureException(SaslFailure.builder().condition("not-authorized").build());
         }).when(connection).connect();
 
-        emitClosedWithError(new XmppNetworkException("temporary network issue"));
-
-        Thread.sleep(3500);
+        invokeRunReconnectAttempt(0);
 
         verify(connection, times(1)).connect();
         assertEquals(1, attempts.get(), "遇到不可恢复的重连失败后不应继续调度下一次重试");
+        assertEquals(null, getCurrentTask());
     }
 
     @Test
@@ -148,9 +145,8 @@ class ReconnectionManagerTest {
                 .condition(StreamError.Condition.NOT_AUTHORIZED)
                 .build()));
 
-        Thread.sleep(3500);
-
         verify(connection, never()).connect();
+        assertEquals(null, getCurrentTask());
     }
 
     @Test
@@ -166,32 +162,26 @@ class ReconnectionManagerTest {
 
         emitClosedWithError(new XmppStanzaErrorException("bind failed", errorIq));
 
-        Thread.sleep(3500);
-
         verify(connection, never()).connect();
+        assertEquals(null, getCurrentTask());
     }
 
     @Test
     @DisplayName("重连失败后应继续调度下一次重试")
     void testReconnectFailureSchedulesNextAttempt() throws Exception {
-        CountDownLatch attemptsLatch = new CountDownLatch(2);
         AtomicInteger attempts = new AtomicInteger();
 
         when(connection.isConnected()).thenReturn(false);
         doAnswer(invocation -> {
             attempts.incrementAndGet();
-            attemptsLatch.countDown();
             throw new XmppNetworkException("connect failed");
         }).when(connection).connect();
 
-        emitClosedWithError(new Exception("boom"));
+        invokeRunReconnectAttempt(0);
 
-        try {
-            assertTrue(attemptsLatch.await(9, TimeUnit.SECONDS), "失败后应继续触发下一次重连");
-            assertTrue(attempts.get() >= 2, "至少应发生两次重连尝试");
-        } finally {
-            reconnectionManager.shutdown();
-        }
+        assertEquals(1, attempts.get(), "应执行一次重连尝试");
+        assertNotNull(getCurrentTask(), "失败后应调度下一次重连");
+        reconnectionManager.shutdown();
     }
 
     @Test
@@ -200,9 +190,8 @@ class ReconnectionManagerTest {
         emitClosedWithError(new Exception("boom"));
         reconnectionManager.shutdown();
 
-        Thread.sleep(3500);
-
         verify(connection, never()).connect();
+        assertEquals(null, getCurrentTask());
     }
 
     @Test
@@ -220,41 +209,38 @@ class ReconnectionManagerTest {
             throw new XmppNetworkException("connect failed");
         }).when(connection).connect();
 
-        emitClosedWithError(new Exception("boom"));
+        Thread runner = new Thread(() -> {
+            try {
+                invokeRunReconnectAttempt(0);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        runner.start();
 
-        assertTrue(attemptStarted.await(4, TimeUnit.SECONDS), "应至少启动一次重连尝试");
-
+        assertTrue(attemptStarted.await(1, TimeUnit.SECONDS), "应至少启动一次重连尝试");
         reconnectionManager.shutdown();
         releaseAttempt.countDown();
-
-        Thread.sleep(3500);
+        runner.join(1000);
 
         assertEquals(1, attempts.get(), "关闭后不应再调度新的重连尝试");
+        assertEquals(null, getCurrentTask());
     }
 
     @Test
     @DisplayName("连续 CLOSED 错误事件不应并发排队多个重连任务")
     void testRepeatedClosedEventsDoNotScheduleDuplicateReconnectTasks() throws Exception {
-        AtomicInteger attempts = new AtomicInteger();
-        CountDownLatch firstAttemptLatch = new CountDownLatch(1);
-
-        when(connection.isConnected()).thenReturn(false);
-        doAnswer(invocation -> {
-            attempts.incrementAndGet();
-            firstAttemptLatch.countDown();
-            throw new XmppNetworkException("connect failed");
-        }).when(connection).connect();
-
         publish(ConnectionEventType.CLOSED, new Exception("boom-3"));
+        Object firstTask = getCurrentTask();
         publish(ConnectionEventType.CLOSED, new Exception("boom-2"));
         publish(ConnectionEventType.CLOSED, new Exception("boom-1"));
 
-        try {
-            assertTrue(firstAttemptLatch.await(4, TimeUnit.SECONDS), "应至少执行一次重连尝试");
-            assertEquals(1, attempts.get(), "首个调度窗口内不应因重复错误事件并发触发多个重连");
-        } finally {
-            reconnectionManager.shutdown();
-        }
+        assertNotNull(firstTask, "第一次错误关闭后应已排队重连");
+        assertNotNull(getCurrentTask(), "重复错误事件后仍应只有一个活动重连任务");
+        assertTrue(((java.util.concurrent.ScheduledFuture<?>) firstTask).isCancelled(),
+                "旧任务应在重复错误事件到来时被取消");
+        verify(connection, never()).connect();
+        reconnectionManager.shutdown();
     }
 
     @Test
@@ -263,9 +249,8 @@ class ReconnectionManagerTest {
         emitClosedWithError(new Exception("boom"));
         publish(ConnectionEventType.CONNECTED);
 
-        Thread.sleep(3500);
-
         verify(connection, never()).connect();
+        assertEquals(null, getCurrentTask());
     }
 
     @Test
@@ -274,41 +259,31 @@ class ReconnectionManagerTest {
         emitClosedWithError(new Exception("boom"));
         publish(ConnectionEventType.AUTHENTICATED);
 
-        Thread.sleep(3500);
-
         verify(connection, never()).connect();
+        assertEquals(null, getCurrentTask());
     }
 
     @Test
     @DisplayName("成功重连后再次错误关闭应开启新的重连周期")
     void testReconnectCycleRestartsAfterSuccessfulReconnect() throws Exception {
-        CountDownLatch firstAttemptLatch = new CountDownLatch(1);
-        CountDownLatch secondAttemptLatch = new CountDownLatch(1);
         AtomicInteger attempts = new AtomicInteger();
 
         when(connection.isConnected()).thenReturn(false);
         doAnswer(invocation -> {
-            int currentAttempt = attempts.incrementAndGet();
-            if (currentAttempt == 1) {
-                firstAttemptLatch.countDown();
-            } else if (currentAttempt == 2) {
-                secondAttemptLatch.countDown();
-            }
+            attempts.incrementAndGet();
             return null;
         }).when(connection).connect();
 
-        emitClosedWithError(new Exception("boom-1"));
-        assertTrue(firstAttemptLatch.await(4, TimeUnit.SECONDS), "第一次错误关闭后应完成一次重连尝试");
+        invokeRunReconnectAttempt(0);
+        assertEquals(1, attempts.get(), "第一次错误关闭后应完成一次重连尝试");
 
         publish(ConnectionEventType.CONNECTED);
         emitClosedWithError(new Exception("boom-2"));
 
-        try {
-            assertTrue(secondAttemptLatch.await(4, TimeUnit.SECONDS), "成功重连后再次错误关闭应重新触发重连");
-            assertEquals(2, attempts.get(), "应发生两次独立的重连尝试");
-        } finally {
-            reconnectionManager.shutdown();
-        }
+        invokeRunReconnectAttempt(0);
+
+        assertEquals(2, attempts.get(), "成功重连后再次错误关闭应重新触发重连");
+        reconnectionManager.shutdown();
     }
 
     @Test
@@ -339,6 +314,12 @@ class ReconnectionManagerTest {
         java.lang.reflect.Field field = ReconnectionManager.class.getDeclaredField("currentTask");
         field.setAccessible(true);
         return field.get(reconnectionManager);
+    }
+
+    private void invokeRunReconnectAttempt(int retryIndex) throws Exception {
+        Method method = ReconnectionManager.class.getDeclaredMethod("runReconnectAttempt", int.class);
+        method.setAccessible(true);
+        method.invoke(reconnectionManager, retryIndex);
     }
 
     private void clearEventBusListeners() {

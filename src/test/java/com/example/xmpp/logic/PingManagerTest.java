@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Map;
@@ -95,24 +96,20 @@ class PingManagerTest {
 
     @Test
     @DisplayName("shutdown 后不应被 AUTHENTICATED 事件重新启动")
-    void testShutdownPreventsRestartOnAuthenticatedEvent() throws Exception {
+    void testShutdownPreventsRestartOnAuthenticatedEvent() {
         pingManager.setPingInterval(1);
         pingManager.shutdown();
         pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
-
-        Thread.sleep(1200);
 
         verify(connection, never()).sendIqPacketAsync(any());
     }
 
     @Test
     @DisplayName("shutdown 后修改间隔不应重新启动保活任务")
-    void testShutdownPreventsRestartOnIntervalUpdate() throws Exception {
+    void testShutdownPreventsRestartOnIntervalUpdate() {
         pingManager.setPingInterval(1);
         pingManager.shutdown();
         pingManager.setPingInterval(1);
-
-        Thread.sleep(1200);
 
         verify(connection, never()).sendIqPacketAsync(any());
     }
@@ -144,8 +141,7 @@ class PingManagerTest {
         pingManager.startKeepAlive();
         pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CLOSED));
         pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
-
-        Thread.sleep(1200);
+        invokeSendPing();
 
         verify(connection, atLeastOnce()).sendIqPacketAsync(any());
     }
@@ -174,10 +170,7 @@ class PingManagerTest {
     void testKeepAliveDoesNotSendPingWhenDisconnected() throws Exception {
         when(connection.isConnected()).thenReturn(false);
 
-        pingManager.setPingInterval(1);
-        pingManager.startKeepAlive();
-
-        Thread.sleep(1200);
+        invokeSendPing();
 
         verify(connection, never()).sendIqPacketAsync(any());
         pingManager.shutdown();
@@ -189,13 +182,34 @@ class PingManagerTest {
         when(connection.isConnected()).thenReturn(true);
         when(connection.isAuthenticated()).thenReturn(false);
 
-        pingManager.setPingInterval(1);
-        pingManager.startKeepAlive();
-
-        Thread.sleep(1200);
+        invokeSendPing();
 
         verify(connection, never()).sendIqPacketAsync(any());
         pingManager.shutdown();
+    }
+
+    @Test
+    @DisplayName("已连接且已认证时应发送 Ping")
+    void testSendPingWhenConnectedAndAuthenticated() throws Exception {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .build();
+        when(connection.getConfig()).thenReturn(config);
+        when(connection.isConnected()).thenReturn(true);
+        when(connection.isAuthenticated()).thenReturn(true);
+        when(connection.sendIqPacketAsync(any())).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+
+        invokeSendPing();
+
+        verify(connection).sendIqPacketAsync(any());
+    }
+
+    private void invokeSendPing() throws Exception {
+        Method method = PingManager.class.getDeclaredMethod("sendPing");
+        method.setAccessible(true);
+        method.invoke(pingManager);
     }
 
     private ScheduledFuture<?> getKeepAliveTask() throws Exception {

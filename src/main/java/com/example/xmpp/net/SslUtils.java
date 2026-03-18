@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * SSL/TLS 工具类。
  *
- * <p>负责按配置创建 {@link SslHandler}。</p>
+ * <p>负责创建 {@link SslHandler}。</p>
  *
  * @since 2026-02-09
  */
@@ -92,7 +92,7 @@ public class SslUtils {
      * 配置 SSL 协议。
      *
      * @param sslEngine SSL 引擎
-     * @param enabledProtocols 启用的协议数组
+     * @param enabledProtocols 启用的协议
      */
     private static void configureProtocols(SSLEngine sslEngine, String[] enabledProtocols) {
         if (enabledProtocols == null || enabledProtocols.length == 0) {
@@ -114,7 +114,7 @@ public class SslUtils {
      * 配置密码套件。
      *
      * @param sslEngine SSL 引擎
-     * @param enabledCiphers 启用的密码套件数组
+     * @param enabledCiphers 启用的密码套件
      */
     private static void configureCipherSuites(SSLEngine sslEngine, String[] enabledCiphers) {
         if (enabledCiphers == null || enabledCiphers.length == 0) {

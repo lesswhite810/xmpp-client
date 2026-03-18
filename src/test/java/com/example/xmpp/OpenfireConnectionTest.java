@@ -8,7 +8,6 @@ import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.PingIq;
 import com.example.xmpp.protocol.model.Presence;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.TrustManager;
@@ -23,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * Openfire 服务器连接测试。
  */
 @Slf4j
-@Disabled("需要真实的 Openfire 服务器")
 @RealServerTest
 class OpenfireConnectionTest {
 

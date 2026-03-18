@@ -40,7 +40,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * 基于 TCP 的 XMPP 连接实现。
  *
- * <p>负责建连、会话就绪通知和资源清理。</p>
+ * <p>负责建连、收发和连接收尾。</p>
  *
  * @since 2026-02-09
  */
@@ -84,9 +84,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     /**
      * 同步建立连接。
      *
-     * <p>该方法会等待会话进入可用状态。</p>
-     *
-     * @throws XmppException 如果连接或初始化失败
+     * @throws XmppException 如果连接失败
      */
     @Override
     public void connect() throws XmppException {

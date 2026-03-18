@@ -20,15 +20,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * 自动重连管理器。
  *
- * <p>实现连接断开后的自动重连逻辑，采用指数退避算法避免频繁重连。</p>
- *
- * <p>功能特性：</p>
- * <ul>
- * <li>监听连接关闭事件，在异常关闭后自动触发重连</li>
- * <li>使用指数退避算法（基础延迟 2 秒，最大延迟 60 秒）</li>
- * <li>正常关闭连接时不触发重连</li>
- * <li>重连成功后自动停止定时任务</li>
- * </ul>
+ * <p>负责异常断连后的重试调度。</p>
  *
  * @since 2026-02-09
  */
@@ -67,8 +59,6 @@ public final class ReconnectionManager {
 
     /**
      * 关闭 ReconnectionManager。
-     *
-     * <p>停止重连任务并释放相关资源（取消事件订阅）。</p>
      */
     public void shutdown() {
         stopReconnectTask();
@@ -111,8 +101,6 @@ public final class ReconnectionManager {
 
     /**
      * 停止重连任务。
-     *
-     * <p>取消当前待执行的重连任务。</p>
      */
     private synchronized void stopReconnectTask() {
         ScheduledFuture<?> task = currentTask;
@@ -125,9 +113,7 @@ public final class ReconnectionManager {
     /**
      * 调度重连任务。
      *
-     * <p>使用指数退避算法计算延迟时间。</p>
-     *
-     * @param retryIndex 当前退避轮次（从 0 开始）
+     * @param retryIndex 当前退避轮次
      */
     private void scheduleReconnect(int retryIndex) {
         synchronized (this) {
