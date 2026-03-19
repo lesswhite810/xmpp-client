@@ -62,10 +62,10 @@ public class AddUser extends AbstractAdminCommand {
      * @param email    要添加的用户邮箱地址
      */
     public AddUser(String username, String password, String email) {
-        if (!StringUtils.isNotBlank(username)) {
+        if (StringUtils.isBlank(username)) {
             throw new IllegalArgumentException("username must not be null or blank");
         }
-        if (!StringUtils.isNotBlank(password)) {
+        if (StringUtils.isBlank(password)) {
             throw new IllegalArgumentException("password must not be null or blank");
         }
         this.username = username;
@@ -108,10 +108,10 @@ public class AddUser extends AbstractAdminCommand {
 
     @Override
     protected void appendFields(XmlStringBuilder xml) {
-        if (!StringUtils.isNotBlank(username)) {
+        if (StringUtils.isBlank(username)) {
             throw new IllegalArgumentException("username must not be null or blank");
         }
-        if (!StringUtils.isNotBlank(password)) {
+        if (StringUtils.isBlank(password)) {
             throw new IllegalArgumentException("password must not be null or blank");
         }
         appendField(xml, "accountjid", username);

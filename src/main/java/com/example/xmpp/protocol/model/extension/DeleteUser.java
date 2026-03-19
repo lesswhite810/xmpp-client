@@ -40,7 +40,7 @@ public class DeleteUser extends AbstractAdminCommand {
      * @param accountJid 要删除的用户账户 JID
      */
     public DeleteUser(String accountJid) {
-        if (!StringUtils.isNotBlank(accountJid)) {
+        if (StringUtils.isBlank(accountJid)) {
             throw new IllegalArgumentException("accountJid must not be null or blank");
         }
         this.accountJid = accountJid;
@@ -79,7 +79,7 @@ public class DeleteUser extends AbstractAdminCommand {
 
     @Override
     protected void appendFields(XmlStringBuilder xml) {
-        if (!StringUtils.isNotBlank(accountJid)) {
+        if (StringUtils.isBlank(accountJid)) {
             throw new IllegalArgumentException("accountJid must not be null or blank");
         }
         xml.wrapElement("field", java.util.Map.of("var", "accountjids"),

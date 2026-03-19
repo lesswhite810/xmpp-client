@@ -48,10 +48,10 @@ public class ChangeUserPassword extends AbstractAdminCommand {
      * @param newPassword 新密码
      */
     public ChangeUserPassword(String accountJid, String newPassword) {
-        if (!StringUtils.isNotBlank(accountJid)) {
+        if (StringUtils.isBlank(accountJid)) {
             throw new IllegalArgumentException("accountJid must not be null or blank");
         }
-        if (!StringUtils.isNotBlank(newPassword)) {
+        if (StringUtils.isBlank(newPassword)) {
             throw new IllegalArgumentException("newPassword must not be null or blank");
         }
         this.accountJid = accountJid;
@@ -92,10 +92,10 @@ public class ChangeUserPassword extends AbstractAdminCommand {
 
     @Override
     protected void appendFields(XmlStringBuilder xml) {
-        if (!StringUtils.isNotBlank(accountJid)) {
+        if (StringUtils.isBlank(accountJid)) {
             throw new IllegalArgumentException("accountJid must not be null or blank");
         }
-        if (!StringUtils.isNotBlank(newPassword)) {
+        if (StringUtils.isBlank(newPassword)) {
             throw new IllegalArgumentException("newPassword must not be null or blank");
         }
         appendField(xml, "accountjid", accountJid);

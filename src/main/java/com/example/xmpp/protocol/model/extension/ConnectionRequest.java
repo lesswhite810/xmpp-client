@@ -43,10 +43,10 @@ public class ConnectionRequest implements ExtensionElement {
      */
     @lombok.Builder
     public ConnectionRequest(String username, String password) {
-        if (!StringUtils.isNotBlank(username)) {
+        if (StringUtils.isBlank(username)) {
             throw new IllegalArgumentException("username must not be null or blank");
         }
-        if (!StringUtils.isNotBlank(password)) {
+        if (StringUtils.isBlank(password)) {
             throw new IllegalArgumentException("password must not be null or blank");
         }
         this.username = username;
