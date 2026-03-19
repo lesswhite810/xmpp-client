@@ -165,7 +165,7 @@ class ExtensionBranchTest {
         @Test
         @DisplayName("Ping.toXml 应生成有效 XML")
         void testPingToXml() {
-            Ping ping = new Ping();
+            Ping ping = Ping.INSTANCE;
             String xml = ping.toXml();
 
             assertTrue(xml.contains("<ping xmlns=\"urn:xmpp:ping\"/>"));
@@ -174,14 +174,14 @@ class ExtensionBranchTest {
         @Test
         @DisplayName("Ping.getElementName 应返回 ping")
         void testPingGetElementName() {
-            Ping ping = new Ping();
+            Ping ping = Ping.INSTANCE;
             assertEquals("ping", ping.getElementName());
         }
 
         @Test
         @DisplayName("Ping.getNamespace 应返回 ping 命名空间")
         void testPingGetNamespace() {
-            Ping ping = new Ping();
+            Ping ping = Ping.INSTANCE;
             assertEquals("urn:xmpp:ping", ping.getNamespace());
         }
     }

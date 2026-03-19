@@ -165,7 +165,7 @@ class CoreFunctionalityTest {
                 .id("ping-1")
                 .from("client@example.com")
                 .to("server@example.com")
-                .childElement(new Ping())
+                .childElement(Ping.INSTANCE)
                 .build();
 
         assertNotNull(iq.getChildElement());
@@ -174,7 +174,7 @@ class CoreFunctionalityTest {
 
     @Test
     void testPingExtension() {
-        Ping ping = new Ping();
+        Ping ping = Ping.INSTANCE;
         assertEquals("ping", Ping.ELEMENT);
         assertEquals("urn:xmpp:ping", Ping.NAMESPACE);
     }

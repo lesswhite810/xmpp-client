@@ -54,7 +54,7 @@ class StanzaModelTest {
         @Test
         @DisplayName("Iq.createErrorResponse 应创建错误响应")
         void testCreateErrorResponse() {
-            Ping ping = new Ping();
+            Ping ping = Ping.INSTANCE;
             Iq request = new Iq.Builder(Iq.Type.GET)
                     .id("req-1")
                     .from("user1@domain.com")
@@ -78,7 +78,7 @@ class StanzaModelTest {
         @DisplayName("Iq.createResultResponse 应创建结果响应")
         void testCreateResultResponse() {
             Iq request = new Iq.Builder(Iq.Type.GET).id("req-1").from("user1@domain.com").to("user2@domain.com").build();
-            Ping ping = new Ping();
+            Ping ping = Ping.INSTANCE;
 
             Iq resultResponse = Iq.createResultResponse(request, ping);
 
@@ -106,7 +106,7 @@ class StanzaModelTest {
                     .id("iq-1")
                     .from("user@domain.com")
                     .to("admin@domain.com")
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .build();
 
             String xml = iq.toXml();
@@ -129,7 +129,7 @@ class StanzaModelTest {
         @Test
         @DisplayName("Iq.getChildElementName 应返回子元素名称")
         void testGetChildElementName() {
-            Iq iq = new Iq.Builder(Iq.Type.GET).childElement(new Ping()).build();
+            Iq iq = new Iq.Builder(Iq.Type.GET).childElement(Ping.INSTANCE).build();
             assertEquals("ping", iq.getChildElementName());
         }
 
@@ -214,7 +214,7 @@ class StanzaModelTest {
         @DisplayName("Iq 扩展元素合并测试 - 只有 childElement")
         void testIqConsolidateChildElementOnly() {
             Iq iq = new Iq.Builder(Iq.Type.GET)
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .build();
 
             assertNotNull(iq.getExtensions());
@@ -226,7 +226,7 @@ class StanzaModelTest {
         void testIqConsolidateChildElementAndError() {
             XmppError error = new XmppError.Builder(XmppError.Condition.BAD_REQUEST).build();
             Iq iq = new Iq.Builder(Iq.Type.ERROR)
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .error(error)
                     .build();
 
@@ -270,7 +270,7 @@ class StanzaModelTest {
         @Test
         @DisplayName("Iq.getChildElementNamespace 应返回子元素命名空间")
         void testGetChildElementNamespace() {
-            Iq iq = new Iq.Builder(Iq.Type.GET).childElement(new Ping()).build();
+            Iq iq = new Iq.Builder(Iq.Type.GET).childElement(Ping.INSTANCE).build();
 
             assertEquals("urn:xmpp:ping", iq.getChildElementNamespace());
         }
@@ -640,7 +640,7 @@ class StanzaModelTest {
         @DisplayName("Stanza.getExtension 应返回正确类型的扩展")
         void testGetExtensionByClass() {
             Iq iq = new Iq.Builder(Iq.Type.GET)
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .build();
 
             Optional<Ping> ping = iq.getExtension(Ping.class);
@@ -661,7 +661,7 @@ class StanzaModelTest {
         @DisplayName("Stanza.getExtension 应支持命名空间查询")
         void testGetExtensionByNamespace() {
             Iq iq = new Iq.Builder(Iq.Type.GET)
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .build();
 
             Optional<ExtensionElement> ext = iq.getExtension("urn:xmpp:ping");
@@ -689,7 +689,7 @@ class StanzaModelTest {
         @DisplayName("Stanza.getExtension 应支持名称和命名空间查询")
         void testGetExtensionByNameAndNamespace() {
             Iq iq = new Iq.Builder(Iq.Type.GET)
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .build();
 
             Optional<ExtensionElement> ext = iq.getExtension("ping", "urn:xmpp:ping");
@@ -700,7 +700,7 @@ class StanzaModelTest {
         @DisplayName("Stanza.getExtensions 应返回所有扩展")
         void testGetExtensions() {
             Iq iq = new Iq.Builder(Iq.Type.GET)
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .build();
 
             List<ExtensionElement> extensions = iq.getExtensions();
@@ -722,7 +722,7 @@ class StanzaModelTest {
         @DisplayName("Stanza.hasExtension 应返回 true 当存在对应类型")
         void testHasExtensionTrue() {
             Iq iq = new Iq.Builder(Iq.Type.GET)
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .build();
 
             assertTrue(iq.hasExtension(Ping.class));
@@ -740,7 +740,7 @@ class StanzaModelTest {
         @DisplayName("Stanza.getExtension 名称和命名空间不匹配应返回空")
         void testGetExtensionNameNamespaceNotFound() {
             Iq iq = new Iq.Builder(Iq.Type.GET)
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .build();
 
             Optional<ExtensionElement> ext = iq.getExtension("wrong", "urn:xmpp:ping");
@@ -751,7 +751,7 @@ class StanzaModelTest {
         @DisplayName("Stanza.getExtension 名称匹配但命名空间不匹配应返回空")
         void testGetExtensionNameMatchNamespaceMismatch() {
             Iq iq = new Iq.Builder(Iq.Type.GET)
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .build();
 
             Optional<ExtensionElement> ext = iq.getExtension("ping", "wrong:namespace");
@@ -779,7 +779,7 @@ class StanzaModelTest {
         void testGetExtensionMultipleExtensions() {
             XmppError error = new XmppError.Builder(XmppError.Condition.BAD_REQUEST).build();
             Iq iq = new Iq.Builder(Iq.Type.ERROR)
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .error(error)
                     .build();
 

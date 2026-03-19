@@ -180,7 +180,7 @@ public class XmppServerIntegrationTest {
                 .id("test-123")
                 .from("user@example.com")
                 .to("server.example.com")
-                .childElement(new com.example.xmpp.protocol.model.extension.Ping())
+                .childElement(com.example.xmpp.protocol.model.extension.Ping.INSTANCE)
                 .build();
 
         String serializedXml = toXml(originalIq);

@@ -3,6 +3,8 @@ package com.example.xmpp.protocol.model.extension;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Modifier;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -14,6 +16,12 @@ class ExtensionTest {
     @DisplayName("Ping 应是单例")
     void testPingSingleton() {
         assertSame(Ping.INSTANCE, Ping.INSTANCE);
+    }
+
+    @Test
+    @DisplayName("Ping 单例构造器应为 private")
+    void testPingConstructorIsPrivate() throws NoSuchMethodException {
+        assertTrue(Modifier.isPrivate(Ping.class.getDeclaredConstructor().getModifiers()));
     }
 
     @Test

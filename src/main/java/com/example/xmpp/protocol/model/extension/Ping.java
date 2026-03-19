@@ -21,7 +21,7 @@ public final class Ping implements ExtensionElement {
     /**
      * 构造 Ping 实例。
      */
-    public Ping() {
+    private Ping() {
     }
 
     /**

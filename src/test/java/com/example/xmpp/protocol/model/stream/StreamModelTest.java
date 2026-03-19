@@ -4,6 +4,7 @@ import com.example.xmpp.util.XmppConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.List;
 
@@ -56,6 +57,12 @@ class StreamModelTest {
     }
 
     @Test
+    @DisplayName("StartTls 单例构造器应为 private")
+    void testStartTlsConstructorIsPrivate() throws NoSuchMethodException {
+        assertTrue(Modifier.isPrivate(TlsElements.StartTls.class.getDeclaredConstructor().getModifiers()));
+    }
+
+    @Test
     @DisplayName("StartTls 应使用统一的 ELEMENT 和 NAMESPACE 常量")
     void testStartTlsConstants() {
         assertEquals("starttls", TlsElements.StartTls.ELEMENT);
@@ -67,6 +74,12 @@ class StreamModelTest {
     @DisplayName("TlsProceed 应是单例")
     void testTlsProceedSingleton() {
         assertSame(TlsElements.TlsProceed.INSTANCE, TlsElements.TlsProceed.INSTANCE);
+    }
+
+    @Test
+    @DisplayName("TlsProceed 单例构造器应为 private")
+    void testTlsProceedConstructorIsPrivate() throws NoSuchMethodException {
+        assertTrue(Modifier.isPrivate(TlsElements.TlsProceed.class.getDeclaredConstructor().getModifiers()));
     }
 
     @Test

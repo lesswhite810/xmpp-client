@@ -41,7 +41,7 @@ public class XmlStanzaPerformanceTest {
                     .id("test-" + i)
                     .from("user@example.com/resource")
                     .to("server.example.com")
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .build();
             iqs.add(iq);
         }
@@ -132,7 +132,7 @@ public class XmlStanzaPerformanceTest {
                     .id("test-" + i)
                     .from("user@example.com/resource")
                     .to("server.example.com")
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .build();
             iqs.add(iq);
         }
@@ -232,7 +232,7 @@ public class XmlStanzaPerformanceTest {
                     .id("test-" + i)
                     .from("user@example.com/resource")
                     .to("server.example.com")
-                    .childElement(new Ping())
+                    .childElement(Ping.INSTANCE)
                     .build();
             iqs.add(iq);
 
