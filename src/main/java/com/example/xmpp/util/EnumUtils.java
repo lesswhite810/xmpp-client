@@ -1,5 +1,8 @@
 package com.example.xmpp.util;
 
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -9,6 +12,7 @@ import java.util.Optional;
  *
  * @since 2026-02-28
  */
+@Slf4j
 public final class EnumUtils {
 
     private EnumUtils() {
@@ -30,6 +34,9 @@ public final class EnumUtils {
             return Optional.of(Enum.valueOf(enumClass, value.toUpperCase()));
         } catch (IllegalArgumentException e) {
             return Optional.empty();
+        } catch (Exception e) {
+            log.warn("Unexpected error while parsing enum value '{}' for class {}", value, enumClass, e);
+            return Optional.empty();
         }
     }
 
@@ -43,6 +50,7 @@ public final class EnumUtils {
      * @return 解析后的枚举值，无效则返回默认值
      */
     public static <T extends Enum<T>> T fromStringOrDefault(Class<T> enumClass, String value, T defaultValue) {
+        Objects.requireNonNull(defaultValue, "defaultValue");
         return fromString(enumClass, value).orElse(defaultValue);
     }
 }
