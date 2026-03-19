@@ -1,5 +1,6 @@
 package com.example.xmpp.protocol.model.stream;
 
+import com.example.xmpp.protocol.model.extension.Bind;
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmlStringBuilder;
@@ -26,6 +27,8 @@ import java.util.List;
 @Getter
 @Builder
 public class StreamFeatures implements ExtensionElement {
+    public static final String ELEMENT = "features";
+
     /**
      * 流特性命名空间。
      */
@@ -59,7 +62,7 @@ public class StreamFeatures implements ExtensionElement {
      */
     @Override
     public String getElementName() {
-        return "features";
+        return ELEMENT;
     }
 
     /**
@@ -83,21 +86,21 @@ public class StreamFeatures implements ExtensionElement {
                 .wrapElement("stream:features", xml -> {
                     if (starttlsAvailable) {
                         if (starttlsRequired) {
-                            xml.wrapElement("starttls", "urn:ietf:params:xml:ns:xmpp-tls",
+                            xml.wrapElement(TlsElements.StartTls.ELEMENT, XmppConstants.NS_XMPP_TLS,
                                     startTls -> startTls.wrapElement("required", ""));
                         } else {
-                            xml.wrapElement("starttls", "urn:ietf:params:xml:ns:xmpp-tls", "");
+                            xml.wrapElement(TlsElements.StartTls.ELEMENT, XmppConstants.NS_XMPP_TLS, "");
                         }
                     }
                     if (mechanisms != null && !mechanisms.isEmpty()) {
-                        xml.wrapElement("mechanisms", "urn:ietf:params:xml:ns:xmpp-sasl", mechanismXml -> {
+                        xml.wrapElement("mechanisms", XmppConstants.NS_XMPP_SASL, mechanismXml -> {
                             for (String mechanism : mechanisms) {
                                 mechanismXml.wrapElement("mechanism", mechanism);
                             }
                         });
                     }
                     if (bindAvailable) {
-                        xml.wrapElement("bind", "urn:ietf:params:xml:ns:xmpp-bind", "");
+                        xml.wrapElement(Bind.ELEMENT, XmppConstants.NS_XMPP_BIND, "");
                     }
                 })
                 .toString();

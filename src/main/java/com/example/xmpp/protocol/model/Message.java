@@ -20,6 +20,7 @@ import java.util.Optional;
  */
 @Getter
 public final class Message extends Stanza {
+    public static final String ELEMENT = "message";
 
     /**
      * Message 类型
@@ -126,7 +127,7 @@ public final class Message extends Stanza {
      */
     @Override
     public String getElementName() {
-        return "message";
+        return ELEMENT;
     }
 
     @Override

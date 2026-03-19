@@ -1,5 +1,6 @@
 package com.example.xmpp.protocol.model.stream;
 
+import com.example.xmpp.util.XmppConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -55,9 +56,25 @@ class StreamModelTest {
     }
 
     @Test
+    @DisplayName("StartTls 应使用统一的 ELEMENT 和 NAMESPACE 常量")
+    void testStartTlsConstants() {
+        assertEquals("starttls", TlsElements.StartTls.ELEMENT);
+        assertEquals(XmppConstants.NS_XMPP_TLS, TlsElements.StartTls.NAMESPACE);
+        assertEquals(TlsElements.StartTls.ELEMENT, TlsElements.StartTls.INSTANCE.getElementName());
+    }
+
+    @Test
     @DisplayName("TlsProceed 应是单例")
     void testTlsProceedSingleton() {
         assertSame(TlsElements.TlsProceed.INSTANCE, TlsElements.TlsProceed.INSTANCE);
+    }
+
+    @Test
+    @DisplayName("TlsProceed 应使用统一的 ELEMENT 和 NAMESPACE 常量")
+    void testTlsProceedConstants() {
+        assertEquals("proceed", TlsElements.TlsProceed.ELEMENT);
+        assertEquals(XmppConstants.NS_XMPP_TLS, TlsElements.TlsProceed.NAMESPACE);
+        assertEquals(TlsElements.TlsProceed.ELEMENT, TlsElements.TlsProceed.INSTANCE.getElementName());
     }
 
     @Test

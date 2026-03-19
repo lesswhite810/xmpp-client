@@ -22,6 +22,7 @@ import java.util.Optional;
  */
 @Getter
 public final class Presence extends Stanza {
+    public static final String ELEMENT = "presence";
 
     /**
      * Presence 类型
@@ -156,7 +157,7 @@ public final class Presence extends Stanza {
      */
     @Override
     public String getElementName() {
-        return "presence";
+        return ELEMENT;
     }
 
     @Override

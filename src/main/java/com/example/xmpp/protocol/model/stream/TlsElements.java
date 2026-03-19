@@ -28,6 +28,7 @@ public final class TlsElements {
      * 服务端可返回 TlsProceed 元素继续协商，或返回 StreamError 拒绝。
      */
     public static final class StartTls implements ExtensionElement {
+        public static final String ELEMENT = "starttls";
         public static final String NAMESPACE = XmppConstants.NS_XMPP_TLS;
         public static final StartTls INSTANCE = new StartTls();
 
@@ -41,7 +42,7 @@ public final class TlsElements {
          */
         @Override
         public String getElementName() {
-            return "starttls";
+            return ELEMENT;
         }
 
         /**
@@ -74,6 +75,7 @@ public final class TlsElements {
      * 客户端收到此元素后应立即开始 TLS 握手。
      */
     public static final class TlsProceed implements ExtensionElement {
+        public static final String ELEMENT = "proceed";
         public static final String NAMESPACE = XmppConstants.NS_XMPP_TLS;
         public static final TlsProceed INSTANCE = new TlsProceed();
 
@@ -87,7 +89,7 @@ public final class TlsElements {
          */
         @Override
         public String getElementName() {
-            return "proceed";
+            return ELEMENT;
         }
 
         /**
@@ -108,7 +110,7 @@ public final class TlsElements {
         @Override
         public String toXml() {
             return new XmlStringBuilder()
-                    .wrapElement(getElementName(), NAMESPACE, "")
+                    .wrapElement(ELEMENT, NAMESPACE, "")
                     .toString();
         }
     }

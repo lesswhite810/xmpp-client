@@ -1,5 +1,6 @@
 package com.example.xmpp.protocol.model.extension;
 
+import com.example.xmpp.util.XmppConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,15 @@ class ExtensionComprehensiveTest {
                     () -> command.appendHiddenField(new com.example.xmpp.util.XmlStringBuilder(), "   ", "value"));
 
             assertEquals("var must not be null or blank", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("AbstractAdminCommand 应暴露统一的 ELEMENT 常量")
+        void testAbstractAdminCommandElementConstant() {
+            TestAdminCommand command = new TestAdminCommand();
+
+            assertEquals("command", AbstractAdminCommand.ELEMENT);
+            assertEquals(AbstractAdminCommand.ELEMENT, command.getElementName());
         }
 
         private static final class TestAdminCommand extends AbstractAdminCommand {
@@ -359,6 +369,19 @@ class ExtensionComprehensiveTest {
         }
 
         @Test
+        @DisplayName("ConnectionRequest 应复用统一常量")
+        void testConnectionRequestConstants() {
+            ConnectionRequest request = ConnectionRequest.builder()
+                    .username("device-123")
+                    .password("secret")
+                    .build();
+
+            assertEquals("connectionRequest", ConnectionRequest.ELEMENT);
+            assertEquals(ConnectionRequest.ELEMENT, request.getElementName());
+            assertEquals(ConnectionRequest.NAMESPACE, request.getNamespace());
+        }
+
+        @Test
         @DisplayName("ConnectionRequest builder 在缺少必填字段时应抛出异常")
         void testConnectionRequestBuilderShouldRejectMissingRequiredFields() {
             IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
@@ -406,6 +429,17 @@ class ExtensionComprehensiveTest {
             assertTrue(xml.contains("<jid>user@example.com/resource</jid>"));
             assertTrue(xml.contains("<resource>mobile</resource>"));
             assertTrue(xml.contains("</bind>"));
+        }
+
+        @Test
+        @DisplayName("Bind 应使用 XmppConstants 中的命名空间常量")
+        void testBindConstants() {
+            Bind bind = Bind.builder().build();
+
+            assertEquals("bind", Bind.ELEMENT);
+            assertEquals(XmppConstants.NS_XMPP_BIND, Bind.NAMESPACE);
+            assertEquals(Bind.ELEMENT, bind.getElementName());
+            assertEquals(Bind.NAMESPACE, bind.getNamespace());
         }
 
         @Test

@@ -18,6 +18,7 @@ import java.util.Map;
 @Getter
 @Setter
 public abstract class AbstractAdminCommand implements ExtensionElement {
+    public static final String ELEMENT = "command";
 
     /**
      * Ad-Hoc Commands 命令命名空间。
@@ -56,7 +57,7 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
      */
     @Override
     public String getElementName() {
-        return "command";
+        return ELEMENT;
     }
 
     /**
@@ -95,14 +96,14 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
         commandAttributes.put("action", action);
 
         if (ACTION_EXECUTE.equals(action)) {
-            return new XmlStringBuilder().wrapElement("command", NAMESPACE, commandAttributes, "").toString();
+            return new XmlStringBuilder().wrapElement(ELEMENT, NAMESPACE, commandAttributes, "").toString();
         }
 
         if (sessionId != null) {
             commandAttributes.put("sessionid", sessionId);
         }
         return new XmlStringBuilder()
-                .wrapElement("command", NAMESPACE, commandAttributes, xml -> xml.wrapElement("x",
+                .wrapElement(ELEMENT, NAMESPACE, commandAttributes, xml -> xml.wrapElement("x",
                         DATA_FORMS_NS,
                         Map.of("type", "submit"),
                         formXml -> {

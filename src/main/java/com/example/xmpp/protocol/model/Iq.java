@@ -28,6 +28,7 @@ import java.util.Map;
  */
 @Getter
 public final class Iq extends Stanza {
+    public static final String ELEMENT = "iq";
 
     /**
      * IQ 类型
@@ -201,7 +202,7 @@ public final class Iq extends Stanza {
      */
     @Override
     public String getElementName() {
-        return "iq";
+        return ELEMENT;
     }
 
     @Override

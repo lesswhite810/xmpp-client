@@ -28,6 +28,7 @@ import java.util.Map;
 @Getter
 @Builder
 public class StreamHeader implements ExtensionElement {
+    public static final String ELEMENT = "stream";
 
     /**
      * 流命名空间。
@@ -71,7 +72,7 @@ public class StreamHeader implements ExtensionElement {
      */
     @Override
     public String getElementName() {
-        return "stream";
+        return ELEMENT;
     }
 
     /**
@@ -100,7 +101,7 @@ public class StreamHeader implements ExtensionElement {
         attributes.put("xmlns", namespace);
         attributes.put("xmlns:stream", NAMESPACE_STREAM);
         return new XmlStringBuilder()
-                .openElement("stream", "stream", null, attributes)
+                .openElement(ELEMENT, ELEMENT, null, attributes)
                 .toString();
     }
 }

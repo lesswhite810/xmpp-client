@@ -1,6 +1,7 @@
 package com.example.xmpp.protocol.model.stream;
 
 import com.example.xmpp.protocol.model.ExtensionElement;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Builder;
 import lombok.Getter;
@@ -17,10 +18,12 @@ import lombok.Getter;
 @Getter
 @Builder
 public class StreamError implements ExtensionElement {
+    public static final String ELEMENT = "error";
+
     /**
      * 流错误命名空间。
      */
-    public static final String NAMESPACE = "urn:ietf:params:xml:ns:xmpp-streams";
+    public static final String NAMESPACE = XmppConstants.NS_XMPP_STREAM_FEATURES;
 
     /**
      * 流错误条件。
@@ -44,7 +47,7 @@ public class StreamError implements ExtensionElement {
      */
     @Override
     public String getElementName() {
-        return "error";
+        return ELEMENT;
     }
 
     /**
