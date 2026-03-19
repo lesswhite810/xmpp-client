@@ -1,7 +1,5 @@
 package com.example.xmpp.exception;
 
-import java.io.Serial;
-
 /**
  * XMPP 协议级异常。
  *
@@ -10,9 +8,6 @@ import java.io.Serial;
  * @since 2026-03-11
  */
 public class XmppProtocolException extends XmppException {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
 
     /**
      * 创建协议级异常。

@@ -3,8 +3,6 @@ package com.example.xmpp.exception;
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
 import lombok.Getter;
 
-import java.io.Serial;
-
 /**
  * SASL 失败异常。
  *
@@ -13,9 +11,6 @@ import java.io.Serial;
  * @since 2026-03-11
  */
 public class XmppSaslFailureException extends XmppAuthException {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
 
     @Getter
     private final SaslFailure saslFailure;

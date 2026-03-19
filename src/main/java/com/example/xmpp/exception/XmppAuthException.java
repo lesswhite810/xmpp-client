@@ -2,8 +2,6 @@ package com.example.xmpp.exception;
 
 import lombok.experimental.StandardException;
 
-import java.io.Serial;
-
 /**
  * XMPP 认证异常。
  *
@@ -24,7 +22,4 @@ import java.io.Serial;
  */
 @StandardException
 public class XmppAuthException extends XmppException {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
 }

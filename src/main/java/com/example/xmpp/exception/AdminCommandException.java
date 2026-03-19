@@ -3,8 +3,6 @@ package com.example.xmpp.exception;
 import com.example.xmpp.protocol.model.Iq;
 import lombok.Getter;
 
-import java.io.Serial;
-
 /**
  * 管理命令执行异常。
  *
@@ -20,9 +18,6 @@ import java.io.Serial;
  * @since 2026-03-09
  */
 public class AdminCommandException extends XmppException {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
 
     /**
      * 服务器返回的错误 IQ 响应，可能为 null（如缺少 session ID 场景）

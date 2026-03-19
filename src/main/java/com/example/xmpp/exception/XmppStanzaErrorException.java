@@ -4,8 +4,6 @@ import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppError;
 import lombok.Getter;
 
-import java.io.Serial;
-
 /**
  * XMPP 节错误异常。
  *
@@ -14,9 +12,6 @@ import java.io.Serial;
  * @since 2026-03-11
  */
 public class XmppStanzaErrorException extends XmppException {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
 
     @Getter
     private final Iq errorIq;

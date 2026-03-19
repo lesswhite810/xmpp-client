@@ -1,5 +1,7 @@
 package com.example.xmpp.exception;
 
+import java.util.List;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -187,5 +189,25 @@ class XmppExceptionTest {
         assertThrows(XmppStanzaErrorException.class, () -> { throw new XmppStanzaErrorException("test", null); });
         assertThrows(XmppStreamErrorException.class, () -> { throw new XmppStreamErrorException(null); });
         assertThrows(AdminCommandException.class, () -> { throw new AdminCommandException("add-user", "test"); });
+    }
+
+    @Test
+    @DisplayName("异常类不应声明硬编码 serialVersionUID")
+    void testExceptionClassesShouldNotDeclareSerialVersionUid() {
+        List<Class<?>> exceptionClasses = List.of(
+                XmppNetworkException.class,
+                XmppException.class,
+                XmppAuthException.class,
+                AdminCommandException.class,
+                XmppProtocolException.class,
+                XmppParseException.class,
+                XmppSaslFailureException.class,
+                XmppStanzaErrorException.class,
+                XmppStreamErrorException.class
+        );
+
+        for (Class<?> exceptionClass : exceptionClasses) {
+            assertThrows(NoSuchFieldException.class, () -> exceptionClass.getDeclaredField("serialVersionUID"));
+        }
     }
 }
