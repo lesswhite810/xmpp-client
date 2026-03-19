@@ -66,8 +66,8 @@ class StreamModelTest {
     @DisplayName("StartTls 应使用统一的 ELEMENT 和 NAMESPACE 常量")
     void testStartTlsConstants() {
         assertEquals("starttls", TlsElements.StartTls.ELEMENT);
-        assertEquals(XmppConstants.NS_XMPP_TLS, TlsElements.StartTls.NAMESPACE);
         assertEquals(TlsElements.StartTls.ELEMENT, TlsElements.StartTls.INSTANCE.getElementName());
+        assertEquals(TlsElements.TlsElement.NAMESPACE, TlsElements.StartTls.INSTANCE.getNamespace());
     }
 
     @Test
@@ -86,8 +86,25 @@ class StreamModelTest {
     @DisplayName("TlsProceed 应使用统一的 ELEMENT 和 NAMESPACE 常量")
     void testTlsProceedConstants() {
         assertEquals("proceed", TlsElements.TlsProceed.ELEMENT);
-        assertEquals(XmppConstants.NS_XMPP_TLS, TlsElements.TlsProceed.NAMESPACE);
         assertEquals(TlsElements.TlsProceed.ELEMENT, TlsElements.TlsProceed.INSTANCE.getElementName());
+        assertEquals(TlsElements.TlsElement.NAMESPACE, TlsElements.TlsProceed.INSTANCE.getNamespace());
+    }
+
+    @Test
+    @DisplayName("TlsElement 应提供统一的命名空间和 XML 序列化")
+    void testTlsElementSharedBehavior() {
+        assertEquals(XmppConstants.NS_XMPP_TLS, TlsElements.TlsElement.NAMESPACE);
+        assertEquals("<starttls xmlns=\"urn:ietf:params:xml:ns:xmpp-tls\"/>",
+                TlsElements.StartTls.INSTANCE.toXml());
+        assertEquals("<proceed xmlns=\"urn:ietf:params:xml:ns:xmpp-tls\"/>",
+                TlsElements.TlsProceed.INSTANCE.toXml());
+    }
+
+    @Test
+    @DisplayName("StartTls 和 TlsProceed 应继承 TlsElement")
+    void testTlsElementsExtendTlsElement() {
+        assertTrue(TlsElements.TlsElement.class.isAssignableFrom(TlsElements.StartTls.class));
+        assertTrue(TlsElements.TlsElement.class.isAssignableFrom(TlsElements.TlsProceed.class));
     }
 
     @Test

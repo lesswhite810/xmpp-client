@@ -22,17 +22,50 @@ public final class TlsElements {
     }
 
     /**
+     * TLS 元素抽象基类，封装统一的命名空间和 XML 序列化逻辑。
+     */
+    public static abstract class TlsElement implements ExtensionElement {
+        public static final String NAMESPACE = XmppConstants.NS_XMPP_TLS;
+
+        protected final String element;
+
+        protected TlsElement(String element) {
+            this.element = element;
+        }
+
+        /**
+         * 获取命名空间。
+         *
+         * @return TLS 命名空间
+         */
+        @Override
+        public String getNamespace() {
+            return NAMESPACE;
+        }
+
+        /**
+         * 序列化为 XML 字符串。
+         *
+         * @return XML 字符串表示
+         */
+        @Override
+        public String toXml() {
+            return new XmlStringBuilder().wrapElement(element, NAMESPACE, "").toString();
+        }
+    }
+
+    /**
      * STARTTLS 请求元素，表示客户端请求将连接升级为 TLS 加密。
      * <p>
      * 客户端发送此元素到服务端，请求进行 TLS 握手。
      * 服务端可返回 TlsProceed 元素继续协商，或返回 StreamError 拒绝。
      */
-    public static final class StartTls implements ExtensionElement {
+    public static final class StartTls extends TlsElement {
         public static final String ELEMENT = "starttls";
-        public static final String NAMESPACE = XmppConstants.NS_XMPP_TLS;
         public static final StartTls INSTANCE = new StartTls();
 
         private StartTls() {
+            super(ELEMENT);
         }
 
         /**
@@ -44,28 +77,6 @@ public final class TlsElements {
         public String getElementName() {
             return ELEMENT;
         }
-
-        /**
-         * 获取命名空间。
-         *
-         * @return 命名空间
-         */
-        @Override
-        public String getNamespace() {
-            return NAMESPACE;
-        }
-
-        /**
-         * 序列化为 XML 字符串。
-         *
-         * @return XML 字符串表示
-         */
-        @Override
-        public String toXml() {
-            return new XmlStringBuilder()
-                    .wrapElement(getElementName(), NAMESPACE, "")
-                    .toString();
-        }
     }
 
     /**
@@ -74,12 +85,12 @@ public final class TlsElements {
      * 服务端发送此元素响应客户端的 StartTls 请求，表示可以开始 TLS 握手。
      * 客户端收到此元素后应立即开始 TLS 握手。
      */
-    public static final class TlsProceed implements ExtensionElement {
+    public static final class TlsProceed extends TlsElement {
         public static final String ELEMENT = "proceed";
-        public static final String NAMESPACE = XmppConstants.NS_XMPP_TLS;
         public static final TlsProceed INSTANCE = new TlsProceed();
 
         private TlsProceed() {
+            super(ELEMENT);
         }
 
         /**
@@ -90,28 +101,6 @@ public final class TlsElements {
         @Override
         public String getElementName() {
             return ELEMENT;
-        }
-
-        /**
-         * 获取命名空间。
-         *
-         * @return 命名空间
-         */
-        @Override
-        public String getNamespace() {
-            return NAMESPACE;
-        }
-
-        /**
-         * 序列化为 XML 字符串。
-         *
-         * @return XML 字符串表示
-         */
-        @Override
-        public String toXml() {
-            return new XmlStringBuilder()
-                    .wrapElement(ELEMENT, NAMESPACE, "")
-                    .toString();
         }
     }
 }
