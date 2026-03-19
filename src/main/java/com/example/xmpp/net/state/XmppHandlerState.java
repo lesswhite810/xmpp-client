@@ -173,13 +173,18 @@ public enum XmppHandlerState implements HandlerState {
         }
 
         private void startResolvedSaslAuthentication(StateContext context, ChannelHandlerContext ctx, SaslMechanism mechanism) {
-            if (XmppConstants.SASL_MECH_PLAIN.equals(mechanism.getMechanismName()) && !isSecureConnection(ctx, context.getConfig())) {
+            String mechanismName = mechanism.getMechanismName();
+            if (mechanismName == null || mechanismName.isBlank()) {
+                context.closeConnectionOnError(ctx, "Invalid SASL mechanism name");
+                return;
+            }
+            if (XmppConstants.SASL_MECH_PLAIN.equals(mechanismName) && !isSecureConnection(ctx, context.getConfig())) {
                 log.warn("PLAIN SASL mechanism requires TLS encryption. Current connection is not secure.");
                 context.closeConnectionOnError(ctx, "PLAIN mechanism requires TLS encryption");
                 return;
             }
 
-            log.info("Starting SASL authentication using mechanism: {}", mechanism.getMechanismName());
+            log.info("Starting SASL authentication using mechanism: {}", mechanismName);
             SaslNegotiator negotiator = new SaslNegotiator(mechanism, ctx);
             context.setSaslNegotiator(negotiator);
             try {

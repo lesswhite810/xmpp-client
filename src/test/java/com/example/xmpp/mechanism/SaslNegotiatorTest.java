@@ -93,4 +93,13 @@ class SaslNegotiatorTest {
 
         assertThrows(XmppAuthException.class, () -> negotiator.handleChallenge("%%%"));
     }
+
+    @Test
+    void testStartRejectsNullMechanismName() {
+        when(mechanism.getMechanismName()).thenReturn(null);
+
+        SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
+
+        assertThrows(XmppAuthException.class, negotiator::start);
+    }
 }

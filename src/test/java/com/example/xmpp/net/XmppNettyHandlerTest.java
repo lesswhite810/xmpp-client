@@ -4,6 +4,7 @@ import com.example.xmpp.XmppTcpConnection;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
+import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.protocol.model.XmlSerializable;
@@ -238,8 +239,8 @@ class XmppNettyHandlerTest {
 
             CompletionException exception = assertThrows(CompletionException.class,
                     () -> connection.getConnectionReadyFuture().join());
-            XmppNetworkException cause = assertInstanceOf(XmppNetworkException.class, exception.getCause());
-            assertTrue(cause.getMessage().contains("Failed to send SASL auth stanza"));
+            XmppAuthException cause = assertInstanceOf(XmppAuthException.class, exception.getCause());
+            assertTrue(cause.getMessage().contains("Failed to send SASL stanza"));
         } finally {
             channel.finishAndReleaseAll();
         }

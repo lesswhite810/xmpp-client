@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import javax.security.sasl.SaslException;
+import java.lang.reflect.Field;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -84,5 +85,29 @@ class PlainSaslMechanismTest {
         mechanism.processChallenge(new byte[0]);
 
         assertTrue(mechanism.isComplete());
+    }
+
+    @Test
+    @DisplayName("PlainSaslMechanism 用户名为 null 应抛出异常")
+    void testConstructorRejectsNullUsername() {
+        assertThrows(NullPointerException.class, () -> new PlainSaslMechanism(null, "password".toCharArray()));
+    }
+
+    @Test
+    @DisplayName("PlainSaslMechanism 空用户名应抛出异常并清理密码")
+    void testBlankUsernameClearsPasswordOnFailure() throws Exception {
+        PlainSaslMechanism mechanism = new PlainSaslMechanism("   ", "password".toCharArray());
+        char[] internalPassword = readPasswordField(mechanism);
+
+        assertThrows(SaslException.class, () -> mechanism.processChallenge(new byte[0]));
+
+        assertNull(readPasswordField(mechanism));
+        assertArrayEquals(new char[] {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, internalPassword);
+    }
+
+    private char[] readPasswordField(PlainSaslMechanism mechanism) throws Exception {
+        Field field = PlainSaslMechanism.class.getDeclaredField("password");
+        field.setAccessible(true);
+        return (char[]) field.get(mechanism);
     }
 }

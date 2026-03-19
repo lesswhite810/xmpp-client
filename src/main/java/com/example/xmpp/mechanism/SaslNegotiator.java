@@ -52,11 +52,12 @@ public class SaslNegotiator {
      * @throws XmppAuthException 如果认证启动失败
      */
     public ChannelFuture start() throws XmppAuthException {
-        if (XmppConstants.SASL_MECH_PLAIN.equals(mechanism.getMechanismName()) && !isTlsEncrypted()) {
+        String mechanismName = resolveMechanismName();
+        if (XmppConstants.SASL_MECH_PLAIN.equals(mechanismName) && !isTlsEncrypted()) {
             throw new XmppAuthException("PLAIN authentication requires TLS encryption. Please enable TLS before authenticating.");
         }
 
-        log.info("Authenticating with {}", mechanism.getMechanismName());
+        log.info("Authenticating with {}", mechanismName);
         String content = "";
         if (mechanism.hasInitialResponse()) {
             try {
@@ -66,7 +67,7 @@ public class SaslNegotiator {
             }
         }
         try {
-            return sendStanza(new Auth(mechanism.getMechanismName(), content));
+            return sendStanza(new Auth(mechanismName, content));
         } catch (IllegalArgumentException e) {
             throw new XmppAuthException("Invalid Auth stanza", e);
         }
@@ -156,6 +157,14 @@ public class SaslNegotiator {
             return EMPTY_SASL_CONTENT;
         }
         return BASE64_ENCODER.encodeToString(content);
+    }
+
+    private String resolveMechanismName() throws XmppAuthException {
+        String mechanismName = mechanism.getMechanismName();
+        if (mechanismName == null || mechanismName.isBlank()) {
+            throw new XmppAuthException("SASL mechanism name must not be null or blank");
+        }
+        return mechanismName;
     }
 
     /**

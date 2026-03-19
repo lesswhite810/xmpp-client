@@ -1,6 +1,10 @@
 package com.example.xmpp.util;
 
 import com.example.xmpp.protocol.model.ExtensionElement;
+import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.Message;
+import com.example.xmpp.protocol.model.Presence;
+import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.sasl.Auth;
 
 import java.io.StringReader;
@@ -74,18 +78,6 @@ public class SecurityUtils {
     /**
      * 生成 XML 日志摘要。
      *
-     * <p>仅保留元素名、命名空间和少量结构属性，避免输出 XML 正文。</p>
-     *
-     * @param xml 原始 XML 字符串
-     * @return 摘要字符串
-     */
-    public static String filterSensitiveXml(String xml) {
-        return summarizeXml(xml);
-    }
-
-    /**
-     * 生成 XML 日志摘要。
-     *
      * <p>仅保留元素名、命名空间以及 id、type、from、to
      * 等结构信息。</p>
      *
@@ -137,6 +129,49 @@ public class SecurityUtils {
             appendSummaryField(summary, "mechanism", auth.mechanism());
         }
         return summary.toString();
+    }
+
+    /**
+     * 生成 Stanza 日志摘要。
+     *
+     * @param stanza XMPP 节
+     * @return 摘要字符串
+     */
+    public static String summarizeStanza(XmppStanza stanza) {
+        if (stanza == null) {
+            return null;
+        }
+
+        StringBuilder summary = new StringBuilder();
+        if (stanza instanceof Iq iq) {
+            summary.append(iq.getElementName());
+            appendSummaryField(summary, "type", iq.getType() != null ? iq.getType().toString() : null);
+            appendSummaryField(summary, "id", iq.getId());
+            appendSummaryField(summary, "from", iq.getFrom());
+            appendSummaryField(summary, "to", iq.getTo());
+            if (iq.getChildElement() != null) {
+                appendSummaryField(summary, "child", iq.getChildElement().getElementName());
+                appendSummaryField(summary, "childNs", emptyToNull(iq.getChildElement().getNamespace()));
+            }
+            return summary.toString();
+        }
+        if (stanza instanceof Message message) {
+            summary.append(message.getElementName());
+            appendSummaryField(summary, "type", message.getType() != null ? message.getType().toString() : null);
+            appendSummaryField(summary, "id", message.getId());
+            appendSummaryField(summary, "from", message.getFrom());
+            appendSummaryField(summary, "to", message.getTo());
+            return summary.toString();
+        }
+        if (stanza instanceof Presence presence) {
+            summary.append(presence.getElementName());
+            appendSummaryField(summary, "type", presence.getType() != null ? presence.getType().toString() : null);
+            appendSummaryField(summary, "id", presence.getId());
+            appendSummaryField(summary, "from", presence.getFrom());
+            appendSummaryField(summary, "to", presence.getTo());
+            return summary.toString();
+        }
+        return stanza.getClass().getSimpleName();
     }
 
     private static String buildSummary(StartElement element) {

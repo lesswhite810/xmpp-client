@@ -105,21 +105,21 @@ class SecurityUtilsTest {
     }
 
     @Test
-    @DisplayName("filterSensitiveXml 应返回 auth 摘要")
-    void testFilterSensitiveXmlAuth() {
+    @DisplayName("summarizeXml 应返回 auth 摘要")
+    void testSummarizeXmlAuth() {
         String xml = "<auth mechanism='PLAIN'>c2VjcmV0</auth>";
 
-        String masked = SecurityUtils.filterSensitiveXml(xml);
+        String masked = SecurityUtils.summarizeXml(xml);
 
         assertEquals("auth", masked);
     }
 
     @Test
-    @DisplayName("filterSensitiveXml 应返回结构属性摘要")
-    void testFilterSensitiveXmlPassword() {
+    @DisplayName("summarizeXml 应返回结构属性摘要")
+    void testSummarizeXmlPassword() {
         String xml = "<message xmlns='jabber:client' id='m1' type='chat' from='a@b' to='c@d'><body>secret123</body></message>";
 
-        String masked = SecurityUtils.filterSensitiveXml(xml);
+        String masked = SecurityUtils.summarizeXml(xml);
 
         assertTrue(masked.contains("message"));
         assertTrue(masked.contains("xmlns=jabber:client"));
@@ -131,17 +131,17 @@ class SecurityUtilsTest {
     }
 
     @Test
-    @DisplayName("filterSensitiveXml 应正确处理 null")
-    void testFilterSensitiveXmlNull() {
-        String masked = SecurityUtils.filterSensitiveXml(null);
+    @DisplayName("summarizeXml 应正确处理 null")
+    void testSummarizeXmlNull() {
+        String masked = SecurityUtils.summarizeXml(null);
         
         assertNull(masked);
     }
 
     @Test
-    @DisplayName("filterSensitiveXml 应正确处理空字符串")
-    void testFilterSensitiveXmlEmpty() {
-        String masked = SecurityUtils.filterSensitiveXml("");
+    @DisplayName("summarizeXml 应正确处理空字符串")
+    void testSummarizeXmlEmpty() {
+        String masked = SecurityUtils.summarizeXml("");
 
         assertEquals("", masked);
     }

@@ -6,6 +6,7 @@ import com.example.xmpp.util.XmppConstants;
 import javax.security.sasl.SaslException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 /**
  * SASL PLAIN 机制实现。
@@ -33,7 +34,7 @@ public class PlainSaslMechanism implements SaslMechanism {
      * @param password 密码（char[]）
      */
     public PlainSaslMechanism(String username, char[] password) {
-        this.username = username;
+        this.username = Objects.requireNonNull(username, "username cannot be null");
         this.password = password != null ? password.clone() : null;
     }
 
@@ -72,19 +73,27 @@ public class PlainSaslMechanism implements SaslMechanism {
             throw new SaslException("Authentication already completed.");
         }
 
+        if (username.isBlank()) {
+            SecurityUtils.clear(password);
+            password = null;
+            throw new SaslException("Username cannot be blank");
+        }
+
         complete = true;
 
-        byte[] usernameBytes = username.getBytes(StandardCharsets.UTF_8);
         byte[] passwordBytes = password != null ? SecurityUtils.toBytes(password) : EMPTY_PASSWORD_BYTES;
-
-        ByteBuffer buffer = ByteBuffer.allocate(1 + usernameBytes.length + 1 + passwordBytes.length);
-        buffer.put(NUL_BYTE).put(usernameBytes).put(NUL_BYTE).put(passwordBytes);
-
-        SecurityUtils.clear(passwordBytes);
-        SecurityUtils.clear(password);
-        password = null;
-
-        return buffer.array();
+        try {
+            byte[] usernameBytes = username.getBytes(StandardCharsets.UTF_8);
+            ByteBuffer buffer = ByteBuffer.allocate(1 + usernameBytes.length + 1 + passwordBytes.length);
+            buffer.put(NUL_BYTE).put(usernameBytes).put(NUL_BYTE).put(passwordBytes);
+            return buffer.array();
+        } finally {
+            if (passwordBytes != EMPTY_PASSWORD_BYTES) {
+                SecurityUtils.clear(passwordBytes);
+            }
+            SecurityUtils.clear(password);
+            password = null;
+        }
     }
 
     /**

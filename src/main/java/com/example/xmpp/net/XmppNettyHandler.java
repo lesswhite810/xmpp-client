@@ -7,6 +7,7 @@ import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.exception.XmppStreamErrorException;
 import com.example.xmpp.net.state.StateContext;
 import com.example.xmpp.net.state.XmppHandlerState;
+import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.XmlSerializable;
 import com.example.xmpp.protocol.model.stream.StreamError;
 import com.example.xmpp.protocol.model.stream.StreamHeader;
@@ -20,8 +21,9 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Optional;
 import java.io.IOException;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
  * XMPP Netty 入站处理器。
@@ -278,12 +280,19 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
         return Optional.ofNullable(packet)
                 .filter(XmlSerializable.class::isInstance)
                 .map(XmlSerializable.class::cast)
-                .map(XmlSerializable::toXml)
-                .filter(xml -> !xml.isEmpty())
-                .map(xml -> {
-                    log.debug("Sending stanza: {}", SecurityUtils.summarizeXml(xml));
+                .map(serializable -> {
+                    String xml = serializable.toXml();
+                    if (xml.isEmpty()) {
+                        return null;
+                    }
+                    if (packet instanceof XmppStanza stanza) {
+                        log.debug("Sending stanza: {}", SecurityUtils.summarizeStanza(stanza));
+                    } else {
+                        log.debug("Sending stanza: {}", serializable.getClass().getSimpleName());
+                    }
                     return NettyUtils.writeAndFlushStringAsync(ctx, xml);
                 })
+                .filter(Objects::nonNull)
                 .orElse(null);
     }
 }

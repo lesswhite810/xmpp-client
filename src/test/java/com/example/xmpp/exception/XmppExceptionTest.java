@@ -127,6 +127,7 @@ class XmppExceptionTest {
         // XmppSaslFailureException 需要 SaslFailure 参数，这里只测试它继承自 XmppException
         XmppException ex = new XmppSaslFailureException(null);
         assertTrue(ex instanceof XmppException);
+        assertEquals("SASL authentication failed: no failure element received", ex.getMessage());
     }
 
     // XmppStanzaErrorException 测试

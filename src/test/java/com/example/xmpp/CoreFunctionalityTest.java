@@ -10,6 +10,7 @@ import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.mechanism.*;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
 
@@ -67,6 +68,32 @@ class CoreFunctionalityTest {
 
         assertTrue(factory.createBestMechanism(null, "user", "pass".toCharArray()).isEmpty());
         assertTrue(factory.createBestMechanism(List.of(), "user", "pass".toCharArray()).isEmpty());
+    }
+
+    @Test
+    void testSaslMechanismFactoryReplacesDuplicateRegistrations() throws Exception {
+        SaslMechanismFactory factory = SaslMechanismFactory.getInstance();
+        String mechanismName = "X-TEST-DUPLICATE";
+
+        factory.register(mechanismName, 10, PlainSaslMechanism::new);
+        factory.register(mechanismName, 20, PlainSaslMechanism::new);
+
+        Field field = SaslMechanismFactory.class.getDeclaredField("registeredMechanisms");
+        field.setAccessible(true);
+        List<?> entries = (List<?>) field.get(factory);
+        long count = entries.stream()
+                .filter(entry -> {
+                    try {
+                        Field nameField = entry.getClass().getDeclaredField("name");
+                        nameField.setAccessible(true);
+                        return mechanismName.equals(nameField.get(entry));
+                    } catch (ReflectiveOperationException e) {
+                        throw new AssertionError(e);
+                    }
+                })
+                .count();
+
+        assertEquals(1L, count);
     }
 
     @Test

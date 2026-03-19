@@ -27,7 +27,7 @@ public class XmppSaslFailureException extends XmppAuthException {
 
     private static String buildMessage(SaslFailure saslFailure) {
         if (saslFailure == null) {
-            return "SASL authentication failed";
+            return "SASL authentication failed: no failure element received";
         }
         StringBuilder builder = new StringBuilder("SASL authentication failed");
         if (saslFailure.condition() != null && !saslFailure.condition().isBlank()) {

@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -100,6 +101,7 @@ public class SaslMechanismFactory {
         registrationLock.lock();
         try {
             List<MechanismEntry> updated = new ArrayList<>(registeredMechanisms);
+            updated.removeIf(entry -> entry.name.equals(name));
             updated.add(new MechanismEntry(name, priority, factory));
             updated.sort((a, b) -> Integer.compare(b.priority, a.priority));
 
@@ -136,8 +138,9 @@ public class SaslMechanismFactory {
         if (serverMechanisms == null || serverMechanisms.isEmpty()) {
             return Optional.empty();
         }
+        Set<String> serverMechanismSet = new HashSet<>(serverMechanisms);
         for (MechanismEntry entry : registeredMechanisms) {
-            if (!serverMechanisms.contains(entry.name)) {
+            if (!serverMechanismSet.contains(entry.name)) {
                 continue;
             }
             if (enabledMechanisms != null && !enabledMechanisms.isEmpty()) {
@@ -145,7 +148,15 @@ public class SaslMechanismFactory {
                     continue;
                 }
             }
-            return Optional.of(entry.factory.apply(username, password));
+            SaslMechanism mechanism = entry.factory.apply(username, password);
+            if (mechanism == null) {
+                throw new IllegalStateException("SASL mechanism factory returned null for " + entry.name);
+            }
+            String mechanismName = mechanism.getMechanismName();
+            if (mechanismName == null || mechanismName.isBlank()) {
+                throw new IllegalStateException("SASL mechanism returned invalid name for " + entry.name);
+            }
+            return Optional.of(mechanism);
         }
         return Optional.empty();
     }

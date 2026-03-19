@@ -30,26 +30,26 @@ class SecurityUtilsExtendedTest {
     }
 
     @Test
-    @DisplayName("filterSensitiveXml 应处理 null")
-    void testFilterSensitiveXmlNull() {
-        String result = SecurityUtils.filterSensitiveXml(null);
+    @DisplayName("summarizeXml 应处理 null")
+    void testSummarizeXmlNull() {
+        String result = SecurityUtils.summarizeXml(null);
         
         assertNull(result);
     }
 
     @Test
-    @DisplayName("filterSensitiveXml 应处理空字符串")
-    void testFilterSensitiveXmlEmpty() {
-        String result = SecurityUtils.filterSensitiveXml("");
+    @DisplayName("summarizeXml 应处理空字符串")
+    void testSummarizeXmlEmpty() {
+        String result = SecurityUtils.summarizeXml("");
         
         assertEquals("", result);
     }
 
     @Test
-    @DisplayName("filterSensitiveXml 不应保留元素正文")
-    void testFilterSensitiveXmlNonSensitive() {
+    @DisplayName("summarizeXml 不应保留元素正文")
+    void testSummarizeXmlNonSensitive() {
         String xml = "<message><body>Hello</body></message>";
-        String result = SecurityUtils.filterSensitiveXml(xml);
+        String result = SecurityUtils.summarizeXml(xml);
 
         assertEquals("message", result);
         assertFalse(result.contains("Hello"));

@@ -17,6 +17,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * SASL SCRAM 机制的基础抽象实现。
@@ -135,7 +136,7 @@ public abstract class ScramMechanism implements SaslMechanism {
      * @param password 密码（char[]）
      */
     protected ScramMechanism(String username, char[] password) {
-        this.username = username;
+        this.username = Objects.requireNonNull(username, "username cannot be null");
         this.password = password != null ? password.clone() : null;
         this.clientNonce = generateSecureNonce();
     }
@@ -207,22 +208,30 @@ public abstract class ScramMechanism implements SaslMechanism {
      */
     @Override
     public byte[] processChallenge(byte[] challenge) throws SaslException {
-        switch (state) {
-            case INITIAL:
-                state = State.CHALLENGE_RECEIVED;
-                return createClientFirstMessage();
+        try {
+            switch (state) {
+                case INITIAL:
+                    state = State.CHALLENGE_RECEIVED;
+                    return createClientFirstMessage();
 
-            case CHALLENGE_RECEIVED:
-                String serverFirstMessage = new String(challenge, StandardCharsets.UTF_8);
-                return createClientFinalMessage(serverFirstMessage);
+                case CHALLENGE_RECEIVED:
+                    String serverFirstMessage = new String(challenge, StandardCharsets.UTF_8);
+                    return createClientFinalMessage(serverFirstMessage);
 
-            case FINAL_SUCCESS:
-                String serverFinalMessage = new String(challenge, StandardCharsets.UTF_8);
-                verifyServerFinalMessage(serverFinalMessage);
-                return EMPTY_RESPONSE;
+                case FINAL_SUCCESS:
+                    String serverFinalMessage = new String(challenge, StandardCharsets.UTF_8);
+                    verifyServerFinalMessage(serverFinalMessage);
+                    return EMPTY_RESPONSE;
 
-            default:
-                throw new SaslException("Invalid state");
+                default:
+                    throw new SaslException("Invalid state");
+            }
+        } catch (SaslException e) {
+            clearSensitiveState();
+            throw e;
+        } catch (RuntimeException e) {
+            clearSensitiveState();
+            throw new SaslException("SCRAM processing failed", e);
         }
     }
 
@@ -258,8 +267,19 @@ public abstract class ScramMechanism implements SaslMechanism {
             throw new SaslException("Missing salt or iterations");
         }
 
-        byte[] salt = Base64.getDecoder().decode(saltBase64);
-        int iterations = Integer.parseInt(iterationsStr);
+        byte[] salt;
+        try {
+            salt = Base64.getDecoder().decode(saltBase64);
+        } catch (IllegalArgumentException e) {
+            throw new SaslException("Invalid SCRAM salt", e);
+        }
+
+        int iterations;
+        try {
+            iterations = Integer.parseInt(iterationsStr);
+        } catch (NumberFormatException e) {
+            throw new SaslException("Invalid SCRAM iterations", e);
+        }
 
         if (iterations < EFFECTIVE_MIN_ITERATIONS) {
             throw new SaslException(
@@ -317,15 +337,9 @@ public abstract class ScramMechanism implements SaslMechanism {
         }
 
         if (!MessageDigest.isEqual(serverSignature, serverSignatureExpected)) {
-            SecurityUtils.clear(saltedPassword);
-            saltedPassword = null;
             throw new SaslException("Server signature verification failed");
         }
-
-        SecurityUtils.clear(saltedPassword);
-        saltedPassword = null;
-
-        SecurityUtils.clear(password);
+        clearSensitiveState();
     }
 
     /**
@@ -398,7 +412,10 @@ public abstract class ScramMechanism implements SaslMechanism {
      * @param b 第二个字节数组
      * @return XOR 结果
      */
-    private byte[] xor(byte[] a, byte[] b) {
+    private byte[] xor(byte[] a, byte[] b) throws SaslException {
+        if (a.length != b.length) {
+            throw new SaslException("SCRAM XOR operands must have the same length");
+        }
         byte[] result = new byte[a.length];
         for (int i = 0; i < a.length; i++) {
             result[i] = (byte) (a[i] ^ b[i]);
@@ -412,14 +429,24 @@ public abstract class ScramMechanism implements SaslMechanism {
      * @param message SCRAM 消息
      * @return 属性映射表
      */
-    private Map<Character, String> parseAttributes(String message) {
+    private Map<Character, String> parseAttributes(String message) throws SaslException {
         Map<Character, String> attributes = new HashMap<>();
         String[] parts = message.split(",");
         for (String part : parts) {
             if (part.length() >= ATTRIBUTE_MIN_LENGTH && part.charAt(ATTRIBUTE_SEPARATOR_INDEX) == '=') {
-                attributes.put(part.charAt(0), part.substring(ATTRIBUTE_VALUE_INDEX));
+                char attributeName = part.charAt(0);
+                if (attributes.containsKey(attributeName)) {
+                    throw new SaslException("Duplicate SCRAM attribute: " + attributeName);
+                }
+                attributes.put(attributeName, part.substring(ATTRIBUTE_VALUE_INDEX));
             }
         }
         return attributes;
+    }
+
+    private void clearSensitiveState() {
+        SecurityUtils.clear(saltedPassword);
+        saltedPassword = null;
+        SecurityUtils.clear(password);
     }
 }

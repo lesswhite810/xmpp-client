@@ -10,6 +10,7 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.security.sasl.SaslException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -260,6 +261,40 @@ class ScramMechanismTest {
     }
 
     @Test
+    @DisplayName("重复 SCRAM 属性应抛出异常并清理密码")
+    void testDuplicateScramAttributeThrowsExceptionAndClearsPassword() throws Exception {
+        mechanism.processChallenge(null);
+        char[] internalPassword = readPasswordField(mechanism);
+
+        SaslException exception = assertThrows(SaslException.class,
+                () -> mechanism.processChallenge("r=nonce,r=dup,s=cmFuZG9tc2FsdA==,i=4096".getBytes(StandardCharsets.UTF_8)));
+
+        assertTrue(exception.getMessage().contains("Duplicate SCRAM attribute"));
+        assertNotNull(readPasswordField(mechanism));
+        assertArrayEquals(new char[] {'\0', '\0', '\0', '\0', '\0', '\0'}, internalPassword);
+    }
+
+    @Test
+    @DisplayName("非法 salt 应抛出异常并清理密码")
+    void testInvalidSaltThrowsExceptionAndClearsPassword() throws Exception {
+        String clientFirst = new String(mechanism.processChallenge(null), StandardCharsets.UTF_8);
+        char[] internalPassword = readPasswordField(mechanism);
+        Pattern noncePattern = Pattern.compile("r=([A-Za-z0-9_-]+)");
+        Matcher matcher = noncePattern.matcher(clientFirst);
+        matcher.find();
+        String clientNonce = matcher.group(1);
+
+        SaslException exception = assertThrows(SaslException.class,
+                () -> mechanism.processChallenge(
+                        ("r=" + clientNonce + "Server,s=%%%,i=4096")
+                                .getBytes(StandardCharsets.UTF_8)));
+
+        assertTrue(exception.getMessage().contains("Invalid SCRAM salt"));
+        assertNotNull(readPasswordField(mechanism));
+        assertArrayEquals(new char[] {'\0', '\0', '\0', '\0', '\0', '\0'}, internalPassword);
+    }
+
+    @Test
     @DisplayName("测试无效状态调用应抛出异常")
     void testInvalidStateThrowsException() throws SaslException {
         // 完成整个流程
@@ -330,5 +365,11 @@ class ScramMechanismTest {
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new SaslException("Failed to compute HMAC", e);
         }
+    }
+
+    private char[] readPasswordField(ScramMechanism mechanism) throws Exception {
+        Field field = ScramMechanism.class.getDeclaredField("password");
+        field.setAccessible(true);
+        return (char[]) field.get(mechanism);
     }
 }
