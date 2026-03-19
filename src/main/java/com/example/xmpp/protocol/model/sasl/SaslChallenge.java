@@ -1,10 +1,8 @@
 package com.example.xmpp.protocol.model.sasl;
 
-import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.protocol.model.ExtensionElement;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmlStringBuilder;
-import lombok.Builder;
-import lombok.Getter;
 
 /**
  * SASL 挑战元素，用于 XMPP SASL 握手流程。
@@ -14,9 +12,7 @@ import lombok.Getter;
  *
  * @since 2026-02-09
  */
-@Getter
-@Builder
-public class SaslChallenge implements ExtensionElement {
+public record SaslChallenge(String content) implements ExtensionElement {
 
     /**
      * 元素名称。
@@ -27,11 +23,6 @@ public class SaslChallenge implements ExtensionElement {
      * SASL 命名空间。
      */
     public static final String NAMESPACE = XmppConstants.NS_XMPP_SASL;
-
-    /**
-     * 挑战内容，通常为 Base64 编码的字符串。
-     */
-    private final String content;
 
     /**
      * 创建 SaslChallenge 实例。
@@ -50,7 +41,7 @@ public class SaslChallenge implements ExtensionElement {
      */
     @Override
     public String getElementName() {
-        return "challenge";
+        return ELEMENT;
     }
 
     /**

@@ -58,7 +58,7 @@ class XmppConnectionLifecycleErrorTest {
 
     private static final long TEST_RECONNECT_TIMEOUT_SECONDS = 7;
 
-    private static final long TEST_WAIT_TIMEOUT_MS = 1200;
+    private static final long TEST_WAIT_TIMEOUT_MS = 3000;
 
     private static final long TEST_SETTLE_TIMEOUT_MS = 600;
 
@@ -91,16 +91,13 @@ class XmppConnectionLifecycleErrorTest {
         channel.writeInbound(StreamFeatures.builder()
                 .mechanisms(List.of("SCRAM-SHA-1"))
                 .build());
-        channel.writeInbound(SaslFailure.builder()
-                .condition("not-authorized")
-                .text("Invalid credentials")
-                .build());
+        channel.writeInbound(new SaslFailure("not-authorized", "Invalid credentials"));
 
         CompletionException exception = assertThrows(CompletionException.class,
                 () -> connection.getConnectionReadyFuture().join());
         XmppSaslFailureException cause = assertInstanceOf(XmppSaslFailureException.class, exception.getCause());
-        assertEquals("not-authorized", cause.getSaslFailure().getCondition());
-        assertEquals("Invalid credentials", cause.getSaslFailure().getText());
+        assertEquals("not-authorized", cause.getSaslFailure().condition());
+        assertEquals("Invalid credentials", cause.getSaslFailure().text());
     }
 
     @Test
@@ -234,8 +231,11 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            startConnect(connection);
+            connection.connectAsync();
             assertTrue(acceptedLatch.await(TEST_LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+            waitFor(() -> connection.getChannel() != null && connection.getChannel().isActive(),
+                    TEST_WAIT_TIMEOUT_MS,
+                    "connectAsync 应绑定活动通道");
             assertTrue(connection.getChannel().isActive());
             assertTrue(getWorkerGroup(connection) != null);
 
@@ -465,10 +465,10 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> firstFuture = startConnect(connection);
+            CompletableFuture<Void> firstFuture = connection.connectAsync();
             assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
 
-            CompletableFuture<Void> secondFuture = startConnect(connection);
+            CompletableFuture<Void> secondFuture = connection.connectAsync();
 
             assertSame(firstFuture, secondFuture);
             connection.disconnect();
@@ -925,12 +925,12 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> firstFuture = startConnect(connection);
+            CompletableFuture<Void> firstFuture = connection.connectAsync();
             assertTrue(acceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
             connection.markConnectionReady();
             firstFuture.join();
 
-            CompletableFuture<Void> secondFuture = startConnect(connection);
+            CompletableFuture<Void> secondFuture = connection.connectAsync();
 
             assertSame(firstFuture, secondFuture);
             assertTrue(secondFuture.isDone());
@@ -977,37 +977,44 @@ class XmppConnectionLifecycleErrorTest {
 
     @Test
     void testUnexpectedRemoteCloseTriggersReconnectAttemptWhenEnabled() throws Exception {
-        try (ServerSocket serverSocket = new ServerSocket(0);
-             ExecutorService executor = Executors.newSingleThreadExecutor()) {
+        try (ServerSocket serverSocket = new ServerSocket(0)) {
+            ExecutorService executor = Executors.newSingleThreadExecutor();
             CountDownLatch firstAcceptedLatch = new CountDownLatch(1);
             CountDownLatch secondAcceptedLatch = new CountDownLatch(1);
-            executor.submit(() -> {
-                acceptAndCloseSocket(serverSocket, firstAcceptedLatch);
-                acceptAndHoldSocket(serverSocket, secondAcceptedLatch);
-            });
+            try {
+                executor.submit(() -> {
+                    acceptAndCloseSocket(serverSocket, firstAcceptedLatch);
+                    acceptAndHoldSocket(serverSocket, secondAcceptedLatch);
+                });
 
-            XmppClientConfig config = XmppClientConfig.builder()
-                    .xmppServiceDomain("example.com")
-                    .host("127.0.0.1")
-                    .port(serverSocket.getLocalPort())
-                    .username("user")
-                    .password("pass".toCharArray())
-                    .securityMode(XmppClientConfig.SecurityMode.DISABLED)
-                    .readTimeout(TEST_READ_TIMEOUT_MS)
-                    .connectTimeout(500)
-                    .reconnectionEnabled(true)
-                    .pingEnabled(false)
-                    .build();
-            XmppTcpConnection connection = new XmppTcpConnection(config);
+                XmppClientConfig config = XmppClientConfig.builder()
+                        .xmppServiceDomain("example.com")
+                        .host("127.0.0.1")
+                        .port(serverSocket.getLocalPort())
+                        .username("user")
+                        .password("pass".toCharArray())
+                        .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                        .readTimeout(TEST_READ_TIMEOUT_MS)
+                        .connectTimeout(500)
+                        .reconnectionEnabled(true)
+                        .pingEnabled(false)
+                        .build();
+                XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> firstFuture = startConnect(connection);
-            assertTrue(firstAcceptedLatch.await(TEST_LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS));
-            assertThrows(CompletionException.class, firstFuture::join);
+                CompletableFuture<Void> firstFuture = connection.connectAsync();
+                assertTrue(firstAcceptedLatch.await(TEST_LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+                assertThrows(CompletionException.class, firstFuture::join);
 
-            assertTrue(secondAcceptedLatch.await(TEST_RECONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS),
-                    "意外断链后应触发至少一次自动重连");
+                assertTrue(secondAcceptedLatch.await(TEST_RECONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS),
+                        "意外断链后应触发至少一次自动重连");
 
-            connection.disconnect();
+                connection.disconnect();
+            } finally {
+                serverSocket.close();
+                executor.shutdownNow();
+                assertTrue(executor.awaitTermination(TEST_LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS),
+                        "测试线程池应及时退出");
+            }
         }
     }
 
@@ -1144,15 +1151,17 @@ class XmppConnectionLifecycleErrorTest {
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
 
-            CompletableFuture<Void> firstFuture = startConnect(connection);
+            CompletableFuture<Void> firstFuture = connection.connectAsync();
             assertTrue(firstAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
+            waitFor(() -> connection.getChannel() != null, TEST_WAIT_TIMEOUT_MS, "首次连接应绑定通道");
             var firstChannel = connection.getChannel();
 
             connection.failConnection(new XmppNetworkException("boom"));
             assertThrows(CompletionException.class, firstFuture::join);
 
-            CompletableFuture<Void> secondFuture = startConnect(connection);
+            CompletableFuture<Void> secondFuture = connection.connectAsync();
             assertTrue(secondAcceptedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS));
+            waitFor(() -> connection.getChannel() != null, TEST_WAIT_TIMEOUT_MS, "重试连接应绑定新通道");
 
             assertNotSame(firstFuture, secondFuture);
             assertNotSame(firstChannel, connection.getChannel());

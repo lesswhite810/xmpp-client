@@ -1,10 +1,8 @@
 package com.example.xmpp.protocol.model.sasl;
 
-import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.protocol.model.ExtensionElement;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmlStringBuilder;
-import lombok.Builder;
-import lombok.Getter;
 
 /**
  * SASL 成功元素，表示 SASL 认证流程成功完成。
@@ -14,9 +12,7 @@ import lombok.Getter;
  *
  * @since 2026-02-09
  */
-@Getter
-@Builder
-public class SaslSuccess implements ExtensionElement {
+public record SaslSuccess(String content) implements ExtensionElement {
 
     /**
      * 元素名称。
@@ -29,18 +25,13 @@ public class SaslSuccess implements ExtensionElement {
     public static final String NAMESPACE = XmppConstants.NS_XMPP_SASL;
 
     /**
-     * 可选的成功响应内容，通常为 Base64 编码的字符串。
-     */
-    private final String content;
-
-    /**
      * 获取元素名称。
      *
      * @return 固定返回 {@code success}
      */
     @Override
     public String getElementName() {
-        return "success";
+        return ELEMENT;
     }
 
     /**

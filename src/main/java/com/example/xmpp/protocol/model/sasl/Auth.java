@@ -1,9 +1,8 @@
 package com.example.xmpp.protocol.model.sasl;
 
-import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.protocol.model.ExtensionElement;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmlStringBuilder;
-import lombok.Getter;
 
 import java.util.Map;
 
@@ -15,25 +14,10 @@ import java.util.Map;
  *
  * @since 2026-02-09
  */
-@Getter
-public final class Auth implements ExtensionElement {
+public record Auth(String mechanism, String content) implements ExtensionElement {
 
     public static final String ELEMENT = "auth";
     public static final String NAMESPACE = XmppConstants.NS_XMPP_SASL;
-
-    private final String mechanism;
-    private final String content;
-
-    /**
-     * 构造 Auth 实例。
-     *
-     * @param mechanism SASL 机制名称，如 "PLAIN"、"SCRAM-SHA-1"、"SCRAM-SHA-256"
-     * @param content 初始认证响应数据，可为 null（表示不带初始响应）
-     */
-    public Auth(String mechanism, String content) {
-        this.mechanism = mechanism;
-        this.content = content;
-    }
 
     /**
      * 获取元素名称。

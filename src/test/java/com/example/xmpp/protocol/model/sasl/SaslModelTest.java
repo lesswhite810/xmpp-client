@@ -17,8 +17,8 @@ class SaslModelTest {
     void testAuthCreate() {
         Auth auth = new Auth("PLAIN", "dXNlcgBwYXNz");
         
-        assertEquals("PLAIN", auth.getMechanism());
-        assertEquals("dXNlcgBwYXNz", auth.getContent());
+        assertEquals("PLAIN", auth.mechanism());
+        assertEquals("dXNlcgBwYXNz", auth.content());
     }
 
     @Test
@@ -26,8 +26,8 @@ class SaslModelTest {
     void testAuthEmptyContent() {
         Auth auth = new Auth("ANONYMOUS", null);
         
-        assertEquals("ANONYMOUS", auth.getMechanism());
-        assertNull(auth.getContent());
+        assertEquals("ANONYMOUS", auth.mechanism());
+        assertNull(auth.content());
     }
 
     // SaslChallenge 测试
@@ -35,19 +35,17 @@ class SaslModelTest {
     @Test
     @DisplayName("SaslChallenge 应正确创建")
     void testSaslChallengeCreate() {
-        SaslChallenge challenge = SaslChallenge.builder()
-                .content("cmVhbG09ImV4YW1wbGUi")
-                .build();
+        SaslChallenge challenge = new SaslChallenge("cmVhbG09ImV4YW1wbGUi");
         
-        assertEquals("cmVhbG09ImV4YW1wbGUi", challenge.getContent());
+        assertEquals("cmVhbG09ImV4YW1wbGUi", challenge.content());
     }
 
     @Test
     @DisplayName("SaslChallenge 应支持空内容")
     void testSaslChallengeEmpty() {
-        SaslChallenge challenge = SaslChallenge.builder().build();
+        SaslChallenge challenge = new SaslChallenge(null);
         
-        assertNull(challenge.getContent());
+        assertNull(challenge.content());
     }
 
     // SaslResponse 测试
@@ -57,7 +55,7 @@ class SaslModelTest {
     void testSaslResponseCreate() {
         SaslResponse response = new SaslResponse("dXNlcgBwYXNz");
         
-        assertEquals("dXNlcgBwYXNz", response.getContent());
+        assertEquals("dXNlcgBwYXNz", response.content());
     }
 
     @Test
@@ -65,7 +63,7 @@ class SaslModelTest {
     void testSaslResponseEmpty() {
         SaslResponse response = new SaslResponse(null);
         
-        assertNull(response.getContent());
+        assertNull(response.content());
     }
 
     // SaslSuccess 测试
@@ -73,19 +71,17 @@ class SaslModelTest {
     @Test
     @DisplayName("SaslSuccess 应正确创建")
     void testSaslSuccessCreate() {
-        SaslSuccess success = SaslSuccess.builder()
-                .content("dmVyPTEscj1hYmM=")
-                .build();
+        SaslSuccess success = new SaslSuccess("dmVyPTEscj1hYmM=");
         
-        assertEquals("dmVyPTEscj1hYmM=", success.getContent());
+        assertEquals("dmVyPTEscj1hYmM=", success.content());
     }
 
     @Test
     @DisplayName("SaslSuccess 应支持空内容")
     void testSaslSuccessEmpty() {
-        SaslSuccess success = SaslSuccess.builder().build();
+        SaslSuccess success = new SaslSuccess(null);
         
-        assertNull(success.getContent());
+        assertNull(success.content());
     }
 
     // SaslFailure 测试
@@ -93,24 +89,19 @@ class SaslModelTest {
     @Test
     @DisplayName("SaslFailure 应正确创建")
     void testSaslFailureCreate() {
-        SaslFailure failure = SaslFailure.builder()
-                .condition("not-authorized")
-                .text("Invalid credentials")
-                .build();
+        SaslFailure failure = new SaslFailure("not-authorized", "Invalid credentials");
         
-        assertEquals("not-authorized", failure.getCondition());
-        assertEquals("Invalid credentials", failure.getText());
+        assertEquals("not-authorized", failure.condition());
+        assertEquals("Invalid credentials", failure.text());
     }
 
     @Test
     @DisplayName("SaslFailure 应支持只有 condition")
     void testSaslFailureConditionOnly() {
-        SaslFailure failure = SaslFailure.builder()
-                .condition("temporary-auth-failure")
-                .build();
+        SaslFailure failure = new SaslFailure("temporary-auth-failure", null);
 
-        assertEquals("temporary-auth-failure", failure.getCondition());
-        assertNull(failure.getText());
+        assertEquals("temporary-auth-failure", failure.condition());
+        assertNull(failure.text());
     }
 
     // SaslFailure toXml 测试
@@ -118,10 +109,7 @@ class SaslModelTest {
     @Test
     @DisplayName("SaslFailure.toXml 应生成包含 condition 和 text 的 XML")
     void testSaslFailureToXmlWithConditionAndText() {
-        SaslFailure failure = SaslFailure.builder()
-                .condition("not-authorized")
-                .text("Invalid credentials")
-                .build();
+        SaslFailure failure = new SaslFailure("not-authorized", "Invalid credentials");
 
         String xml = failure.toXml();
         assertTrue(xml.contains("<failure xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\">"));
@@ -133,9 +121,7 @@ class SaslModelTest {
     @Test
     @DisplayName("SaslFailure.toXml 应生成只有 condition 的 XML")
     void testSaslFailureToXmlConditionOnly() {
-        SaslFailure failure = SaslFailure.builder()
-                .condition("temporary-auth-failure")
-                .build();
+        SaslFailure failure = new SaslFailure("temporary-auth-failure", null);
 
         String xml = failure.toXml();
         assertTrue(xml.contains("<failure xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\">"));
@@ -147,9 +133,7 @@ class SaslModelTest {
     @Test
     @DisplayName("SaslFailure.toXml 应处理 null condition")
     void testSaslFailureToXmlNullCondition() {
-        SaslFailure failure = SaslFailure.builder()
-                .text("Some error text")
-                .build();
+        SaslFailure failure = new SaslFailure(null, "Some error text");
 
         String xml = failure.toXml();
         assertTrue(xml.contains("<failure xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\">"));
@@ -160,9 +144,7 @@ class SaslModelTest {
     @Test
     @DisplayName("SaslFailure.toXml 在 text 为空时不应输出空 text 元素")
     void testSaslFailureToXmlWithoutTextElementWhenTextIsNull() {
-        SaslFailure failure = SaslFailure.builder()
-                .condition("not-authorized")
-                .build();
+        SaslFailure failure = new SaslFailure("not-authorized", null);
 
         String xml = failure.toXml();
 
@@ -172,10 +154,7 @@ class SaslModelTest {
     @Test
     @DisplayName("SaslFailure.toXml 应转义 text 中的 XML 特殊字符")
     void testSaslFailureToXmlEscapesText() {
-        SaslFailure failure = SaslFailure.builder()
-                .condition("not-authorized")
-                .text("bad <xml> & reason")
-                .build();
+        SaslFailure failure = new SaslFailure("not-authorized", "bad <xml> & reason");
 
         String xml = failure.toXml();
 
@@ -187,9 +166,7 @@ class SaslModelTest {
     @Test
     @DisplayName("SaslChallenge.toXml 应生成有效 XML")
     void testSaslChallengeToXml() {
-        SaslChallenge challenge = SaslChallenge.builder()
-                .content("cmVhbG09ImV4YW1wbGUi")
-                .build();
+        SaslChallenge challenge = new SaslChallenge("cmVhbG09ImV4YW1wbGUi");
 
         String xml = challenge.toXml();
         assertTrue(xml.contains("<challenge xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\">"));
@@ -200,8 +177,7 @@ class SaslModelTest {
     @Test
     @DisplayName("SaslChallenge.toXml 应处理 null 内容")
     void testSaslChallengeToXmlNullContent() {
-        SaslChallenge challenge = SaslChallenge.builder()
-                .build();
+        SaslChallenge challenge = new SaslChallenge(null);
 
         String xml = challenge.toXml();
         assertTrue(xml.contains("<challenge xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\"/>"));
@@ -212,9 +188,7 @@ class SaslModelTest {
     @Test
     @DisplayName("SaslSuccess.toXml 应生成有效 XML")
     void testSaslSuccessToXml() {
-        SaslSuccess success = SaslSuccess.builder()
-                .content("dmVyPTEscj1hYmM=")
-                .build();
+        SaslSuccess success = new SaslSuccess("dmVyPTEscj1hYmM=");
 
         String xml = success.toXml();
         assertTrue(xml.contains("<success xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\">"));
@@ -225,8 +199,7 @@ class SaslModelTest {
     @Test
     @DisplayName("SaslSuccess.toXml 应处理 null 内容")
     void testSaslSuccessToXmlNullContent() {
-        SaslSuccess success = SaslSuccess.builder()
-                .build();
+        SaslSuccess success = new SaslSuccess(null);
 
         String xml = success.toXml();
         assertTrue(xml.contains("<success xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\"/>"));
@@ -300,27 +273,27 @@ class SaslModelTest {
     @DisplayName("SaslChallenge.of 工厂方法应创建实例")
     void testSaslChallengeOf() {
         SaslChallenge challenge = SaslChallenge.of("test-content");
-        assertEquals("test-content", challenge.getContent());
+        assertEquals("test-content", challenge.content());
     }
 
     @Test
     @DisplayName("SaslChallenge 应暴露 ELEMENT 常量")
     void testSaslChallengeElementConstant() {
         assertEquals("challenge", SaslChallenge.ELEMENT);
-        assertEquals(SaslChallenge.ELEMENT, SaslChallenge.builder().build().getElementName());
+        assertEquals(SaslChallenge.ELEMENT, new SaslChallenge(null).getElementName());
     }
 
     @Test
     @DisplayName("SaslSuccess 应暴露 ELEMENT 常量")
     void testSaslSuccessElementConstant() {
         assertEquals("success", SaslSuccess.ELEMENT);
-        assertEquals(SaslSuccess.ELEMENT, SaslSuccess.builder().build().getElementName());
+        assertEquals(SaslSuccess.ELEMENT, new SaslSuccess(null).getElementName());
     }
 
     @Test
     @DisplayName("SaslFailure 应暴露 ELEMENT 常量")
     void testSaslFailureElementConstant() {
         assertEquals("failure", SaslFailure.ELEMENT);
-        assertEquals(SaslFailure.ELEMENT, SaslFailure.builder().build().getElementName());
+        assertEquals(SaslFailure.ELEMENT, new SaslFailure(null, null).getElementName());
     }
 }

@@ -86,7 +86,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         }
 
         Presence.Builder presenceBuilder() {
-            return new Presence.Builder().type(type).id(id).from(from).to(to);
+            Presence.Builder builder = new Presence.Builder().id(id).from(from).to(to);
+            if (type != null) {
+                builder.type(type);
+            }
+            return builder;
         }
     }
 
@@ -454,13 +458,9 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         if (SASL_NAMESPACE.equals(namespace)) {
             return switch (localName) {
                 case "auth" -> Optional.of(parseSaslAuth(reader, start));
-                case "challenge" -> Optional.of(SaslChallenge.builder()
-                        .content(XmlParserUtils.getElementText(reader))
-                        .build());
+                case "challenge" -> Optional.of(new SaslChallenge(XmlParserUtils.getElementText(reader)));
                 case "response" -> Optional.of(new SaslResponse(XmlParserUtils.getElementText(reader)));
-                case "success" -> Optional.of(SaslSuccess.builder()
-                        .content(XmlParserUtils.getElementText(reader))
-                        .build());
+                case "success" -> Optional.of(new SaslSuccess(XmlParserUtils.getElementText(reader)));
                 case "failure" -> Optional.of(parseSaslFailure(reader));
                 default -> Optional.empty();
             };
@@ -541,10 +541,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 condition = name;
             }
         }
-        return SaslFailure.builder()
-                .condition(condition)
-                .text(text)
-                .build();
+        return new SaslFailure(condition, text);
     }
 
     private StreamError parseStreamError(XMLEventReader reader) throws XMLStreamException {

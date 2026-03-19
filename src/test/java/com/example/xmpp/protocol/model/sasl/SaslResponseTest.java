@@ -16,7 +16,7 @@ class SaslResponseTest {
         SaslResponse response = new SaslResponse("dXNlcj1hZG1pbg==");
         
         assertNotNull(response);
-        assertEquals("dXNlcj1hZG1pbg==", response.getContent());
+        assertEquals("dXNlcj1hZG1pbg==", response.content());
     }
 
     @Test
@@ -25,7 +25,7 @@ class SaslResponseTest {
         SaslResponse response = new SaslResponse("");
         
         assertNotNull(response);
-        assertEquals("", response.getContent());
+        assertEquals("", response.content());
     }
 
     @Test
@@ -34,7 +34,7 @@ class SaslResponseTest {
         SaslResponse response = new SaslResponse(null);
         
         assertNotNull(response);
-        assertNull(response.getContent());
+        assertNull(response.content());
     }
 
     @Test

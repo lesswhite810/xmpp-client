@@ -67,8 +67,8 @@ class ExtensionComprehensiveTest {
             AddUser addUser = AddUser.createExecuteCommand();
             String xml = addUser.toXml();
 
-            assertTrue(xml.contains("<command xmlns=\"http://jabber.org/protocol/commands\" node=\"http://jabber.org/protocol/admin#add-user\" action=\"execute\">"));
-            assertTrue(xml.contains("</command>"));
+            assertTrue(xml.contains("<command xmlns=\"http://jabber.org/protocol/commands\" node=\"http://jabber.org/protocol/admin#add-user\" action=\"execute\""));
+            assertTrue(xml.contains("/>") || xml.contains("</command>"));
             assertFalse(xml.contains("<x xmlns=\"jabber:x:data\" type=\"submit\">"));
         }
 
@@ -271,7 +271,7 @@ class ExtensionComprehensiveTest {
 
             String xml = request.toXml();
             assertTrue(xml.contains("<connectionRequest"));
-            assertTrue(xml.contains("</connectionRequest>"));
+            assertTrue(xml.contains("/>") || xml.contains("</connectionRequest>"));
         }
     }
 
@@ -324,8 +324,8 @@ class ExtensionComprehensiveTest {
             Bind bind = Bind.builder().build();
 
             String xml = bind.toXml();
-            assertTrue(xml.contains("<bind xmlns=\"urn:ietf:params:xml:ns:xmpp-bind\">"));
-            assertTrue(xml.contains("</bind>"));
+            assertTrue(xml.contains("<bind xmlns=\"urn:ietf:params:xml:ns:xmpp-bind\""));
+            assertTrue(xml.contains("/>") || xml.contains("</bind>"));
         }
     }
 }

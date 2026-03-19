@@ -16,7 +16,7 @@ class SaslChallengeTest {
         SaslChallenge challenge = SaslChallenge.of("cmVhbG09ZXhhbXBsZS5jb20=");
         
         assertNotNull(challenge);
-        assertEquals("cmVhbG09ZXhhbXBsZS5jb20=", challenge.getContent());
+        assertEquals("cmVhbG09ZXhhbXBsZS5jb20=", challenge.content());
     }
 
     @Test

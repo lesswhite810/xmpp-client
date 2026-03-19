@@ -1,10 +1,8 @@
 package com.example.xmpp.protocol.model.sasl;
 
-import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.protocol.model.ExtensionElement;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmlStringBuilder;
-import lombok.Builder;
-import lombok.Getter;
 
 /**
  * SASL 失败元素，表示 SASL 认证流程失败。
@@ -14,9 +12,7 @@ import lombok.Getter;
  *
  * @since 2026-02-09
  */
-@Getter
-@Builder
-public class SaslFailure implements ExtensionElement {
+public record SaslFailure(String condition, String text) implements ExtensionElement {
 
     /**
      * 元素名称。
@@ -29,23 +25,13 @@ public class SaslFailure implements ExtensionElement {
     public static final String NAMESPACE = XmppConstants.NS_XMPP_SASL;
 
     /**
-     * 失败条件名称。
-     */
-    private final String condition;
-
-    /**
-     * 可选的错误描述文本。
-     */
-    private final String text;
-
-    /**
      * 获取元素名称。
      *
      * @return 固定返回 {@code failure}
      */
     @Override
     public String getElementName() {
-        return "failure";
+        return ELEMENT;
     }
 
     /**

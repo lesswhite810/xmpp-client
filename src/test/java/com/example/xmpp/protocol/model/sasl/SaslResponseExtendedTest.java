@@ -17,7 +17,7 @@ class SaslResponseExtendedTest {
         SaslResponse response = new SaslResponse(data);
         
         assertNotNull(response);
-        assertEquals(data, response.getContent());
+        assertEquals(data, response.content());
     }
 
     @Test
@@ -26,7 +26,7 @@ class SaslResponseExtendedTest {
         SaslResponse response = new SaslResponse(null);
         
         assertNotNull(response);
-        assertNull(response.getContent());
+        assertNull(response.content());
     }
 
     @Test
@@ -35,7 +35,7 @@ class SaslResponseExtendedTest {
         SaslResponse response = new SaslResponse("");
         
         assertNotNull(response);
-        assertEquals("", response.getContent());
+        assertEquals("", response.content());
     }
 
     @Test
@@ -92,6 +92,6 @@ class SaslResponseExtendedTest {
     void testSpecialCharacters() {
         SaslResponse response = new SaslResponse("aGVsbG8gd29ybGQ="); // Base64 "hello world"
         
-        assertEquals("aGVsbG8gd29ybGQ=", response.getContent());
+        assertEquals("aGVsbG8gd29ybGQ=", response.content());
     }
 }

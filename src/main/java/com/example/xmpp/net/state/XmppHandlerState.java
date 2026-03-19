@@ -283,13 +283,13 @@ public enum XmppHandlerState implements HandlerState {
 
         private void handleSaslChallenge(StateContext context, SaslChallenge challenge) throws XmppAuthException {
             log.debug("SASL challenge received");
-            context.getSaslNegotiator().handleChallenge(challenge.getContent());
+            context.getSaslNegotiator().handleChallenge(challenge.content());
         }
 
         private void handleSaslSuccess(StateContext context, ChannelHandlerContext ctx, SaslSuccess success)
                 throws XmppAuthException {
             log.debug("SASL authentication successful");
-            if (!context.getSaslNegotiator().handleSuccess(success.getContent())) {
+            if (!context.getSaslNegotiator().handleSuccess(success.content())) {
                 return;
             }
             log.debug("SASL negotiation completed, reopening stream");
@@ -301,7 +301,7 @@ public enum XmppHandlerState implements HandlerState {
 
         private void handleSaslFailure(StateContext context, ChannelHandlerContext ctx, SaslFailure failure) {
             log.warn("SASL authentication failed - condition: {}",
-                    failure.getCondition());
+                    failure.condition());
             context.setSaslNegotiator(null);
             context.closeConnectionOnError(ctx, new XmppSaslFailureException(failure));
         }

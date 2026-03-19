@@ -110,8 +110,8 @@ class XmppStreamDecoderTest {
         assertInstanceOf(Auth.class, msg);
 
         Auth auth = (Auth) msg;
-        assertEquals("PLAIN", auth.getMechanism());
-        assertEquals("AHVzZXIAcGFzcw==", auth.getContent());
+        assertEquals("PLAIN", auth.mechanism());
+        assertEquals("AHVzZXIAcGFzcw==", auth.content());
     }
 
     @Test
@@ -123,7 +123,7 @@ class XmppStreamDecoderTest {
         Object msg = channel.readInbound();
         assertNotNull(msg);
         assertInstanceOf(Auth.class, msg);
-        assertNull(((Auth) msg).getContent());
+        assertNull(((Auth) msg).content());
     }
 
     @Test
@@ -137,8 +137,8 @@ class XmppStreamDecoderTest {
         assertInstanceOf(SaslFailure.class, msg);
 
         SaslFailure failure = (SaslFailure) msg;
-        assertEquals("not-authorized", failure.getCondition());
-        assertEquals("Invalid credentials", failure.getText());
+        assertEquals("not-authorized", failure.condition());
+        assertEquals("Invalid credentials", failure.text());
     }
 
     @Test
@@ -150,8 +150,8 @@ class XmppStreamDecoderTest {
         Object msg = channel.readInbound();
         assertNotNull(msg);
         assertInstanceOf(SaslFailure.class, msg);
-        assertEquals("undefined-condition", ((SaslFailure) msg).getCondition());
-        assertEquals("denied", ((SaslFailure) msg).getText());
+        assertEquals("undefined-condition", ((SaslFailure) msg).condition());
+        assertEquals("denied", ((SaslFailure) msg).text());
     }
 
     @Test
@@ -368,19 +368,19 @@ class XmppStreamDecoderTest {
         assertNotNull(challenge);
         assertInstanceOf(com.example.xmpp.protocol.model.sasl.SaslChallenge.class, challenge);
         assertEquals("Y2hhbGxlbmdl",
-                ((com.example.xmpp.protocol.model.sasl.SaslChallenge) challenge).getContent());
+                ((com.example.xmpp.protocol.model.sasl.SaslChallenge) challenge).content());
 
         Object response = channel.readInbound();
         assertNotNull(response);
         assertInstanceOf(com.example.xmpp.protocol.model.sasl.SaslResponse.class, response);
         assertEquals("cmVzcG9uc2U=",
-                ((com.example.xmpp.protocol.model.sasl.SaslResponse) response).getContent());
+                ((com.example.xmpp.protocol.model.sasl.SaslResponse) response).content());
 
         Object success = channel.readInbound();
         assertNotNull(success);
         assertInstanceOf(com.example.xmpp.protocol.model.sasl.SaslSuccess.class, success);
         assertEquals("c3VjY2Vzcw==",
-                ((com.example.xmpp.protocol.model.sasl.SaslSuccess) success).getContent());
+                ((com.example.xmpp.protocol.model.sasl.SaslSuccess) success).content());
     }
 
     @Test

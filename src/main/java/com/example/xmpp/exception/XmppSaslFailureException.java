@@ -35,8 +35,8 @@ public class XmppSaslFailureException extends XmppAuthException {
             return "SASL authentication failed";
         }
         StringBuilder builder = new StringBuilder("SASL authentication failed");
-        if (saslFailure.getCondition() != null && !saslFailure.getCondition().isBlank()) {
-            builder.append(": ").append(saslFailure.getCondition());
+        if (saslFailure.condition() != null && !saslFailure.condition().isBlank()) {
+            builder.append(": ").append(saslFailure.condition());
         }
         return builder.toString();
     }

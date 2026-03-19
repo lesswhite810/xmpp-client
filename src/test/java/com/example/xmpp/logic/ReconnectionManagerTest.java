@@ -114,7 +114,7 @@ class ReconnectionManagerTest {
     @Test
     @DisplayName("认证失败不应触发自动重连")
     void testAuthenticationFailureDoesNotTriggerReconnect() throws Exception {
-        emitClosedWithError(new XmppSaslFailureException(SaslFailure.builder().condition("not-authorized").build()));
+        emitClosedWithError(new XmppSaslFailureException(new SaslFailure("not-authorized", null)));
 
         verify(connection, never()).connect();
         assertEquals(null, getCurrentTask());
@@ -128,7 +128,7 @@ class ReconnectionManagerTest {
         when(connection.isConnected()).thenReturn(false);
         doAnswer(invocation -> {
             attempts.incrementAndGet();
-            throw new XmppSaslFailureException(SaslFailure.builder().condition("not-authorized").build());
+            throw new XmppSaslFailureException(new SaslFailure("not-authorized", null));
         }).when(connection).connect();
 
         invokeRunReconnectAttempt(0);
