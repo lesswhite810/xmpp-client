@@ -227,6 +227,22 @@ class SaslModelTest {
         assertTrue(xml.contains("<auth xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\" mechanism=\"ANONYMOUS\"/>"));
     }
 
+    @Test
+    @DisplayName("Auth.toXml 在 mechanism 为 null 时应抛出异常")
+    void testAuthToXmlThrowsWhenMechanismIsNull() {
+        Auth auth = new Auth(null, "dXNlcgBwYXNz");
+
+        assertThrows(IllegalArgumentException.class, auth::toXml);
+    }
+
+    @Test
+    @DisplayName("Auth.toXml 在 mechanism 为空白时应抛出异常")
+    void testAuthToXmlThrowsWhenMechanismIsBlank() {
+        Auth auth = new Auth("   ", "dXNlcgBwYXNz");
+
+        assertThrows(IllegalArgumentException.class, auth::toXml);
+    }
+
     // SaslResponse toXml 测试
 
     @Test

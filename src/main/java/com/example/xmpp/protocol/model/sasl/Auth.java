@@ -43,9 +43,14 @@ public record Auth(String mechanism, String content) implements ExtensionElement
      * 转换为 XML 字符串。
      *
      * @return XML 字符串
+     * @throws IllegalArgumentException 如果 mechanism 为 null 或空白
      */
     @Override
     public String toXml() {
+        if (mechanism == null || mechanism.isBlank()) {
+            throw new IllegalArgumentException("mechanism must not be null or blank");
+        }
+
         return new XmlStringBuilder()
                 .wrapElement(ELEMENT, NAMESPACE, Map.of("mechanism", mechanism), xml -> {
                     if (content != null) {
