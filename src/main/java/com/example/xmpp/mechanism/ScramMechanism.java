@@ -47,6 +47,20 @@ import java.util.function.Supplier;
 @Slf4j
 public abstract class ScramMechanism implements SaslMechanism {
 
+    private static final byte[] EMPTY_RESPONSE = new byte[0];
+    private static final String GS2_HEADER = "n,,";
+    private static final String CLIENT_KEY_LABEL = "Client Key";
+    private static final String SERVER_KEY_LABEL = "Server Key";
+    private static final String CLIENT_FIRST_PREFIX = "n=";
+    private static final String NONCE_PREFIX = ",r=";
+    private static final String CHANNEL_BINDING_AND_NONCE_PREFIX = "c=biws,r=";
+    private static final String PROOF_PREFIX = ",p=";
+    private static final String PBKDF2_OPERATION = "PBKDF2";
+    private static final String HMAC_OPERATION = "HMAC";
+    private static final int ATTRIBUTE_MIN_LENGTH = 2;
+    private static final int ATTRIBUTE_SEPARATOR_INDEX = 1;
+    private static final int ATTRIBUTE_VALUE_INDEX = 2;
+
     /**
      * SCRAM nonce 字节数（推荐至少与哈希输出长度相同）
      */
@@ -206,7 +220,7 @@ public abstract class ScramMechanism implements SaslMechanism {
             case FINAL_SUCCESS:
                 String serverFinalMessage = new String(challenge, StandardCharsets.UTF_8);
                 verifyServerFinalMessage(serverFinalMessage);
-                return new byte[0];
+                return EMPTY_RESPONSE;
 
             default:
                 throw new SaslException("Invalid state");
@@ -219,9 +233,8 @@ public abstract class ScramMechanism implements SaslMechanism {
      * @return 客户端初始消息字节数组
      */
     private byte[] createClientFirstMessage() {
-        String gs2Header = "n,,";
-        clientFirstMessageBare = "n=" + username + ",r=" + clientNonce;
-        return (gs2Header + clientFirstMessageBare).getBytes(StandardCharsets.UTF_8);
+        clientFirstMessageBare = CLIENT_FIRST_PREFIX + username + NONCE_PREFIX + clientNonce;
+        return (GS2_HEADER + clientFirstMessageBare).getBytes(StandardCharsets.UTF_8);
     }
 
     /**
@@ -262,18 +275,18 @@ public abstract class ScramMechanism implements SaslMechanism {
 
         saltedPassword = hi(password, salt, iterations);
 
-        String clientFinalMessageWithoutProof = "c=biws,r=" + serverNonce;
+        String clientFinalMessageWithoutProof = CHANNEL_BINDING_AND_NONCE_PREFIX + serverNonce;
 
         authMessage = clientFirstMessageBare + "," + serverFirstMessage + ","
                 + clientFinalMessageWithoutProof;
 
-        byte[] clientKey = hmac(saltedPassword, "Client Key".getBytes(StandardCharsets.UTF_8));
+        byte[] clientKey = hmac(saltedPassword, CLIENT_KEY_LABEL.getBytes(StandardCharsets.UTF_8));
         byte[] storedKey = hash(clientKey);
         byte[] clientSignature = hmac(storedKey, authMessage.getBytes(StandardCharsets.UTF_8));
         byte[] clientProof = xor(clientKey, clientSignature);
 
         state = State.FINAL_SUCCESS;
-        return (clientFinalMessageWithoutProof + ",p="
+        return (clientFinalMessageWithoutProof + PROOF_PREFIX
                 + Base64.getEncoder().encodeToString(clientProof)).getBytes(StandardCharsets.UTF_8);
     }
 
@@ -294,7 +307,7 @@ public abstract class ScramMechanism implements SaslMechanism {
             throw new SaslException("Missing verifier in server final message");
         }
 
-        byte[] serverKey = hmac(saltedPassword, "Server Key".getBytes(StandardCharsets.UTF_8));
+        byte[] serverKey = hmac(saltedPassword, SERVER_KEY_LABEL.getBytes(StandardCharsets.UTF_8));
         byte[] serverSignature = hmac(serverKey, authMessage.getBytes(StandardCharsets.UTF_8));
 
         byte[] serverSignatureExpected = Base64.getDecoder().decode(verifierBase64);
@@ -348,7 +361,7 @@ public abstract class ScramMechanism implements SaslMechanism {
      * @throws SaslException 如果派生失败
      */
     private byte[] hi(char[] password, byte[] salt, int iterations) throws SaslException {
-        return executeCryptoOperation("PBKDF2", () -> {
+        return executeCryptoOperation(PBKDF2_OPERATION, () -> {
             try {
                 PBEKeySpec spec = new PBEKeySpec(password, salt, iterations, hashSize() * 8);
                 javax.crypto.SecretKeyFactory skf = javax.crypto.SecretKeyFactory
@@ -369,7 +382,7 @@ public abstract class ScramMechanism implements SaslMechanism {
      * @throws SaslException 如果计算失败
      */
     private byte[] hmac(byte[] key, byte[] data) throws SaslException {
-        return executeCryptoOperation("HMAC", () -> {
+        return executeCryptoOperation(HMAC_OPERATION, () -> {
             try {
                 Mac mac = Mac.getInstance(getHmacAlgorithm());
                 mac.init(new SecretKeySpec(key, getHmacAlgorithm()));
@@ -421,8 +434,8 @@ public abstract class ScramMechanism implements SaslMechanism {
         Map<Character, String> attributes = new HashMap<>();
         String[] parts = message.split(",");
         for (String part : parts) {
-            if (part.length() >= 2 && part.charAt(1) == '=') {
-                attributes.put(part.charAt(0), part.substring(2));
+            if (part.length() >= ATTRIBUTE_MIN_LENGTH && part.charAt(ATTRIBUTE_SEPARATOR_INDEX) == '=') {
+                attributes.put(part.charAt(0), part.substring(ATTRIBUTE_VALUE_INDEX));
             }
         }
         return attributes;

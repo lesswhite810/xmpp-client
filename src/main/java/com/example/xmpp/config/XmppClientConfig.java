@@ -241,7 +241,7 @@ public class XmppClientConfig {
      * Ping 间隔，单位为秒。
      */
     @Builder.Default
-    private int pingInterval = 60;
+    private int pingInterval = XmppConstants.DEFAULT_PING_INTERVAL_SECONDS;
 
     /**
      * 语言区域设置。

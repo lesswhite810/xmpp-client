@@ -1,7 +1,6 @@
 package com.example.xmpp.util;
 
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * XMPP 协议和网络相关的常量定义。
@@ -17,8 +16,6 @@ public final class XmppConstants {
      */
     private XmppConstants() {
     }
-
-    private static final AtomicLong stanzaIdCounter = new AtomicLong(0);
 
     /**
      * 生成唯一的 Stanza ID。

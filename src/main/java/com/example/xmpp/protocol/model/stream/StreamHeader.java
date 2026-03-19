@@ -31,11 +31,6 @@ public class StreamHeader implements ExtensionElement {
     public static final String ELEMENT = "stream";
 
     /**
-     * 流命名空间。
-     */
-    private static final String NAMESPACE_STREAM = XmppConstants.NS_XMPP_STREAMS;
-
-    /**
      * 发送方域名。
      */
     private final String from;
@@ -82,7 +77,7 @@ public class StreamHeader implements ExtensionElement {
      */
     @Override
     public String getNamespace() {
-        return NAMESPACE_STREAM;
+        return XmppConstants.NS_XMPP_STREAMS;
     }
 
     /**
@@ -99,7 +94,7 @@ public class StreamHeader implements ExtensionElement {
         attributes.put("version", version);
         attributes.put("xml:lang", lang);
         attributes.put("xmlns", namespace);
-        attributes.put("xmlns:stream", NAMESPACE_STREAM);
+        attributes.put("xmlns:stream", XmppConstants.NS_XMPP_STREAMS);
         return new XmlStringBuilder()
                 .openElement(ELEMENT, ELEMENT, null, attributes)
                 .toString();

@@ -25,7 +25,7 @@ class ConnectionUtilsTest {
     void testConnectSyncInterruptedThrowsXmppNetworkException() throws Exception {
         Bootstrap bootstrap = mock(Bootstrap.class);
         ChannelFuture future = mock(ChannelFuture.class);
-        InetSocketAddress address = InetSocketAddress.createUnresolved("example.com", 5222);
+        InetSocketAddress address = InetSocketAddress.createUnresolved("example.com", XmppConstants.DEFAULT_XMPP_PORT);
 
         when(bootstrap.connect(address)).thenReturn(future);
         when(future.sync()).thenThrow(new InterruptedException("interrupted"));
@@ -41,14 +41,14 @@ class ConnectionUtilsTest {
     @Test
     void testConnectSyncWrapsUnexpectedConnectException() {
         Bootstrap bootstrap = mock(Bootstrap.class);
-        InetSocketAddress address = InetSocketAddress.createUnresolved("example.com", 5222);
+        InetSocketAddress address = InetSocketAddress.createUnresolved("example.com", XmppConstants.DEFAULT_XMPP_PORT);
 
         when(bootstrap.connect(address)).thenThrow(new IllegalStateException("boom"));
 
         XmppNetworkException exception = org.junit.jupiter.api.Assertions.assertThrows(XmppNetworkException.class,
                 () -> ConnectionUtils.connectSync(bootstrap, address));
 
-        assertEquals("Failed to connect to example.com:5222", exception.getMessage());
+        assertEquals("Failed to connect to example.com:" + XmppConstants.DEFAULT_XMPP_PORT, exception.getMessage());
         org.junit.jupiter.api.Assertions.assertNull(exception.getCause());
     }
 
@@ -56,7 +56,7 @@ class ConnectionUtilsTest {
     void testConnectSyncWrapsFailedFutureCause() throws Exception {
         Bootstrap bootstrap = mock(Bootstrap.class);
         ChannelFuture future = mock(ChannelFuture.class);
-        InetSocketAddress address = InetSocketAddress.createUnresolved("example.com", 5222);
+        InetSocketAddress address = InetSocketAddress.createUnresolved("example.com", XmppConstants.DEFAULT_XMPP_PORT);
         IllegalStateException cause = new IllegalStateException("connect failed");
 
         when(bootstrap.connect(address)).thenReturn(future);
@@ -67,7 +67,7 @@ class ConnectionUtilsTest {
         XmppNetworkException exception = org.junit.jupiter.api.Assertions.assertThrows(XmppNetworkException.class,
                 () -> ConnectionUtils.connectSync(bootstrap, address));
 
-        assertEquals("Failed to connect to example.com:5222", exception.getMessage());
+        assertEquals("Failed to connect to example.com:" + XmppConstants.DEFAULT_XMPP_PORT, exception.getMessage());
         org.junit.jupiter.api.Assertions.assertNull(exception.getCause());
     }
 
@@ -76,7 +76,7 @@ class ConnectionUtilsTest {
         Bootstrap bootstrap = mock(Bootstrap.class);
         ChannelFuture future = mock(ChannelFuture.class);
         Channel channel = mock(Channel.class);
-        InetSocketAddress address = InetSocketAddress.createUnresolved("example.com", 5222);
+        InetSocketAddress address = InetSocketAddress.createUnresolved("example.com", XmppConstants.DEFAULT_XMPP_PORT);
 
         when(bootstrap.connect(address)).thenReturn(future);
         when(future.sync()).thenReturn(future);
@@ -91,7 +91,7 @@ class ConnectionUtilsTest {
         Bootstrap bootstrap = mock(Bootstrap.class);
         ChannelFuture future = mock(ChannelFuture.class);
         Channel channel = mock(Channel.class);
-        InetSocketAddress address = new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 5222);
+        InetSocketAddress address = new InetSocketAddress(InetAddress.getByName("127.0.0.1"), XmppConstants.DEFAULT_XMPP_PORT);
 
         when(bootstrap.connect(address)).thenReturn(future);
         when(future.sync()).thenReturn(future);

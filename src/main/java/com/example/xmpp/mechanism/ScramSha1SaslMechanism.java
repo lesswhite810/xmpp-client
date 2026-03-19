@@ -15,6 +15,10 @@ import com.example.xmpp.util.XmppConstants;
  */
 public class ScramSha1SaslMechanism extends ScramMechanism {
 
+    private static final String HMAC_ALGORITHM = "HmacSHA1";
+    private static final String DIGEST_ALGORITHM = "SHA-1";
+    private static final String PBKDF2_ALGORITHM = "PBKDF2WithHmacSHA1";
+
     /**
      * 构造 SCRAM-SHA-1 认证机制实例。
      *
@@ -32,7 +36,7 @@ public class ScramSha1SaslMechanism extends ScramMechanism {
      */
     @Override
     public String getMechanismName() {
-        return "SCRAM-SHA-1";
+        return XmppConstants.SASL_MECH_SCRAM_SHA1;
     }
 
     /**
@@ -42,7 +46,7 @@ public class ScramSha1SaslMechanism extends ScramMechanism {
      */
     @Override
     protected String getHmacAlgorithm() {
-        return "HmacSHA1";
+        return HMAC_ALGORITHM;
     }
 
     /**
@@ -52,7 +56,7 @@ public class ScramSha1SaslMechanism extends ScramMechanism {
      */
     @Override
     protected String getDigestAlgorithm() {
-        return "SHA-1";
+        return DIGEST_ALGORITHM;
     }
 
     /**
@@ -62,7 +66,7 @@ public class ScramSha1SaslMechanism extends ScramMechanism {
      */
     @Override
     protected String getPBKDF2Algorithm() {
-        return "PBKDF2WithHmacSHA1";
+        return PBKDF2_ALGORITHM;
     }
 
     /**

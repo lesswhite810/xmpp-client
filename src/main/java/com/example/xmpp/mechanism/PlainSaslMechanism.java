@@ -1,6 +1,7 @@
 package com.example.xmpp.mechanism;
 
 import com.example.xmpp.util.SecurityUtils;
+import com.example.xmpp.util.XmppConstants;
 
 import javax.security.sasl.SaslException;
 import java.nio.ByteBuffer;
@@ -17,6 +18,9 @@ import java.nio.charset.StandardCharsets;
  * @since 2026-02-09
  */
 public class PlainSaslMechanism implements SaslMechanism {
+
+    private static final byte NUL_BYTE = 0;
+    private static final byte[] EMPTY_PASSWORD_BYTES = new byte[0];
 
     private final String username;
     private char[] password;
@@ -40,7 +44,7 @@ public class PlainSaslMechanism implements SaslMechanism {
      */
     @Override
     public String getMechanismName() {
-        return "PLAIN";
+        return XmppConstants.SASL_MECH_PLAIN;
     }
 
     /**
@@ -71,10 +75,10 @@ public class PlainSaslMechanism implements SaslMechanism {
         complete = true;
 
         byte[] usernameBytes = username.getBytes(StandardCharsets.UTF_8);
-        byte[] passwordBytes = password != null ? SecurityUtils.toBytes(password) : new byte[0];
+        byte[] passwordBytes = password != null ? SecurityUtils.toBytes(password) : EMPTY_PASSWORD_BYTES;
 
         ByteBuffer buffer = ByteBuffer.allocate(1 + usernameBytes.length + 1 + passwordBytes.length);
-        buffer.put((byte) 0).put(usernameBytes).put((byte) 0).put(passwordBytes);
+        buffer.put(NUL_BYTE).put(usernameBytes).put(NUL_BYTE).put(passwordBytes);
 
         SecurityUtils.clear(passwordBytes);
         SecurityUtils.clear(password);

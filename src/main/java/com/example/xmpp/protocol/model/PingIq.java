@@ -12,7 +12,6 @@ import com.example.xmpp.util.XmlStringBuilder;
  * @see <a href="https://xmpp.org/extensions/xep-0199.html">XEP-0199: XMPP Ping</a>
  */
 public class PingIq {
-
     /**
      * 私有构造器，防止实例化。
      */
@@ -27,7 +26,7 @@ public class PingIq {
      * @return Ping 请求 IQ
      */
     public static Iq createPingRequest(String id, String to) {
-        return new Iq.Builder("get")
+        return new Iq.Builder(Iq.Type.GET)
                 .id(id)
                 .to(to)
                 .childElement(Ping.INSTANCE)
@@ -42,7 +41,7 @@ public class PingIq {
      * @throws NullPointerException 如果 request 为 null
      */
     public static Iq createPingResponse(Iq request) {
-        return new Iq.Builder("result")
+        return new Iq.Builder(Iq.Type.RESULT)
                 .id(request.getId())
                 .to(request.getFrom())
                 .build();
@@ -57,7 +56,7 @@ public class PingIq {
      * @return Ping 请求 IQ
      */
     public static Iq createPingRequest(String id, String to, String from) {
-        return new Iq.Builder("get")
+        return new Iq.Builder(Iq.Type.GET)
                 .id(id)
                 .to(to)
                 .from(from)

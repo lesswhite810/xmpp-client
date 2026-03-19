@@ -56,6 +56,8 @@ public class ConnectionRequestManager {
 
     private static final long DEFAULT_TIMEOUT_MS = 30000;
     private static final long DEFAULT_RETRY_DELAY_MS = 5000;
+    private static final int RETRY_BACKOFF_BASE = 2;
+    private static final String CONNECTION_REQUEST_ID_PREFIX = "connreq";
 
     private final XmppConnection connection;
 
@@ -138,7 +140,7 @@ public class ConnectionRequestManager {
 
     private Iq buildConnectionRequestIq(String cpeJid, String username, String password) {
         return new Iq.Builder(Iq.Type.SET)
-                .id(StanzaIdGenerator.newId("connreq"))
+                .id(StanzaIdGenerator.newId(CONNECTION_REQUEST_ID_PREFIX))
                 .to(cpeJid)
                 .childElement(new ConnectionRequest(username, password))
                 .build();
@@ -167,7 +169,7 @@ public class ConnectionRequestManager {
         return waitForConnection()
                 .thenCompose(v -> sendConnectionRequest(cpeJid, username, password))
                 .exceptionallyCompose(throwable -> {
-                    Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
+                    Throwable cause = unwrap(throwable);
 
                     if (!isRetryableError(cause)) {
                         log.error("Non-retryable error, giving up: {}", cause.getMessage());
@@ -179,7 +181,7 @@ public class ConnectionRequestManager {
                         return CompletableFuture.failedFuture(throwable);
                     }
 
-                    long delaySeconds = (long) Math.pow(2, currentRetry - 1);
+                    long delaySeconds = (long) Math.pow(RETRY_BACKOFF_BASE, currentRetry - 1);
                     log.warn("Retrying ConnectionRequest to {} in {} seconds (attempt {}/{})",
                             cpeJid, delaySeconds, currentRetry + 1, maxRetries);
 

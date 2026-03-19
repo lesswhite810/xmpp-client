@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 @UtilityClass
 public class SslUtils {
 
-    private static final int DEFAULT_HANDSHAKE_TIMEOUT_SECONDS = XmppConstants.SSL_HANDSHAKE_TIMEOUT_SECONDS;
+    private static final String TLS_PROTOCOL = "TLS";
 
     /**
      * 根据客户端配置创建 {@link SslHandler}。
@@ -42,7 +42,7 @@ public class SslUtils {
             log.debug("Creating SslHandler");
             validateTlsAuthenticationConfig(config);
 
-            SSLContext sslContext = SSLContext.getInstance("TLS");
+            SSLContext sslContext = SSLContext.getInstance(TLS_PROTOCOL);
 
             TrustManager[] trustManagers = config.getCustomTrustManager();
             KeyManager[] keyManagers = config.getKeyManagers();
@@ -66,7 +66,7 @@ public class SslUtils {
 
             int handshakeTimeout = config.getHandshakeTimeoutMs() > 0
                     ? config.getHandshakeTimeoutMs()
-                    : Math.toIntExact(TimeUnit.SECONDS.toMillis(DEFAULT_HANDSHAKE_TIMEOUT_SECONDS));
+                    : Math.toIntExact(TimeUnit.SECONDS.toMillis(XmppConstants.SSL_HANDSHAKE_TIMEOUT_SECONDS));
             sslHandler.setHandshakeTimeoutMillis(handshakeTimeout);
 
             log.debug("SslHandler created successfully");

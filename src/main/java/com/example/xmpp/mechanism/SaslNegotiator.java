@@ -30,11 +30,6 @@ import java.util.Base64;
 public class SaslNegotiator {
 
     /**
-     * UTF-8 编码时每个字符的最大字节数，用于预估发送缓冲区大小。
-     */
-    private static final int UTF8_MAX_BYTES_PER_CHAR = XmppConstants.UTF8_MAX_BYTES_PER_CHAR;
-
-    /**
      * Base64 编码器。
      */
     private static final Base64.Encoder BASE64_ENCODER = Base64.getEncoder();
@@ -56,7 +51,7 @@ public class SaslNegotiator {
      * @throws XmppAuthException 如果认证启动失败
      */
     public ChannelFuture start() throws XmppAuthException {
-        if ("PLAIN".equals(mechanism.getMechanismName()) && !isTlsEncrypted()) {
+        if (XmppConstants.SASL_MECH_PLAIN.equals(mechanism.getMechanismName()) && !isTlsEncrypted()) {
             throw new XmppAuthException("PLAIN authentication requires TLS encryption. Please enable TLS before authenticating.");
         }
 
@@ -137,7 +132,7 @@ public class SaslNegotiator {
             String xmlString = element.toXml();
             log.debug("Sending SASL stanza: {}", SecurityUtils.summarizeXml(xmlString));
 
-            int bufferSize = xmlString.length() * UTF8_MAX_BYTES_PER_CHAR;
+            int bufferSize = xmlString.length() * XmppConstants.UTF8_MAX_BYTES_PER_CHAR;
             ByteBuf buf = ctx.alloc().buffer(bufferSize);
             buf.writeCharSequence(xmlString, StandardCharsets.UTF_8);
             final ByteBuf bufToWrite = buf;

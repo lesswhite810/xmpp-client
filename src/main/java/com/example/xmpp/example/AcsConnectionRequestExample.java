@@ -12,6 +12,7 @@ import com.example.xmpp.exception.XmppStanzaErrorException;
 import com.example.xmpp.logic.ConnectionRequestManager;
 import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.XmppStanza;
+import com.example.xmpp.util.XmppConstants;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.CompletableFuture;
@@ -27,7 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class AcsConnectionRequestExample {
 
     private static final int MAX_RETRY_COUNT = 3;
-    private static final long REQUEST_TIMEOUT_MS = 30000;
+    private static final long REQUEST_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(XmppConstants.DEFAULT_IQ_TIMEOUT_SECONDS);
 
     private final XmppConnection connection;
     private final ConnectionRequestManager requestManager;
@@ -109,7 +110,7 @@ public class AcsConnectionRequestExample {
     public static void main(String[] args) {
         XmppClientConfig config = XmppClientConfig.builder()
                 .host("acs.example.com")
-                .port(5222)
+                .port(XmppConstants.DEFAULT_XMPP_PORT)
                 .username("acs-admin")
                 .password("acs-password".toCharArray())
                 .xmppServiceDomain("example.com")
@@ -140,8 +141,8 @@ public class AcsConnectionRequestExample {
                     });
 
             // 方式二：发送请求并自动重试
-            example.sendConnectionRequestWithRetry(cpeJid, "cpe-username", "cpe-password", 3)
-                    .get(60, TimeUnit.SECONDS);
+            example.sendConnectionRequestWithRetry(cpeJid, "cpe-username", "cpe-password", MAX_RETRY_COUNT)
+                    .get(XmppConstants.DEFAULT_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         } catch (XmppAuthException e) {
             log.error("ACS 认证失败，请检查凭据配置", e);

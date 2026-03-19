@@ -27,9 +27,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public final class ReconnectionManager {
 
-    private static final int BASE_DELAY_SECONDS = XmppConstants.RECONNECT_BASE_DELAY_SECONDS;
-
-    private static final int MAX_DELAY_SECONDS = XmppConstants.RECONNECT_MAX_DELAY_SECONDS;
+    private static final int MAX_EXPONENTIAL_SHIFT = 30;
 
     private final XmppConnection connection;
 
@@ -143,8 +141,9 @@ public final class ReconnectionManager {
      * @return 延迟秒数
      */
     private int calculateReconnectDelay(int retryIndex) {
-        long exponentialDelay = (long) BASE_DELAY_SECONDS * (1L << Math.min(retryIndex, 30));
-        return (int) Math.min(exponentialDelay, MAX_DELAY_SECONDS);
+        long exponentialDelay = (long) XmppConstants.RECONNECT_BASE_DELAY_SECONDS
+                * (1L << Math.min(retryIndex, MAX_EXPONENTIAL_SHIFT));
+        return (int) Math.min(exponentialDelay, XmppConstants.RECONNECT_MAX_DELAY_SECONDS);
     }
 
     /**

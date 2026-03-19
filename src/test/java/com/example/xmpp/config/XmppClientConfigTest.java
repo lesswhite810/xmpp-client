@@ -4,6 +4,8 @@ import com.example.xmpp.util.XmppConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.TimeUnit;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -22,6 +24,7 @@ class XmppClientConfigTest {
         assertTrue(config.isSendPresence());
         assertFalse(config.isReconnectionEnabled());
         assertFalse(config.isPingEnabled());
+        assertEquals(XmppConstants.DEFAULT_PING_INTERVAL_SECONDS, config.getPingInterval());
         assertNotNull(config.getPassword());
         assertEquals(0, config.getPassword().length);
     }
@@ -32,7 +35,7 @@ class XmppClientConfigTest {
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .host("xmpp.example.com")
-                .port(5223)
+                .port(XmppConstants.DIRECT_TLS_PORT)
                 .resource("mobile")
                 .username("user")
                 .password("pass".toCharArray())
@@ -85,9 +88,9 @@ class XmppClientConfigTest {
         XmppClientConfig config = XmppClientConfig.builder()
                 .build();
 
-        assertEquals(30000, config.getConnectTimeout());
-        assertEquals(60000, config.getReadTimeout());
-        assertEquals(10000, config.getHandshakeTimeoutMs());
+        assertEquals(TimeUnit.SECONDS.toMillis(XmppConstants.DEFAULT_CONNECT_TIMEOUT_SECONDS), config.getConnectTimeout());
+        assertEquals(TimeUnit.SECONDS.toMillis(XmppConstants.DEFAULT_READ_TIMEOUT_SECONDS), config.getReadTimeout());
+        assertEquals(TimeUnit.SECONDS.toMillis(XmppConstants.SSL_HANDSHAKE_TIMEOUT_SECONDS), config.getHandshakeTimeoutMs());
     }
 
     @Test
@@ -133,8 +136,7 @@ class XmppClientConfigTest {
         assertFalse(config.isSendPresence());
     }
 
-    @Test
-    private <T> boolean contains(T[] array, T value) {
+    private static <T> boolean contains(T[] array, T value) {
         for (T t : array) {
             if (t == value) {
                 return true;

@@ -34,8 +34,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public abstract class AbstractXmppConnection implements XmppConnection {
 
-    private static final long DEFAULT_IQ_TIMEOUT_SECONDS = XmppConstants.DEFAULT_IQ_TIMEOUT_SECONDS;
-
 
     protected final Queue<AsyncStanzaCollector> collectors = new ConcurrentLinkedQueue<>();
 
@@ -248,7 +246,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      */
     @Override
     public CompletableFuture<XmppStanza> sendIqPacketAsync(Iq iq) {
-        return sendIqPacketAsync(iq, DEFAULT_IQ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        return sendIqPacketAsync(iq, XmppConstants.DEFAULT_IQ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
     /**

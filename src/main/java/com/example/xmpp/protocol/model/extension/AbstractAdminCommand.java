@@ -19,6 +19,10 @@ import java.util.Map;
 @Setter
 public abstract class AbstractAdminCommand implements ExtensionElement {
     public static final String ELEMENT = "command";
+    private static final String FIELD_ELEMENT = "field";
+    private static final String VALUE_ELEMENT = "value";
+    private static final String VAR_ATTRIBUTE = "var";
+    private static final String TYPE_ATTRIBUTE = "type";
 
     /**
      * Ad-Hoc Commands 命令命名空间。
@@ -125,8 +129,8 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
         if (var == null || var.isBlank()) {
             throw new IllegalArgumentException("var must not be null or blank");
         }
-        xml.wrapElement("field", Map.of("var", var, "type", "hidden"),
-                fieldXml -> fieldXml.wrapElement("value", value));
+        xml.wrapElement(FIELD_ELEMENT, Map.of(VAR_ATTRIBUTE, var, TYPE_ATTRIBUTE, "hidden"),
+                fieldXml -> fieldXml.wrapElement(VALUE_ELEMENT, value));
     }
 
     /**
@@ -138,8 +142,8 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
      */
     protected void appendField(XmlStringBuilder xml, String var, String value) {
         if (value != null) {
-            xml.wrapElement("field", Map.of("var", var),
-                    fieldXml -> fieldXml.wrapElement("value", value));
+            xml.wrapElement(FIELD_ELEMENT, Map.of(VAR_ATTRIBUTE, var),
+                    fieldXml -> fieldXml.wrapElement(VALUE_ELEMENT, value));
         }
     }
 }

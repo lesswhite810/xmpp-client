@@ -22,6 +22,7 @@ import com.example.xmpp.protocol.model.stream.StreamHeader;
 import com.example.xmpp.protocol.model.stream.TlsElements.StartTls;
 import com.example.xmpp.protocol.model.stream.TlsElements.TlsProceed;
 import com.example.xmpp.util.StanzaIdGenerator;
+import com.example.xmpp.util.XmppConstants;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.ssl.SslHandler;
@@ -40,7 +41,6 @@ import java.util.Set;
  */
 @Slf4j
 public enum XmppHandlerState implements HandlerState {
-
     INITIAL {
         @Override
         public boolean canTransitionTo(XmppHandlerState target) {
@@ -173,7 +173,7 @@ public enum XmppHandlerState implements HandlerState {
         }
 
         private void startResolvedSaslAuthentication(StateContext context, ChannelHandlerContext ctx, SaslMechanism mechanism) {
-            if ("PLAIN".equals(mechanism.getMechanismName()) && !isSecureConnection(ctx, context.getConfig())) {
+            if (XmppConstants.SASL_MECH_PLAIN.equals(mechanism.getMechanismName()) && !isSecureConnection(ctx, context.getConfig())) {
                 log.warn("PLAIN SASL mechanism requires TLS encryption. Current connection is not secure.");
                 context.closeConnectionOnError(ctx, "PLAIN mechanism requires TLS encryption");
                 return;
@@ -200,7 +200,7 @@ public enum XmppHandlerState implements HandlerState {
                     .build();
 
             Iq bindIq = new Iq.Builder(Iq.Type.SET)
-                    .id(StanzaIdGenerator.newId("bind"))
+                    .id(StanzaIdGenerator.newId(BIND_STANZA_ID_PREFIX))
                     .childElement(bind)
                     .build();
             transitionAfterSuccessfulWrite(context, ctx,
@@ -397,6 +397,8 @@ public enum XmppHandlerState implements HandlerState {
             return target == CONNECTING;
         }
     };
+
+    private static final String BIND_STANZA_ID_PREFIX = "bind";
 
     @Override
     public String getName() {
