@@ -15,6 +15,46 @@ import static org.junit.jupiter.api.Assertions.*;
 class ExtensionComprehensiveTest {
 
     @Nested
+    @DisplayName("AbstractAdminCommand 测试")
+    class AbstractAdminCommandTests {
+
+        @Test
+        @DisplayName("appendHiddenField 在 var 为 null 时应抛出异常")
+        void testAppendHiddenFieldShouldRejectNullVar() {
+            TestAdminCommand command = new TestAdminCommand();
+
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> command.appendHiddenField(new com.example.xmpp.util.XmlStringBuilder(), null, "value"));
+
+            assertEquals("var must not be null or blank", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("appendHiddenField 在 var 为空白时应抛出异常")
+        void testAppendHiddenFieldShouldRejectBlankVar() {
+            TestAdminCommand command = new TestAdminCommand();
+
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> command.appendHiddenField(new com.example.xmpp.util.XmlStringBuilder(), "   ", "value"));
+
+            assertEquals("var must not be null or blank", exception.getMessage());
+        }
+
+        private static final class TestAdminCommand extends AbstractAdminCommand {
+
+            @Override
+            protected String getCommandNode() {
+                return "test:node";
+            }
+
+            @Override
+            protected void appendFields(com.example.xmpp.util.XmlStringBuilder xml) {
+                // no-op
+            }
+        }
+    }
+
+    @Nested
     @DisplayName("AddUser 测试")
     class AddUserTests {
 

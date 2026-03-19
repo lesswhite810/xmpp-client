@@ -116,10 +116,14 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
      * 添加隐藏字段。
      *
      * @param xml   XML 构建器
-     * @param var   字段名
+     * @param var   字段名，不能为空或空白
      * @param value 字段值
+     * @throws IllegalArgumentException 如果 {@code var} 为 null 或空白
      */
     protected void appendHiddenField(XmlStringBuilder xml, String var, String value) {
+        if (var == null || var.isBlank()) {
+            throw new IllegalArgumentException("var must not be null or blank");
+        }
         xml.wrapElement("field", Map.of("var", var, "type", "hidden"),
                 fieldXml -> fieldXml.wrapElement("value", value));
     }
