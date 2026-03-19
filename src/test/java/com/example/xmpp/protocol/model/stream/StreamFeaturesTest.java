@@ -65,6 +65,25 @@ class StreamFeaturesTest {
     }
 
     @Test
+    @DisplayName("toXml 应使用统一常量生成 STARTTLS、SASL 和 Bind 元素")
+    void testToXmlShouldUseSharedConstants() {
+        StreamFeatures features = StreamFeatures.builder()
+                .starttlsAvailable(true)
+                .starttlsRequired(true)
+                .mechanism("SCRAM-SHA-256")
+                .bindAvailable(true)
+                .build();
+
+        String result = features.toXml();
+
+        assertTrue(result.contains("<stream:features>"));
+        assertTrue(result.contains("<starttls xmlns=\"urn:ietf:params:xml:ns:xmpp-tls\"><required/></starttls>"));
+        assertTrue(result.contains("<mechanisms xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\"><mechanism>SCRAM-SHA-256</mechanism></mechanisms>"));
+        assertTrue(result.contains("<bind xmlns=\"urn:ietf:params:xml:ns:xmpp-bind\"/>"));
+        assertTrue(result.contains("</stream:features>"));
+    }
+
+    @Test
     @DisplayName("getElementName 应返回 features")
     void testGetElementName() {
         StreamFeatures features = StreamFeatures.builder().build();
