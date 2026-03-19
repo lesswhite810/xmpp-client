@@ -4,9 +4,7 @@ import com.example.xmpp.util.EnumUtils;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -47,34 +45,6 @@ public final class Presence extends Stanza {
         this.show = builder.show;
         this.status = builder.status;
         this.priority = builder.priority;
-    }
-
-    /**
-     * 完整构造器。
-     *
-     * @param type Presence 类型
-     * @param id 唯一标识符
-     * @param from 发送方 JID
-     * @param to 接收方 JID
-     * @param show 状态显示
-     * @param status 状态描述
-     * @param priority 优先级
-     * @param extensions 扩展元素
-     */
-    public Presence(Type type, String id, String from, String to, String show, String status, Integer priority,
-            List<ExtensionElement> extensions) {
-        super(id, from, to, extensions);
-        this.type = type != null ? type : Type.AVAILABLE;
-        this.show = show;
-        this.status = status;
-        this.priority = priority;
-    }
-
-    /**
-     * 空构造器，用于解析时创建实例。
-     */
-    public Presence() {
-        this(Type.AVAILABLE, null, null, null, null, null, null, null);
     }
 
     /**

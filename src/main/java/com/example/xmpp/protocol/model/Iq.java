@@ -77,32 +77,6 @@ public final class Iq extends Stanza {
     }
 
     /**
-     * 空构造器，用于解析时创建实例。
-     */
-    public Iq() {
-        this(Type.GET, null, null, null, null, null);
-    }
-
-    /**
-     * 完整构造器。
-     *
-     * @param type IQ 类型
-     * @param id 唯一标识符
-     * @param from 发送方 JID
-     * @param to 接收方 JID
-     * @param childElement IQ 子元素
-     * @param error 错误元素
-     */
-    public Iq(Type type, String id, String from, String to, ExtensionElement childElement, XmppError error) {
-        super(id, from, to, childElement != null || error != null
-                ? consolidateExtensions(childElement, error, null)
-                : null);
-        this.type = type != null ? type : Type.GET;
-        this.childElement = childElement;
-        this.error = error;
-    }
-
-    /**
      * 创建错误响应。
      *
      * <p>根据请求 IQ 创建对应的错误响应节。</p>

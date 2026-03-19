@@ -4,9 +4,7 @@ import com.example.xmpp.util.EnumUtils;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -47,34 +45,6 @@ public final class Message extends Stanza {
         this.thread = builder.thread;
     }
     
-    /**
-     * 完整构造器。
-     *
-     * @param type Message 类型
-     * @param id 唯一标识符
-     * @param from 发送方 JID
-     * @param to 接收方 JID
-     * @param body 消息主体
-     * @param subject 消息主题
-     * @param thread 会话线程标识
-     * @param extensions 扩展元素
-     */
-    public Message(Type type, String id, String from, String to, String body, String subject, String thread,
-            List<ExtensionElement> extensions) {
-        super(id, from, to, extensions);
-        this.type = type != null ? type : Type.NORMAL;
-        this.body = body;
-        this.subject = subject;
-        this.thread = thread;
-    }
-
-    /**
-     * 空构造器，用于解析时创建实例。
-     */
-    public Message() {
-        this(Type.NORMAL, null, null, null, null, null, null, null);
-    }
-
     /**
      * 判断是否为聊天类型。
      *

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,6 +15,23 @@ import static org.junit.jupiter.api.Assertions.*;
  * Stanza 模型类全面测试。
  */
 class StanzaModelTest {
+
+    @Test
+    @DisplayName("Message、Iq、Presence 不应暴露 public 构造器")
+    void testStanzaConstructorsAreNotPublic() {
+        assertFalse(hasPublicConstructor(Message.class));
+        assertFalse(hasPublicConstructor(Iq.class));
+        assertFalse(hasPublicConstructor(Presence.class));
+    }
+
+    private boolean hasPublicConstructor(Class<?> type) {
+        for (var constructor : type.getDeclaredConstructors()) {
+            if (Modifier.isPublic(constructor.getModifiers())) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     @Nested
     @DisplayName("Iq 测试")
@@ -123,9 +141,9 @@ class StanzaModelTest {
         }
 
         @Test
-        @DisplayName("Iq 空构造器应正常工作")
-        void testIqEmptyConstructor() {
-            Iq iq = new Iq();
+        @DisplayName("Iq Builder 默认构建应正常工作")
+        void testIqBuilderDefaultConstruction() {
+            Iq iq = new Iq.Builder(Iq.Type.GET).build();
             assertNotNull(iq);
             assertEquals(Iq.Type.GET, iq.getType());
         }

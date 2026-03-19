@@ -342,7 +342,7 @@ public enum XmppHandlerState implements HandlerState {
             }
             log.debug("Sending initial presence");
             transitionAfterSuccessfulWrite(context, ctx,
-                    context.sendStanza(ctx, new Presence()),
+                    context.sendStanza(ctx, new Presence.Builder().build()),
                     "send initial presence",
                     () -> activateSession(context, ctx));
         }
