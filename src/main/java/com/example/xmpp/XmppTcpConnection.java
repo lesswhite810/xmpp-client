@@ -74,7 +74,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * 创建 TCP XMPP 连接。
      *
      * @param config 客户端配置
-     * @throws IllegalArgumentException 如果 {@code config} 为 {@code null}
+     * @throws IllegalArgumentException 如果 config 为 null
      */
     public XmppTcpConnection(XmppClientConfig config) {
         this.config = Objects.requireNonNull(config, "XmppClientConfig must not be null");
@@ -372,7 +372,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * 判断通道是否属于当前连接。
      *
      * @param candidate 待检查的通道
-     * @return 如果是当前活动通道则返回 {@code true}
+     * @return 如果是当前活动通道则返回 true
      */
     public synchronized boolean isCurrentChannel(Channel candidate) {
         return candidate != null && candidate == channel;
@@ -382,7 +382,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      * 将新激活的通道绑定到当前连接。
      *
      * @param candidate 待绑定的活动通道
-     * @return 如果绑定成功或通道本就属于当前连接则返回 {@code true}
+     * @return 如果绑定成功或通道本就属于当前连接则返回 true
      */
     public synchronized boolean bindActiveChannel(Channel candidate) {
         if (candidate == null) {
@@ -486,7 +486,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     /**
      * 判断底层通道是否仍处于活动状态。
      *
-     * @return 如果通道仍然活跃则返回 {@code true}
+     * @return 如果通道仍然活跃则返回 true
      */
     @Override
     public boolean isConnected() {
@@ -496,7 +496,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     /**
      * 判断当前连接是否已经完成认证。
      *
-     * @return 如果连接已完成认证则返回 {@code true}
+     * @return 如果连接已完成认证则返回 true
      */
     @Override
     public boolean isAuthenticated() {

@@ -92,7 +92,7 @@ public final class XmppConstants {
 
     public static final String SASL_MECH_PLAIN = "PLAIN";
 
-    public static final long DEFAULT_IQ_TIMEOUT_SECONDS = 30;
+    public static final long DEFAULT_IQ_TIMEOUT_SECONDS = 30L;
 
     public static final int DEFAULT_XML_BUILDER_CAPACITY = 256;
 

@@ -79,7 +79,7 @@ public class XmppClientConfig {
     /**
      * 显式配置的 XMPP 服务器端口。
      *
-     * <p>Builder 原始默认值为 {@code 0}，表示未显式配置。实际生效端口由 {@link #getPort()}
+     * <p>Builder 原始默认值为 0，表示未显式配置。实际生效端口由 {@link #getPort()}
      * 按连接模式计算：普通模式使用 5222，Direct TLS 模式使用 5223。</p>
      */
     @Builder.Default
@@ -102,7 +102,7 @@ public class XmppClientConfig {
     /**
      * 显式配置的 TCP 连接建立超时时间（毫秒）。
      *
-     * <p>Builder 原始默认值为 {@code 0}，表示未显式配置。实际生效值由
+     * <p>Builder 原始默认值为 0，表示未显式配置。实际生效值由
      * {@link #getConnectTimeout()} 返回，未显式配置时使用
      * {@link XmppConstants#DEFAULT_CONNECT_TIMEOUT_SECONDS} 换算后的毫秒值。</p>
      */
@@ -112,7 +112,7 @@ public class XmppClientConfig {
     /**
      * 显式配置的读超时时间（毫秒）。
      *
-     * <p>用于连接建立后的服务端响应等待与通道读空闲检测。Builder 原始默认值为 {@code 0}，
+     * <p>用于连接建立后的服务端响应等待与通道读空闲检测。Builder 原始默认值为 0，
      * 表示未显式配置。实际生效值由 {@link #getReadTimeout()} 返回，未显式配置时使用
      * {@link XmppConstants#DEFAULT_READ_TIMEOUT_SECONDS} 换算后的毫秒值。</p>
      */
@@ -198,7 +198,7 @@ public class XmppClientConfig {
     /**
      * 是否使用 Direct TLS。
      *
-     * <p>Builder 原始默认值为 {@code false}，表示优先走 STARTTLS 升级流程。</p>
+     * <p>Builder 原始默认值为 false，表示优先走 STARTTLS 升级流程。</p>
      */
     @Builder.Default
     private boolean usingDirectTLS = false;
@@ -206,7 +206,7 @@ public class XmppClientConfig {
     /**
      * 显式配置的 SSL 握手超时时间（毫秒）。
      *
-     * <p>Builder 原始默认值为 {@code 0}，表示未显式配置。实际生效值由
+     * <p>Builder 原始默认值为 0，表示未显式配置。实际生效值由
      * {@link #getHandshakeTimeoutMs()} 返回，未显式配置时使用
      * {@link XmppConstants#SSL_HANDSHAKE_TIMEOUT_SECONDS} 换算后的毫秒值。</p>
      */
@@ -252,7 +252,7 @@ public class XmppClientConfig {
     /**
      * 获取 XML 语言标签。
      *
-     * @return RFC 5646 语言标签；如果未设置或无法确定则返回 {@code null}
+     * @return RFC 5646 语言标签；如果未设置或无法确定则返回 null
      */
     public String getXmlLang() {
         return Optional.ofNullable(language)
@@ -264,7 +264,7 @@ public class XmppClientConfig {
     /**
      * 获取当前实际生效的端口号。
      *
-     * @return 显式配置端口；若原始字段值为 {@code 0}，则普通模式返回 5222，Direct TLS 模式返回 5223
+     * @return 显式配置端口；若原始字段值为 0，则普通模式返回 5222，Direct TLS 模式返回 5223
      */
     public int getPort() {
         if (port > 0) {
@@ -276,7 +276,7 @@ public class XmppClientConfig {
     /**
      * 获取当前实际生效的连接超时时间。
      *
-     * @return 显式配置值；若原始字段值为 {@code 0}，则返回
+     * @return 显式配置值；若原始字段值为 0，则返回
      * {@link XmppConstants#DEFAULT_CONNECT_TIMEOUT_SECONDS} 换算后的毫秒值
      */
     public int getConnectTimeout() {
@@ -288,7 +288,7 @@ public class XmppClientConfig {
     /**
      * 获取当前实际生效的读超时时间。
      *
-     * @return 显式配置值；若原始字段值为 {@code 0}，则返回
+     * @return 显式配置值；若原始字段值为 0，则返回
      * {@link XmppConstants#DEFAULT_READ_TIMEOUT_SECONDS} 换算后的毫秒值
      */
     public int getReadTimeout() {
@@ -300,7 +300,7 @@ public class XmppClientConfig {
     /**
      * 获取当前实际生效的 SSL 握手超时时间。
      *
-     * @return 显式配置值；若原始字段值为 {@code 0}，则返回
+     * @return 显式配置值；若原始字段值为 0，则返回
      * {@link XmppConstants#SSL_HANDSHAKE_TIMEOUT_SECONDS} 换算后的毫秒值
      */
     public int getHandshakeTimeoutMs() {

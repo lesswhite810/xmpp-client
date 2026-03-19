@@ -63,7 +63,7 @@ public class StreamHeader implements ExtensionElement {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 {@code stream}
+     * @return 固定返回 stream
      */
     @Override
     public String getElementName() {

@@ -9,10 +9,9 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 
 /**
- * ConnectionRequest 扩展 Provider，处理 TR-069 连接请求扩展元素。
+ * ConnectionRequest 扩展 Provider。
  *
  * @since 2026-03-18
- * @see ConnectionRequest
  */
 public final class ConnectionRequestProvider extends AbstractProvider<ConnectionRequest> {
 
@@ -39,7 +38,7 @@ public final class ConnectionRequestProvider extends AbstractProvider<Connection
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 {@code connectionRequest}
+     * @return 固定返回 connectionRequest
      */
     @Override
     public String getElementName() {
@@ -58,14 +57,6 @@ public final class ConnectionRequestProvider extends AbstractProvider<Connection
 
     /**
      * 解析 ConnectionRequest 元素。
-     *
-     * <p>ConnectionRequest 格式：
-     * <pre>{@code
-     * <connectionRequest xmlns="urn:broadband-forum-org:cwmp:xmppConnReq-1-0">
-     *   <username>...</username>
-     *   <password>...</password>
-     * </connectionRequest>
-     * }</pre>
      *
      * @param reader XMLEventReader，用于读取 XML 事件流
      * @return 解析后的 ConnectionRequest 实例

@@ -37,7 +37,7 @@ public record SaslChallenge(String content) implements ExtensionElement {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 {@code challenge}
+     * @return 固定返回 challenge
      */
     @Override
     public String getElementName() {

@@ -10,9 +10,9 @@ import com.example.xmpp.util.XmlStringBuilder;
  *
  * 常见的 XMPP 扩展实现包括：
  * <ul>
- *   <li>{@code <bind>} - 资源绑定（RFC 6121）</li>
- *   <li>{@code <session>} - 会话建立（RFC 6121）</li>
- *   <li>{@code <ping>} - Ping 请求（XEP-0199）</li>
+ *   <li><bind> - 资源绑定（RFC 6121）</li>
+ *   <li><session> - 会话建立（RFC 6121）</li>
+ *   <li><ping> - Ping 请求（XEP-0199）</li>
  * </ul>
  *
  * @since 2026-02-12

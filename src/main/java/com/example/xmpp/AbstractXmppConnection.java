@@ -63,7 +63,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * 注销 IQ 请求处理器。
      *
      * @param handler 待移除的处理器
-     * @return 如果处理器被移除则返回 {@code true}
+     * @return 如果处理器被移除则返回 true
      */
     @Override
     public final boolean unregisterIqRequestHandler(IqRequestHandler handler) {
@@ -84,7 +84,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * 分发收到的 IQ 请求。
      *
      * @param iq 入站 IQ stanza
-     * @return 如果请求已被处理则返回 {@code true}
+     * @return 如果请求已被处理则返回 true
      */
     public boolean handleIqRequest(Iq iq) {
         if (iq.getType() != Iq.Type.GET && iq.getType() != Iq.Type.SET) {
@@ -231,7 +231,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
      * 移除 stanza collector。
      *
      * @param collector 待移除的 collector
-     * @return 如果 collector 被移除则返回 {@code true}
+     * @return 如果 collector 被移除则返回 true
      */
     @Override
     public boolean removeStanzaCollector(AsyncStanzaCollector collector) {

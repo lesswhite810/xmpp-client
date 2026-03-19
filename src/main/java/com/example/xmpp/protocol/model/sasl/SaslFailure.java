@@ -27,7 +27,7 @@ public record SaslFailure(String condition, String text) implements ExtensionEle
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 {@code failure}
+     * @return 固定返回 failure
      */
     @Override
     public String getElementName() {

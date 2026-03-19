@@ -27,7 +27,7 @@ public record SaslSuccess(String content) implements ExtensionElement {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 {@code success}
+     * @return 固定返回 success
      */
     @Override
     public String getElementName() {

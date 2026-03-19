@@ -77,7 +77,7 @@ public final class XmppEventBus {
      * @param connection 连接实例
      * @param handlers 事件类型到处理器的映射
      * @return 取消所有订阅的 Runnable
-     * @throws IllegalArgumentException 如果 connection 为 {@code null}
+     * @throws IllegalArgumentException 如果 connection 为 null
      */
     public Runnable subscribeAll(XmppConnection connection,
                                  Map<ConnectionEventType, Consumer<ConnectionEvent>> handlers) {
@@ -153,7 +153,7 @@ public final class XmppEventBus {
      *
      * @param connection 关联的连接
      * @param eventType 事件类型
-     * @param error 附带异常，可为 {@code null}
+     * @param error 附带异常，可为 null
      */
     public void publish(XmppConnection connection, ConnectionEventType eventType, Exception error) {
         ConnectionEvent event = new ConnectionEvent(connection, eventType, error);

@@ -56,7 +56,7 @@ public class ConnectionRequest implements ExtensionElement {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 {@code connectionRequest}
+     * @return 固定返回 connectionRequest
      */
     @Override
     public String getElementName() {

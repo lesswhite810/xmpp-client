@@ -22,40 +22,13 @@ import java.util.concurrent.*;
 /**
  * ACS 连接请求管理器。
  *
- * <p>实现 Broadband Forum TR-069 CWMP XMPP 扩展的 ACS（Auto-Configuration Server）端功能，
- * 允许 ACS 主动向 CPE（Customer Premises Equipment）发送连接请求，触发 CPE 回连。</p>
- *
- * <p>使用方式：
- * <pre>{@code
- * ConnectionRequestManager manager = new ConnectionRequestManager(acsConnection);
- *
- * // 发送请求
- * manager.sendConnectionRequest("cpe@example.com", "username", "password")
- *     .thenAccept(response -> log.info("成功"))
- *     .exceptionally(throwable -> {
- *         // 处理异常
- *         return null;
- *     });
- *
- * // 发送请求并自动重试
- * manager.sendConnectionRequestWithRetry("cpe@example.com", "username", "password", 3);
- * }</pre>
- *
- * <p>异常处理：
- * <ul>
- *   <li>{@link TimeoutException} - 超时</li>
- *   <li>{@link XmppAuthException} - CPE 认证失败 (NOT_AUTHORIZED)</li>
- *   <li>{@link XmppStanzaErrorException} - CPE 离线 (RECIPIENT_UNAVAILABLE)</li>
- *   <li>{@link ConnectException} - ACS 连接断开</li>
- * </ul>
- *
  * @since 2026-03-18
  */
 @Slf4j
 public class ConnectionRequestManager {
 
-    private static final long DEFAULT_TIMEOUT_MS = 30000;
-    private static final long DEFAULT_RETRY_DELAY_MS = 5000;
+    private static final long DEFAULT_TIMEOUT_MS = 30000L;
+    private static final long DEFAULT_RETRY_DELAY_MS = 5000L;
     private static final int RETRY_BACKOFF_BASE = 2;
     private static final String CONNECTION_REQUEST_ID_PREFIX = "connreq";
 

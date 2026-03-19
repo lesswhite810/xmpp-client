@@ -42,7 +42,7 @@ public class StreamError implements ExtensionElement {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 {@code error}
+     * @return 固定返回 error
      */
     @Override
     public String getElementName() {
@@ -136,7 +136,7 @@ public class StreamError implements ExtensionElement {
          * 从字符串解析 Condition。
          *
          * @param name 条件名称，如 "bad-format"、"not-authorized"
-         * @return 对应的 Condition 枚举值；如果无法解析或参数为 {@code null}，则返回 {@link #UNDEFINED_CONDITION}
+         * @return 对应的 Condition 枚举值；如果无法解析或参数为 null，则返回 {@link #UNDEFINED_CONDITION}
          */
         public static Condition fromString(String name) {
             if (name == null) {

@@ -10,9 +10,9 @@ import com.example.xmpp.protocol.model.ExtensionElement;
  *
  * <p>示例：</p>
  * <ul>
- *   <li>Ping 扩展: {@code <ping xmlns="urn:xmpp:ping"/>}</li>
- *   <li>Bind 扩展: {@code <bind xmlns="urn:ietf:params:xml:ns:xmpp-bind">...</bind>}</li>
- *   <li>延迟信息: {@code <x xmlns="jabber:x:delay">...</x>}</li>
+ *   <li>Ping 扩展: <ping xmlns="urn:xmpp:ping"/></li>
+ *   <li>Bind 扩展: <bind xmlns="urn:ietf:params:xml:ns:xmpp-bind">...</bind></li>
+ *   <li>延迟信息: <x xmlns="jabber:x:delay">...</x></li>
  * </ul>
  *
  * @param <T> 扩展元素类型

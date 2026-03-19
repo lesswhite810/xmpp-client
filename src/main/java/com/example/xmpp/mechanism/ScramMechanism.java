@@ -71,7 +71,7 @@ public abstract class ScramMechanism implements SaslMechanism {
      *
      * <p>设置为 4,096 以保持与大多数 XMPP 服务器的兼容性。如果服务器返回的迭代次数低于此值，认证将失败。</p>
      *
-     * <p>注意：OWASP 2023 建议至少 600,000 次迭代。可通过系统属性 {@code xmpp.scram.minIterations=600000} 提高安全性。</p>
+     * <p>注意：OWASP 2023 建议至少 600,000 次迭代。可通过系统属性 xmpp.scram.minIterations=600000 提高安全性。</p>
      */
     private static final int MIN_ITERATIONS = 4_096;
 
@@ -85,7 +85,7 @@ public abstract class ScramMechanism implements SaslMechanism {
     /**
      * 实际使用的最小迭代次数，可通过系统属性配置。
      *
-     * <p>系统属性：{@code xmpp.scram.minIterations}</p>
+     * <p>系统属性：xmpp.scram.minIterations</p>
      * <p>默认值：4096（RFC 7677，兼容大多数服务器）</p>
      * <p>安全建议：600000（OWASP 2023 推荐）</p>
      */

@@ -422,7 +422,7 @@ public enum XmppHandlerState implements HandlerState {
      * 判断当前状态是否可以切换到目标状态。
      *
      * @param target 目标状态
-     * @return 如果允许切换则返回 {@code true}
+     * @return 如果允许切换则返回 true
      */
     public abstract boolean canTransitionTo(XmppHandlerState target);
 

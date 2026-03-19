@@ -59,7 +59,7 @@ public class XmlStringBuilder {
     /**
      * 包装元素内容。
      *
-     * <p>生成形如 {@code <name>content</name>} 的完整元素。字符串内容会自动转义。</p>
+     * <p>生成形如 <name>content</name> 的完整元素。字符串内容会自动转义。</p>
      *
      * @param name    元素名称
      * @param content 元素内容，null 将按空内容处理
@@ -72,7 +72,7 @@ public class XmlStringBuilder {
     /**
      * 包装带命名空间的元素内容。
      *
-     * <p>生成形如 {@code <name xmlns="namespace">content</name>} 的完整元素。字符串内容会自动转义。</p>
+     * <p>生成形如 <name xmlns="namespace">content</name> 的完整元素。字符串内容会自动转义。</p>
      *
      * @param name      元素名称
      * @param namespace 命名空间 URI，null 值将不添加 xmlns 属性
@@ -86,7 +86,7 @@ public class XmlStringBuilder {
     /**
      * 包装元素内容（使用 Consumer 构建子元素）。
      *
-     * <p>生成形如 {@code <name>content</name>} 的完整元素。使用 Consumer 可以链式添加多个子元素。</p>
+     * <p>生成形如 <name>content</name> 的完整元素。使用 Consumer 可以链式添加多个子元素。</p>
      *
      * @param name    元素名称
      * @param content Consumer 用于构建元素内容
@@ -99,7 +99,7 @@ public class XmlStringBuilder {
     /**
      * 包装带命名空间的元素内容（使用 Consumer 构建子元素）。
      *
-     * <p>生成形如 {@code <name xmlns="namespace">content</name>} 的完整元素。使用 Consumer 可以链式添加多个子元素。</p>
+     * <p>生成形如 <name xmlns="namespace">content</name> 的完整元素。使用 Consumer 可以链式添加多个子元素。</p>
      *
      * @param name      元素名称
      * @param namespace 命名空间 URI，null 值将不添加 xmlns 属性

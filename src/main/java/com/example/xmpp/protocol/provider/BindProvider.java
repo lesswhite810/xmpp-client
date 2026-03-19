@@ -32,7 +32,7 @@ public final class BindProvider extends AbstractProvider<Bind> {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 {@code bind}
+     * @return 固定返回 bind
      */
     @Override
     public String getElementName() {

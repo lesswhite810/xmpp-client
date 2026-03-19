@@ -65,7 +65,7 @@ public class GenericExtensionElement implements ExtensionElement {
      * 获取属性值。
      *
      * @param name 属性名
-     * @return 属性值；如果属性不存在则返回 {@code null}
+     * @return 属性值；如果属性不存在则返回 null
      */
     public String getAttributeValue(String name) {
         return attributes.get(name);

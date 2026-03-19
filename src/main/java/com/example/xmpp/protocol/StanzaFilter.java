@@ -17,7 +17,7 @@ public interface StanzaFilter {
      * 判断收集器是否应该接受并处理此节。
      *
      * @param stanza 要检查的 XMPP 节
-     * @return 如果节应该被处理则返回 {@code true}，否则返回 {@code false}
+     * @return 如果节应该被处理则返回 true，否则返回 false
      */
     boolean accept(XmppStanza stanza);
 }

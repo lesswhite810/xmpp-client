@@ -5,9 +5,9 @@ package com.example.xmpp.protocol.model;
  *
  * XMPP 节是 XMPP 通信的基本单元，包含三种核心节类型：
  * <ul>
- *   <li>{@code <iq>} - 信息/查询，用于请求和响应</li>
- *   <li>{@code <message>} - 消息，用于推送消息</li>
- *   <li>{@code <presence>} - 在线状态，用于Presence通知</li>
+ *   <li><iq> - 信息/查询，用于请求和响应</li>
+ *   <li><message> - 消息，用于推送消息</li>
+ *   <li><presence> - 在线状态，用于Presence通知</li>
  * </ul>
  *
  * 此接口定义了所有 XMPP 节共有的属性，包括唯一标识符（id）、

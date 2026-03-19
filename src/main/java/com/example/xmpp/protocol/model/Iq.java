@@ -81,8 +81,8 @@ public final class Iq extends Stanza {
      *
      * <p>根据请求 IQ 创建对应的错误响应节。</p>
      *
-     * @param request 请求 IQ，不能为 {@code null}
-     * @param error 错误信息，不能为 {@code null}
+     * @param request 请求 IQ，不能为 null
+     * @param error 错误信息，不能为 null
      * @return 错误响应 IQ
      * @throws NullPointerException 如果 request 或 error 为 null
      */
@@ -101,7 +101,7 @@ public final class Iq extends Stanza {
      *
      * <p>根据请求 IQ 创建对应的结果响应节。</p>
      *
-     * @param request 请求 IQ，不能为 {@code null}
+     * @param request 请求 IQ，不能为 null
      * @param childElement 子元素（可选）
      * @return 结果响应 IQ
      * @throws NullPointerException 如果 request 为 null

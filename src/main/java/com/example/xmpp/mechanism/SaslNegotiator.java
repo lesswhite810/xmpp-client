@@ -19,8 +19,8 @@ import java.util.Base64;
 /**
  * SASL 认证协商器。
  *
- * <p>负责驱动 SASL 认证过程，包括发送初始 {@code auth}、处理服务端
- * {@code challenge}、校验最终 {@code success}，并将认证阶段的报文发送逻辑
+ * <p>负责驱动 SASL 认证过程，包括发送初始 auth、处理服务端
+ * challenge、校验最终 success，并将认证阶段的报文发送逻辑
  * 从连接状态机中解耦出来。</p>
  *
  * @since 2026-02-09
@@ -103,7 +103,7 @@ public class SaslNegotiator {
      * 处理服务端返回的 SASL 成功结果。
      *
      * @param contentB64 Base64 编码的成功附加数据，可能为空
-     * @return 如果认证已经完成则返回 {@code true}
+     * @return 如果认证已经完成则返回 true
      * @throws XmppAuthException 如果成功结果校验失败
      */
     public boolean handleSuccess(String contentB64) throws XmppAuthException {
@@ -160,7 +160,7 @@ public class SaslNegotiator {
     /**
      * 检查当前通道是否已经完成 TLS 加密握手。
      *
-     * @return 如果当前通道已加密则返回 {@code true}
+     * @return 如果当前通道已加密则返回 true
      */
     private boolean isTlsEncrypted() {
         return ctx.pipeline().get(SslHandler.class) != null

@@ -56,7 +56,7 @@ public class SecurityUtils {
      * <p>避免创建中间 String 对象，提高安全性。</p>
      *
      * @param chars 字符数组
-     * @return 字节数组；如果输入为 {@code null}，则返回空字节数组
+     * @return 字节数组；如果输入为 null，则返回空字节数组
      */
     public static byte[] toBytes(char[] chars) {
         if (chars == null) {
@@ -83,7 +83,7 @@ public class SecurityUtils {
     /**
      * 生成 XML 日志摘要。
      *
-     * <p>仅保留元素名、命名空间以及 {@code id}、{@code type}、{@code from}、{@code to}
+     * <p>仅保留元素名、命名空间以及 id、type、from、to
      * 等结构信息。</p>
      *
      * @param xml 原始 XML 字符串
@@ -152,7 +152,7 @@ public class SecurityUtils {
      * </ul>
      *
      * @param input 原始字符串
-     * @return 转义后的字符串；如果输入为 {@code null} 则返回 {@code null}
+     * @return 转义后的字符串；如果输入为 null 则返回 null
      */
     public static String escapeXmlAttribute(String input) {
         if (input == null || input.isEmpty()) {

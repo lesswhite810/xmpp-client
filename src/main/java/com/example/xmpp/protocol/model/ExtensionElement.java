@@ -40,7 +40,7 @@ public interface ExtensionElement extends XmlSerializable {
      * <p>QName（Qualified Name）由命名空间 URI 和本地名称组成，
      * 用于在 XML 解析时唯一标识元素。</p>
      *
-     * @return QName，格式为 {@code {namespace}localName}
+     * @return QName，格式为 {namespacelocalName}
      */
     default QName getQName() {
         return new QName(getNamespace(), getElementName());

@@ -28,7 +28,7 @@ public final class PingProvider extends AbstractProvider<Ping> {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 {@code ping}
+     * @return 固定返回 ping
      */
     @Override
     public String getElementName() {

@@ -175,7 +175,7 @@ public class PingFunctionalityTest {
 
             int requestCount = 3;
             int successCount = 0;
-            long totalTime = 0;
+            long totalTime = 0L;
 
             for (int i = 0; i < requestCount; i++) {
                 String pingId = "ping_test_3_" + i + "_" + System.currentTimeMillis();

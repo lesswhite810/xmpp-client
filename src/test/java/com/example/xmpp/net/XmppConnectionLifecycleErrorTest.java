@@ -54,21 +54,21 @@ class XmppConnectionLifecycleErrorTest {
 
     private static final int TEST_READ_TIMEOUT_MS = 1000;
 
-    private static final long TEST_LATCH_TIMEOUT_SECONDS = 2;
+    private static final long TEST_LATCH_TIMEOUT_SECONDS = 2L;
 
-    private static final long TEST_RECONNECT_TIMEOUT_SECONDS = 7;
+    private static final long TEST_RECONNECT_TIMEOUT_SECONDS = 7L;
 
-    private static final long TEST_WAIT_TIMEOUT_MS = 3000;
+    private static final long TEST_WAIT_TIMEOUT_MS = 3000L;
 
-    private static final long TEST_SETTLE_TIMEOUT_MS = 600;
+    private static final long TEST_SETTLE_TIMEOUT_MS = 600L;
 
-    private static final long TEST_WAIT_POLL_INTERVAL_MS = 20;
+    private static final long TEST_WAIT_POLL_INTERVAL_MS = 20L;
 
     private static final int TEST_SERVER_SOCKET_TIMEOUT_MS = 1000;
 
     private static final int TEST_DISCONNECT_RETRY_COUNT = 30;
 
-    private static final long TEST_DISCONNECT_POLL_INTERVAL_MS = 50;
+    private static final long TEST_DISCONNECT_POLL_INTERVAL_MS = 50L;
 
     @BeforeEach
     void setUp() {

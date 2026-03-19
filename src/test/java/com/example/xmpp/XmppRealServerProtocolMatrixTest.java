@@ -55,7 +55,7 @@ class XmppRealServerProtocolMatrixTest {
     private static final int DIRECT_TLS_PORT = 5223;
     private static final String ADMIN_USERNAME = "admin";
     private static final String ADMIN_PASSWORD = "admin";
-    private static final long DEFAULT_TIMEOUT_SECONDS = 30;
+    private static final long DEFAULT_TIMEOUT_SECONDS = 30L;
 
     private static final X509TrustManager TRUST_ALL_MANAGER = new X509TrustManager() {
         @Override

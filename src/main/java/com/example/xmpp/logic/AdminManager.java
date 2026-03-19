@@ -30,7 +30,7 @@ import java.util.function.Supplier;
 @Getter
 public class AdminManager {
 
-    private static final long DEFAULT_TIMEOUT_MS = 15000;
+    private static final long DEFAULT_TIMEOUT_MS = 15000L;
 
     private static final String ATTR_SESSION_ID = "sessionid";
 

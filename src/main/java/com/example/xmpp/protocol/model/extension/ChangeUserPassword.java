@@ -11,7 +11,7 @@ import org.apache.commons.lang3.StringUtils;
  * <p>用于修改 XMPP 服务上指定用户的密码。
  * 使用 Ad-Hoc Commands (XEP-0050) 和 Data Forms (XEP-0004) 格式。</p>
  *
- * <p>节点: {@code http://jabber.org/protocol/admin#change-user-password}</p>
+ * <p>节点: http://jabber.org/protocol/admin#change-user-password</p>
  *
  * @since 2026-03-08
  */

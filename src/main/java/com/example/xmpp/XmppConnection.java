@@ -47,7 +47,7 @@ public interface XmppConnection {
      *
      * <p>注意：此方法仅检查 TCP 连接状态，不保证 XMPP 流已打开。</p>
      *
-     * @return 如果连接已建立并激活返回 {@code true}，否则返回 {@code false}
+     * @return 如果连接已建立并激活返回 true，否则返回 false
      */
     boolean isConnected();
 
@@ -56,7 +56,7 @@ public interface XmppConnection {
      *
      * <p>只有当 SASL 认证成功且资源绑定完成后才返回 true。</p>
      *
-     * @return 如果已认证返回 {@code true}，否则返回 {@code false}
+     * @return 如果已认证返回 true，否则返回 false
      */
     boolean isAuthenticated();
 
@@ -64,9 +64,9 @@ public interface XmppConnection {
      * 发送 XMPP 节。
      *
      * <p>实现类会尽力发送该节。
-     * 如果节为 {@code null} 或连接不可用，通常会拒绝发送并记录日志；该方法本身不向调用方返回发送结果。</p>
+     * 如果节为 null 或连接不可用，通常会拒绝发送并记录日志；该方法本身不向调用方返回发送结果。</p>
      *
-     * @param stanza 要发送的节，不能为 {@code null}
+     * @param stanza 要发送的节，不能为 null
      */
     void sendStanza(XmppStanza stanza);
 
@@ -76,7 +76,7 @@ public interface XmppConnection {
      * <p>调用方需要为 IQ 节预先设置非空 ID。
      * 该方法会等待服务器返回 RESULT 或 ERROR 类型的响应。</p>
      *
-     * @param iq 要发送的 IQ 节，不能为 {@code null}，必须包含非空 ID
+     * @param iq 要发送的 IQ 节，不能为 null，必须包含非空 ID
      * @return {@link CompletableFuture}，完成时包含响应节；
      *         如果超时或出错则 exceptionally 完成
      * @throws IllegalArgumentException 如果 iq 为 null 或 ID 为空
@@ -89,9 +89,9 @@ public interface XmppConnection {
      * <p>调用方需要为 IQ 节预先设置非空 ID。
      * 该方法会等待服务器返回 RESULT 或 ERROR 类型的响应。</p>
      *
-     * @param iq 要发送的 IQ 节，不能为 {@code null}，必须包含非空 ID
+     * @param iq 要发送的 IQ 节，不能为 null，必须包含非空 ID
      * @param timeout 超时时间，必须大于 0
-     * @param unit 超时时间单位，不能为 {@code null}
+     * @param unit 超时时间单位，不能为 null
      * @return {@link CompletableFuture}，完成时包含响应节；
      *         如果超时或出错则 exceptionally 完成
      * @throws IllegalArgumentException 如果 iq 为 null、ID 为空、timeout 非法或 unit 为 null
@@ -106,7 +106,7 @@ public interface XmppConnection {
      *
      * <p>每个连接最多只能注册一个相同 (element, namespace, iqType) 组合的处理器。</p>
      *
-     * @param handler IQ 请求处理器，不能为 {@code null}
+     * @param handler IQ 请求处理器，不能为 null
      * @throws IllegalArgumentException 如果已存在相同 (element, namespace, iqType) 的处理器
      */
     void registerIqRequestHandler(IqRequestHandler handler);
@@ -116,15 +116,15 @@ public interface XmppConnection {
      *
      * <p>如果处理器不存在，此方法不会抛出异常。</p>
      *
-     * @param handler 要注销的处理器，不能为 {@code null}
-     * @return 如果处理器存在并被移除返回 {@code true}，否则返回 {@code false}
+     * @param handler 要注销的处理器，不能为 null
+     * @return 如果处理器存在并被移除返回 true，否则返回 false
      */
     boolean unregisterIqRequestHandler(IqRequestHandler handler);
 
     /**
      * 获取连接配置。
      *
-     * @return 客户端配置对象，永不为 {@code null}
+     * @return 客户端配置对象，永不为 null
      */
     XmppClientConfig getConfig();
 
@@ -134,7 +134,7 @@ public interface XmppConnection {
      * <p>创建一个带有指定过滤器的异步节收集器，用于等待匹配的响应节。
      * 收集器会被自动注册到连接的收集器队列中，以便接收传入的节。</p>
      *
-     * @param filter 节过滤器，不能为 {@code null}
+     * @param filter 节过滤器，不能为 null
      * @return 新创建的收集器
      */
     AsyncStanzaCollector createStanzaCollector(StanzaFilter filter);
@@ -144,8 +144,8 @@ public interface XmppConnection {
      *
      * <p>从连接的收集器队列中移除指定的收集器。</p>
      *
-     * @param collector 要移除的收集器，不能为 {@code null}
-     * @return 如果收集器存在并被移除返回 {@code true}
+     * @param collector 要移除的收集器，不能为 null
+     * @return 如果收集器存在并被移除返回 true
      */
     boolean removeStanzaCollector(AsyncStanzaCollector collector);
 }

@@ -57,7 +57,7 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 {@code command}
+     * @return 固定返回 command
      */
     @Override
     public String getElementName() {
@@ -123,7 +123,7 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
      * @param xml   XML 构建器
      * @param var   字段名，不能为空或空白
      * @param value 字段值
-     * @throws IllegalArgumentException 如果 {@code var} 为 null 或空白
+     * @throws IllegalArgumentException 如果 var 为 null 或空白
      */
     protected void appendHiddenField(XmlStringBuilder xml, String var, String value) {
         if (var == null || var.isBlank()) {

@@ -6,15 +6,6 @@ import lombok.Getter;
 /**
  * 管理命令执行异常。
  *
- * <p>当 XEP-0133 管理命令执行失败时抛出此异常。包含服务器返回的错误 IQ 响应，
- * 调用者可以通过 {@link #getErrorResponse()} 获取详细错误信息。</p>
- *
- * <h3>异常类型</h3>
- * <ul>
- *   <li>服务器返回 IQ ERROR 响应（如权限不足、命令不支持等）</li>
- *   <li>命令执行过程中缺少必要数据（如无 session ID）</li>
- * </ul>
- *
  * @since 2026-03-09
  */
 public class AdminCommandException extends XmppException {

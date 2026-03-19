@@ -41,7 +41,7 @@ class XmppRealServerBehaviorVerificationTest {
     private static final int PORT = 5222;
     private static final String ADMIN_USERNAME = "admin";
     private static final String ADMIN_PASSWORD = "admin";
-    private static final long DEFAULT_TIMEOUT_SECONDS = 30;
+    private static final long DEFAULT_TIMEOUT_SECONDS = 30L;
 
     private final List<XmppTcpConnection> openedConnections = new ArrayList<>();
 

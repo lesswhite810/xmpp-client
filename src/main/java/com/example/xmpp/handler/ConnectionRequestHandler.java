@@ -10,30 +10,7 @@ import java.util.function.Consumer;
 /**
  * CPE 连接请求处理器。
  *
- * <p>处理来自 ACS（Auto-Configuration Server）的 ConnectionRequest，
- * 解析请求中的认证信息，并通过回调触发 CPE 主动回连到 ACS。</p>
- *
- * <p>使用方式：
- * <pre>{@code
- * // CPE 端注册处理器
- * ConnectionRequestHandler handler = new ConnectionRequestHandler(
- *     connectionRequest -> {
- *         // 触发 CPE 主动回连 ACS
- *         XmppClientConfig config = XmppClientConfig.builder()
- *             .host(acsHost)
- *             .port(acsPort)
- *             .username(connectionRequest.getUsername())
- *             .password(connectionRequest.getPassword().toCharArray())
- *             .build();
- *         XmppTcpConnection acsConnection = new XmppTcpConnection(config);
- *         acsConnection.connect();
- *     }
- * );
- * connection.registerIqRequestHandler(handler);
- * }</pre>
- *
  * @since 2026-03-18
- * @see ConnectionRequest
  */
 @Slf4j
 public class ConnectionRequestHandler implements IqRequestHandler {
@@ -96,7 +73,7 @@ public class ConnectionRequestHandler implements IqRequestHandler {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 {@code connectionRequest}
+     * @return 固定返回 connectionRequest
      */
     @Override
     public String getElement() {

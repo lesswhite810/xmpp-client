@@ -67,7 +67,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     /**
      * 判断连接是否已经完成认证。
      *
-     * @return 如果已进入已认证状态则返回 {@code true}
+     * @return 如果已进入已认证状态则返回 true
      */
     public boolean isAuthenticated() {
         StateContext ctx = this.stateContext;
@@ -78,7 +78,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
      * 判断当前通道是否已经不属于当前连接生命周期。
      *
      * @param ctx Netty 通道上下文
-     * @return 如果通道已陈旧或连接正在关闭则返回 {@code true}
+     * @return 如果通道已陈旧或连接正在关闭则返回 true
      */
     private boolean isStaleChannel(ChannelHandlerContext ctx) {
         return !connection.isCurrentChannel(ctx.channel());

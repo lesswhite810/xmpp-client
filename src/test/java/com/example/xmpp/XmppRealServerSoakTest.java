@@ -41,7 +41,7 @@ class XmppRealServerSoakTest {
     private static final int PORT = 5222;
     private static final String ADMIN_USERNAME = "admin";
     private static final String ADMIN_PASSWORD = "admin";
-    private static final long DEFAULT_TIMEOUT_SECONDS = 30;
+    private static final long DEFAULT_TIMEOUT_SECONDS = 30L;
     private static final int REQUEST_LOOP_COUNT = 25;
     private static final int RECONNECT_LOOP_COUNT = 12;
     private static final int USER_LIFECYCLE_LOOP_COUNT = 6;
