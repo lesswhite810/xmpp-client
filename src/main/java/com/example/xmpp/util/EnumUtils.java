@@ -33,9 +33,7 @@ public final class EnumUtils {
         try {
             return Optional.of(Enum.valueOf(enumClass, value.toUpperCase()));
         } catch (IllegalArgumentException e) {
-            return Optional.empty();
-        } catch (Exception e) {
-            log.warn("Unexpected error while parsing enum value '{}' for class {}", value, enumClass, e);
+            log.warn("Failed to parse enum value '{}' for class {}: {}", value, enumClass.getSimpleName(), e.getMessage());
             return Optional.empty();
         }
     }

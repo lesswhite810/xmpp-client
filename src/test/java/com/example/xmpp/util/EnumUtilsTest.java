@@ -22,10 +22,15 @@ class EnumUtilsTest {
     }
 
     @Test
-    void testFromStringReturnsEmptyWhenUnexpectedExceptionOccurs() {
-        Optional<SampleEnum> result = EnumUtils.fromString(null, "alpha");
+    void testFromStringReturnsEmptyWhenValueIsInvalid() {
+        Optional<SampleEnum> result = EnumUtils.fromString(SampleEnum.class, "missing");
 
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testFromStringThrowsWhenEnumClassIsNull() {
+        assertThrows(NullPointerException.class, () -> EnumUtils.fromString(null, "alpha"));
     }
 
     private enum SampleEnum {
