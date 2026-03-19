@@ -3,6 +3,7 @@ package com.example.xmpp.protocol.model.extension;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * XEP-0133: Service Administration - 添加用户命令。
@@ -61,8 +62,14 @@ public class AddUser extends AbstractAdminCommand {
      * @param email    要添加的用户邮箱地址
      */
     public AddUser(String username, String password, String email) {
-        this.username = requireNonBlank(username, "username");
-        this.password = requireNonBlank(password, "password");
+        if (!StringUtils.isNotBlank(username)) {
+            throw new IllegalArgumentException("username must not be null or blank");
+        }
+        if (!StringUtils.isNotBlank(password)) {
+            throw new IllegalArgumentException("password must not be null or blank");
+        }
+        this.username = username;
+        this.password = password;
         this.email = email;
         this.action = ACTION_COMPLETE;
     }
@@ -101,18 +108,17 @@ public class AddUser extends AbstractAdminCommand {
 
     @Override
     protected void appendFields(XmlStringBuilder xml) {
-        appendField(xml, "accountjid", requireNonBlank(username, "username"));
-        appendField(xml, "password", requireNonBlank(password, "password"));
+        if (!StringUtils.isNotBlank(username)) {
+            throw new IllegalArgumentException("username must not be null or blank");
+        }
+        if (!StringUtils.isNotBlank(password)) {
+            throw new IllegalArgumentException("password must not be null or blank");
+        }
+        appendField(xml, "accountjid", username);
+        appendField(xml, "password", password);
         appendField(xml, "password-verify", password);
         if (email != null) {
             appendField(xml, "email", email);
         }
-    }
-
-    private static String requireNonBlank(String value, String fieldName) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " must not be null or blank");
-        }
-        return value;
     }
 }

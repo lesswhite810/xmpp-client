@@ -3,6 +3,7 @@ package com.example.xmpp.protocol.model.extension;
 import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * TR-069 连接请求扩展元素，用于 CPE (Customer Premises Equipment) 管理。
@@ -42,8 +43,14 @@ public class ConnectionRequest implements ExtensionElement {
      */
     @lombok.Builder
     public ConnectionRequest(String username, String password) {
-        this.username = requireNonBlank(username, "username");
-        this.password = requireNonBlank(password, "password");
+        if (!StringUtils.isNotBlank(username)) {
+            throw new IllegalArgumentException("username must not be null or blank");
+        }
+        if (!StringUtils.isNotBlank(password)) {
+            throw new IllegalArgumentException("password must not be null or blank");
+        }
+        this.username = username;
+        this.password = password;
     }
 
     /**
@@ -79,12 +86,5 @@ public class ConnectionRequest implements ExtensionElement {
                     xml.wrapElement("password", password);
                 })
                 .toString();
-    }
-
-    private static String requireNonBlank(String value, String fieldName) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " must not be null or blank");
-        }
-        return value;
     }
 }

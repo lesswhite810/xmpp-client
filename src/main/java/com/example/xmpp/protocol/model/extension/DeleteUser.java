@@ -3,6 +3,7 @@ package com.example.xmpp.protocol.model.extension;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * XEP-0133: Service Administration - 删除用户命令。
@@ -39,7 +40,10 @@ public class DeleteUser extends AbstractAdminCommand {
      * @param accountJid 要删除的用户账户 JID
      */
     public DeleteUser(String accountJid) {
-        this.accountJid = requireNonBlank(accountJid, "accountJid");
+        if (!StringUtils.isNotBlank(accountJid)) {
+            throw new IllegalArgumentException("accountJid must not be null or blank");
+        }
+        this.accountJid = accountJid;
         this.action = ACTION_COMPLETE;
     }
 
@@ -75,14 +79,10 @@ public class DeleteUser extends AbstractAdminCommand {
 
     @Override
     protected void appendFields(XmlStringBuilder xml) {
-        xml.wrapElement("field", java.util.Map.of("var", "accountjids"),
-                fieldXml -> fieldXml.wrapElement("value", requireNonBlank(accountJid, "accountJid")));
-    }
-
-    private static String requireNonBlank(String value, String fieldName) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " must not be null or blank");
+        if (!StringUtils.isNotBlank(accountJid)) {
+            throw new IllegalArgumentException("accountJid must not be null or blank");
         }
-        return value;
+        xml.wrapElement("field", java.util.Map.of("var", "accountjids"),
+                fieldXml -> fieldXml.wrapElement("value", accountJid));
     }
 }

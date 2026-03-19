@@ -3,6 +3,7 @@ package com.example.xmpp.protocol.model.extension;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * XEP-0133: Service Administration - 修改用户密码命令。
@@ -47,8 +48,14 @@ public class ChangeUserPassword extends AbstractAdminCommand {
      * @param newPassword 新密码
      */
     public ChangeUserPassword(String accountJid, String newPassword) {
-        this.accountJid = requireNonBlank(accountJid, "accountJid");
-        this.newPassword = requireNonBlank(newPassword, "newPassword");
+        if (!StringUtils.isNotBlank(accountJid)) {
+            throw new IllegalArgumentException("accountJid must not be null or blank");
+        }
+        if (!StringUtils.isNotBlank(newPassword)) {
+            throw new IllegalArgumentException("newPassword must not be null or blank");
+        }
+        this.accountJid = accountJid;
+        this.newPassword = newPassword;
         this.action = ACTION_COMPLETE;
     }
 
@@ -85,14 +92,13 @@ public class ChangeUserPassword extends AbstractAdminCommand {
 
     @Override
     protected void appendFields(XmlStringBuilder xml) {
-        appendField(xml, "accountjid", requireNonBlank(accountJid, "accountJid"));
-        appendField(xml, "password", requireNonBlank(newPassword, "newPassword"));
-    }
-
-    private static String requireNonBlank(String value, String fieldName) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " must not be null or blank");
+        if (!StringUtils.isNotBlank(accountJid)) {
+            throw new IllegalArgumentException("accountJid must not be null or blank");
         }
-        return value;
+        if (!StringUtils.isNotBlank(newPassword)) {
+            throw new IllegalArgumentException("newPassword must not be null or blank");
+        }
+        appendField(xml, "accountjid", accountJid);
+        appendField(xml, "password", newPassword);
     }
 }
