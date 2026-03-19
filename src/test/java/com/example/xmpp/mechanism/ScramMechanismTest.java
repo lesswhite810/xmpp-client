@@ -239,6 +239,27 @@ class ScramMechanismTest {
     }
 
     @Test
+    @DisplayName("测试非法 verifier Base64 应抛出异常")
+    void testInvalidVerifierBase64ThrowsException() throws SaslException {
+        byte[] clientFirst = mechanism.processChallenge(null);
+        String clientFirstMsg = new String(clientFirst, StandardCharsets.UTF_8);
+
+        Pattern noncePattern = Pattern.compile("r=([A-Za-z0-9_-]+)");
+        Matcher matcher = noncePattern.matcher(clientFirstMsg);
+        matcher.find();
+        String clientNonce = matcher.group(1);
+
+        String serverNonce = clientNonce + "ServerNonce";
+        String serverFirstMessage = String.format("r=%s,s=cmFuZG9tc2FsdA==,i=4096", serverNonce);
+        mechanism.processChallenge(serverFirstMessage.getBytes(StandardCharsets.UTF_8));
+
+        SaslException exception = assertThrows(SaslException.class,
+                () -> mechanism.processChallenge("v=%%%".getBytes(StandardCharsets.UTF_8)));
+
+        assertTrue(exception.getMessage().contains("Invalid server verifier"));
+    }
+
+    @Test
     @DisplayName("测试无效状态调用应抛出异常")
     void testInvalidStateThrowsException() throws SaslException {
         // 完成整个流程

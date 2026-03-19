@@ -1,5 +1,8 @@
 package com.example.xmpp.util;
 
+import com.example.xmpp.protocol.model.ExtensionElement;
+import com.example.xmpp.protocol.model.sasl.Auth;
+
 import java.io.StringReader;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -115,6 +118,25 @@ public class SecurityUtils {
                 }
             }
         }
+    }
+
+    /**
+     * 生成扩展元素日志摘要。
+     *
+     * @param element 扩展元素
+     * @return 摘要字符串
+     */
+    public static String summarizeExtensionElement(ExtensionElement element) {
+        if (element == null) {
+            return null;
+        }
+
+        StringBuilder summary = new StringBuilder(element.getElementName());
+        appendSummaryField(summary, "xmlns", emptyToNull(element.getNamespace()));
+        if (element instanceof Auth auth) {
+            appendSummaryField(summary, "mechanism", auth.mechanism());
+        }
+        return summary.toString();
     }
 
     private static String buildSummary(StartElement element) {

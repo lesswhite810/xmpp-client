@@ -6,7 +6,7 @@ import com.example.xmpp.protocol.model.sasl.Auth;
 import com.example.xmpp.protocol.model.sasl.SaslResponse;
 import com.example.xmpp.util.SecurityUtils;
 import com.example.xmpp.util.XmppConstants;
-import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.security.sasl.SaslException;
-import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 /**
@@ -39,6 +38,7 @@ public class SaslNegotiator {
      * Base64 解码器。
      */
     private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
+    private static final String EMPTY_SASL_CONTENT = "=";
 
     private final SaslMechanism mechanism;
     private final ChannelHandlerContext ctx;
@@ -59,16 +59,10 @@ public class SaslNegotiator {
         log.info("Authenticating with {}", mechanism.getMechanismName());
         String content = "";
         if (mechanism.hasInitialResponse()) {
-            byte[] init;
             try {
-                init = mechanism.processChallenge(null);
+                content = encodeSaslContent(mechanism.processChallenge(null));
             } catch (SaslException e) {
                 throw new XmppAuthException("Failed to generate initial response", e);
-            }
-            if (init != null) {
-                content = BASE64_ENCODER.encodeToString(init);
-            } else {
-                content = "=";
             }
         }
         try {
@@ -85,14 +79,19 @@ public class SaslNegotiator {
      * @throws XmppAuthException 如果挑战处理失败
      */
     public void handleChallenge(String contentB64) throws XmppAuthException {
-        byte[] cContent = BASE64_DECODER.decode(contentB64 != null ? contentB64 : "");
+        byte[] cContent;
+        try {
+            cContent = BASE64_DECODER.decode(contentB64 != null ? contentB64 : "");
+        } catch (IllegalArgumentException e) {
+            throw new XmppAuthException("Invalid challenge content", e);
+        }
         byte[] response;
         try {
             response = mechanism.processChallenge(cContent);
         } catch (SaslException e) {
             throw new XmppAuthException("Failed to process challenge", e);
         }
-        String responseB64 = BASE64_ENCODER.encodeToString(response);
+        String responseB64 = encodeSaslContent(response);
         try {
             sendStanza(new SaslResponse(responseB64));
         } catch (IllegalArgumentException e) {
@@ -111,6 +110,8 @@ public class SaslNegotiator {
         if (contentB64 != null && !contentB64.isEmpty()) {
             try {
                 mechanism.processChallenge(BASE64_DECODER.decode(contentB64));
+            } catch (IllegalArgumentException e) {
+                throw new XmppAuthException("Invalid success content", e);
             } catch (SaslException e) {
                 throw new XmppAuthException("Failed to verify server signature", e);
             }
@@ -131,24 +132,16 @@ public class SaslNegotiator {
     private ChannelFuture sendStanza(Object packet) throws XmppAuthException {
         if (packet instanceof ExtensionElement element) {
             String xmlString = element.toXml();
-            log.debug("Sending SASL stanza: {}", SecurityUtils.summarizeXml(xmlString));
+            log.debug("Sending SASL stanza: {}", SecurityUtils.summarizeExtensionElement(element));
 
-            int bufferSize = xmlString.length() * XmppConstants.UTF8_MAX_BYTES_PER_CHAR;
-            ByteBuf buf = ctx.alloc().buffer(bufferSize);
-            buf.writeCharSequence(xmlString, StandardCharsets.UTF_8);
-            final ByteBuf bufToWrite = buf;
-            ChannelFuture future = ctx.writeAndFlush(bufToWrite);
+            ChannelFuture future = ctx.writeAndFlush(ByteBufUtil.writeUtf8(ctx.alloc(), xmlString));
             future.addListener(result -> {
                 if (result.isSuccess()) {
                     log.debug("SASL stanza sent successfully");
                 } else {
                     log.debug("Failed to send SASL stanza", result.cause());
-                    if (bufToWrite.refCnt() > 0) {
-                        bufToWrite.release();
-                    }
-                    ctx.executor().execute(() ->
-                            ctx.pipeline().fireExceptionCaught(
-                                    new XmppAuthException("Failed to send SASL stanza", result.cause())));
+                    ctx.pipeline().fireExceptionCaught(
+                            new XmppAuthException("Failed to send SASL stanza", result.cause()));
                 }
             });
             return future;
@@ -158,15 +151,23 @@ public class SaslNegotiator {
         }
     }
 
+    private String encodeSaslContent(byte[] content) {
+        if (content == null || content.length == 0) {
+            return EMPTY_SASL_CONTENT;
+        }
+        return BASE64_ENCODER.encodeToString(content);
+    }
+
     /**
      * 检查当前通道是否已经完成 TLS 加密握手。
      *
      * @return 如果当前通道已加密则返回 true
      */
     private boolean isTlsEncrypted() {
-        return ctx.pipeline().get(SslHandler.class) != null
-                && ctx.pipeline().get(SslHandler.class).handshakeFuture().isDone()
-                && ctx.pipeline().get(SslHandler.class).handshakeFuture().isSuccess()
-                && !ctx.pipeline().get(SslHandler.class).handshakeFuture().isCancelled();
+        SslHandler sslHandler = ctx.pipeline().get(SslHandler.class);
+        return sslHandler != null
+                && sslHandler.handshakeFuture().isDone()
+                && sslHandler.handshakeFuture().isSuccess()
+                && !sslHandler.handshakeFuture().isCancelled();
     }
 }

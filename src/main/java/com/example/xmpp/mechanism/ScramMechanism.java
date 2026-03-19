@@ -309,7 +309,12 @@ public abstract class ScramMechanism implements SaslMechanism {
         byte[] serverKey = hmac(saltedPassword, SERVER_KEY_LABEL.getBytes(StandardCharsets.UTF_8));
         byte[] serverSignature = hmac(serverKey, authMessage.getBytes(StandardCharsets.UTF_8));
 
-        byte[] serverSignatureExpected = Base64.getDecoder().decode(verifierBase64);
+        byte[] serverSignatureExpected;
+        try {
+            serverSignatureExpected = Base64.getDecoder().decode(verifierBase64);
+        } catch (IllegalArgumentException e) {
+            throw new SaslException("Invalid server verifier", e);
+        }
 
         if (!MessageDigest.isEqual(serverSignature, serverSignatureExpected)) {
             SecurityUtils.clear(saltedPassword);

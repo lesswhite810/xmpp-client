@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
@@ -92,6 +93,10 @@ public class SaslMechanismFactory {
      * @param factory 机制工厂函数，接收用户名和密码（char[]），返回 SaslMechanism 实例
      */
     public void register(String name, int priority, BiFunction<String, char[], SaslMechanism> factory) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("name must not be null or blank");
+        }
+        Objects.requireNonNull(factory, "factory must not be null");
         registrationLock.lock();
         try {
             List<MechanismEntry> updated = new ArrayList<>(registeredMechanisms);
@@ -128,6 +133,9 @@ public class SaslMechanismFactory {
      */
     public Optional<SaslMechanism> createBestMechanism(List<String> serverMechanisms, Set<String> enabledMechanisms,
             String username, char[] password) {
+        if (serverMechanisms == null || serverMechanisms.isEmpty()) {
+            return Optional.empty();
+        }
         for (MechanismEntry entry : registeredMechanisms) {
             if (!serverMechanisms.contains(entry.name)) {
                 continue;

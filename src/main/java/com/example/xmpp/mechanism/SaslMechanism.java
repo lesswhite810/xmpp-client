@@ -34,7 +34,7 @@ public interface SaslMechanism {
      * <p>同时也用于生成初始响应（如果 challenge 为 null 或空）。</p>
      *
      * @param challenge 服务器发送的挑战数据（Base64 解码后），初次调用可能为 null
-     * @return 响应数据（Base64 编码前）
+     * @return 响应数据（Base64 编码前），不得返回 null；无内容时返回空字节数组
      * @throws SaslException 如果认证过程中发生错误，如挑战数据格式无效、状态非法或密钥派生失败
      */
     byte[] processChallenge(byte[] challenge) throws SaslException;

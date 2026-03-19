@@ -62,6 +62,14 @@ class CoreFunctionalityTest {
     }
 
     @Test
+    void testSaslMechanismFactoryReturnsEmptyWhenServerMechanismsMissing() {
+        SaslMechanismFactory factory = SaslMechanismFactory.getInstance();
+
+        assertTrue(factory.createBestMechanism(null, "user", "pass".toCharArray()).isEmpty());
+        assertTrue(factory.createBestMechanism(List.of(), "user", "pass".toCharArray()).isEmpty());
+    }
+
+    @Test
     void testPlainSaslMechanism() throws Exception {
         PlainSaslMechanism plain = new PlainSaslMechanism("testuser", "testpass".toCharArray());
         assertEquals("PLAIN", plain.getMechanismName());

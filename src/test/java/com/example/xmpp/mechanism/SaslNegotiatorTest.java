@@ -1,6 +1,8 @@
 package com.example.xmpp.mechanism;
 
 import com.example.xmpp.exception.XmppAuthException;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
@@ -13,6 +15,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 
 /**
@@ -34,6 +38,12 @@ class SaslNegotiatorTest {
 
     @Mock
     private Future<Channel> handshakeFuture;
+
+    @Mock
+    private ByteBufAllocator allocator;
+
+    @Mock
+    private ChannelFuture channelFuture;
 
     private AutoCloseable mocks;
 
@@ -61,5 +71,26 @@ class SaslNegotiatorTest {
         SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
 
         assertThrows(XmppAuthException.class, negotiator::start);
+    }
+
+    @Test
+    void testHandleChallengeTreatsNullMechanismResponseAsEmptySaslPayload() throws Exception {
+        when(mechanism.processChallenge(new byte[] {1, 2, 3})).thenReturn(null);
+        when(context.alloc()).thenReturn(allocator);
+        when(allocator.buffer(anyInt())).thenReturn(io.netty.buffer.Unpooled.buffer());
+        when(allocator.buffer(anyInt(), anyInt())).thenReturn(io.netty.buffer.Unpooled.buffer());
+        when(context.writeAndFlush(any())).thenReturn(channelFuture);
+        when(channelFuture.addListener(any())).thenReturn(channelFuture);
+
+        SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
+
+        negotiator.handleChallenge("AQID");
+    }
+
+    @Test
+    void testHandleChallengeRejectsInvalidBase64Content() {
+        SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
+
+        assertThrows(XmppAuthException.class, () -> negotiator.handleChallenge("%%%"));
     }
 }
