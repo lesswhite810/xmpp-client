@@ -147,16 +147,14 @@ class ExtensionBranchTest {
         }
 
         @Test
-        @DisplayName("ConnectionRequest.builder 应处理部分属性")
-        void testBuilderPartialProperties() {
-            ConnectionRequest req = ConnectionRequest.builder()
-                    .username("testuser")
-                    .build();
+        @DisplayName("ConnectionRequest.builder 在缺少 password 时应抛出异常")
+        void testBuilderShouldRejectMissingPassword() {
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> ConnectionRequest.builder()
+                            .username("testuser")
+                            .build());
 
-            String xml = req.toXml();
-            assertTrue(xml.contains("username"));
-            assertTrue(xml.contains("testuser"));
-            assertFalse(xml.contains("<password>"));
+            assertEquals("password must not be null or blank", exception.getMessage());
         }
     }
 
@@ -213,13 +211,12 @@ class ExtensionBranchTest {
         }
 
         @Test
-        @DisplayName("AddUser.toXml 应处理 null username")
-        void testAddUserToXmlNullUsername() {
-            AddUser addUser = new AddUser(null, "password");
-            String xml = addUser.toXml();
+        @DisplayName("AddUser 构造函数在 username 为 null 时应抛出异常")
+        void testAddUserConstructorShouldRejectNullUsername() {
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> new AddUser(null, "password"));
 
-            assertTrue(xml.contains("action=\"complete\""));
-            assertFalse(xml.contains("accountjid"));
+            assertEquals("username must not be null or blank", exception.getMessage());
         }
     }
 
@@ -238,13 +235,12 @@ class ExtensionBranchTest {
         }
 
         @Test
-        @DisplayName("ChangeUserPassword.toXml 应处理 null accountJid")
-        void testChangeUserPasswordToXmlNullAccountJid() {
-            ChangeUserPassword cmd = new ChangeUserPassword(null, "newpass");
-            String xml = cmd.toXml();
+        @DisplayName("ChangeUserPassword 构造函数在 accountJid 为 null 时应抛出异常")
+        void testChangeUserPasswordConstructorShouldRejectNullAccountJid() {
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> new ChangeUserPassword(null, "newpass"));
 
-            assertTrue(xml.contains("action=\"complete\""));
-            assertFalse(xml.contains("accountjid"));
+            assertEquals("accountJid must not be null or blank", exception.getMessage());
         }
     }
 
@@ -263,13 +259,12 @@ class ExtensionBranchTest {
         }
 
         @Test
-        @DisplayName("DeleteUser.toXml 应处理 null accountJid")
-        void testDeleteUserToXmlNullAccountJid() {
-            DeleteUser cmd = new DeleteUser(null);
-            String xml = cmd.toXml();
+        @DisplayName("DeleteUser 构造函数在 accountJid 为 null 时应抛出异常")
+        void testDeleteUserConstructorShouldRejectNullAccountJid() {
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> new DeleteUser(null));
 
-            assertTrue(xml.contains("action=\"complete\""));
-            assertFalse(xml.contains("accountjid"));
+            assertEquals("accountJid must not be null or blank", exception.getMessage());
         }
     }
 }

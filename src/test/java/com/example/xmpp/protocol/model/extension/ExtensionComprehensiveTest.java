@@ -155,6 +155,24 @@ class ExtensionComprehensiveTest {
             AddUser addUser = new AddUser();
             assertEquals(AddUser.NAMESPACE, addUser.getNamespace());
         }
+
+        @Test
+        @DisplayName("AddUser 构造函数在 username 为 null 时应抛出异常")
+        void testAddUserConstructorShouldRejectNullUsername() {
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> new AddUser(null, "password"));
+
+            assertEquals("username must not be null or blank", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("AddUser 构造函数在 password 为空白时应抛出异常")
+        void testAddUserConstructorShouldRejectBlankPassword() {
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> new AddUser("testuser", " "));
+
+            assertEquals("password must not be null or blank", exception.getMessage());
+        }
     }
 
     @Nested
@@ -220,6 +238,24 @@ class ExtensionComprehensiveTest {
             ChangeUserPassword cmd = new ChangeUserPassword();
             assertEquals("command", cmd.getElementName());
         }
+
+        @Test
+        @DisplayName("ChangeUserPassword 构造函数在 accountJid 为 null 时应抛出异常")
+        void testChangeUserPasswordConstructorShouldRejectNullAccountJid() {
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> new ChangeUserPassword(null, "newpass"));
+
+            assertEquals("accountJid must not be null or blank", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("ChangeUserPassword 构造函数在 newPassword 为空白时应抛出异常")
+        void testChangeUserPasswordConstructorShouldRejectBlankPassword() {
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> new ChangeUserPassword("user@domain.com", " "));
+
+            assertEquals("newPassword must not be null or blank", exception.getMessage());
+        }
     }
 
     @Nested
@@ -283,6 +319,24 @@ class ExtensionComprehensiveTest {
             DeleteUser cmd = new DeleteUser();
             assertEquals("command", cmd.getElementName());
         }
+
+        @Test
+        @DisplayName("DeleteUser 构造函数在 accountJid 为 null 时应抛出异常")
+        void testDeleteUserConstructorShouldRejectNullAccountJid() {
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> new DeleteUser(null));
+
+            assertEquals("accountJid must not be null or blank", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("DeleteUser 构造函数在 accountJid 为空白时应抛出异常")
+        void testDeleteUserConstructorShouldRejectBlankAccountJid() {
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> new DeleteUser(" "));
+
+            assertEquals("accountJid must not be null or blank", exception.getMessage());
+        }
     }
 
     @Nested
@@ -305,13 +359,33 @@ class ExtensionComprehensiveTest {
         }
 
         @Test
-        @DisplayName("ConnectionRequest.toXml 应处理空属性")
-        void testConnectionRequestToXmlEmpty() {
-            ConnectionRequest request = ConnectionRequest.builder().build();
+        @DisplayName("ConnectionRequest builder 在缺少必填字段时应抛出异常")
+        void testConnectionRequestBuilderShouldRejectMissingRequiredFields() {
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> ConnectionRequest.builder().build());
 
-            String xml = request.toXml();
-            assertTrue(xml.contains("<connectionRequest"));
-            assertTrue(xml.contains("/>") || xml.contains("</connectionRequest>"));
+            assertEquals("username must not be null or blank", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("ConnectionRequest 构造函数在 username 为 null 时应抛出异常")
+        void testConnectionRequestConstructorShouldRejectNullUsername() {
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> new ConnectionRequest(null, "secret"));
+
+            assertEquals("username must not be null or blank", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("ConnectionRequest builder 在 password 为空白时应抛出异常")
+        void testConnectionRequestBuilderShouldRejectBlankPassword() {
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                    () -> ConnectionRequest.builder()
+                            .username("device-123")
+                            .password(" ")
+                            .build());
+
+            assertEquals("password must not be null or blank", exception.getMessage());
         }
     }
 

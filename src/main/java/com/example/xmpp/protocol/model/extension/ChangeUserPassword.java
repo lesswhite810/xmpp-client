@@ -47,8 +47,8 @@ public class ChangeUserPassword extends AbstractAdminCommand {
      * @param newPassword 新密码
      */
     public ChangeUserPassword(String accountJid, String newPassword) {
-        this.accountJid = accountJid;
-        this.newPassword = newPassword;
+        this.accountJid = requireNonBlank(accountJid, "accountJid");
+        this.newPassword = requireNonBlank(newPassword, "newPassword");
         this.action = ACTION_COMPLETE;
     }
 
@@ -85,12 +85,14 @@ public class ChangeUserPassword extends AbstractAdminCommand {
 
     @Override
     protected void appendFields(XmlStringBuilder xml) {
-        if (accountJid != null) {
-            appendField(xml, "accountjid", accountJid);
-        }
+        appendField(xml, "accountjid", requireNonBlank(accountJid, "accountJid"));
+        appendField(xml, "password", requireNonBlank(newPassword, "newPassword"));
+    }
 
-        if (newPassword != null) {
-            appendField(xml, "password", newPassword);
+    private static String requireNonBlank(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must not be null or blank");
         }
+        return value;
     }
 }

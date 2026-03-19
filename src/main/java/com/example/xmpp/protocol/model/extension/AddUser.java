@@ -50,9 +50,7 @@ public class AddUser extends AbstractAdminCommand {
      * @param password 要添加的用户账户密码
      */
     public AddUser(String username, String password) {
-        this.username = username;
-        this.password = password;
-        this.action = ACTION_COMPLETE;
+        this(username, password, null);
     }
 
     /**
@@ -63,8 +61,8 @@ public class AddUser extends AbstractAdminCommand {
      * @param email    要添加的用户邮箱地址
      */
     public AddUser(String username, String password, String email) {
-        this.username = username;
-        this.password = password;
+        this.username = requireNonBlank(username, "username");
+        this.password = requireNonBlank(password, "password");
         this.email = email;
         this.action = ACTION_COMPLETE;
     }
@@ -103,16 +101,18 @@ public class AddUser extends AbstractAdminCommand {
 
     @Override
     protected void appendFields(XmlStringBuilder xml) {
-        if (username != null) {
-            appendField(xml, "accountjid", username);
-        }
-
-        if (password != null) {
-            appendField(xml, "password", password);
-            appendField(xml, "password-verify", password);
-        }
+        appendField(xml, "accountjid", requireNonBlank(username, "username"));
+        appendField(xml, "password", requireNonBlank(password, "password"));
+        appendField(xml, "password-verify", password);
         if (email != null) {
             appendField(xml, "email", email);
         }
+    }
+
+    private static String requireNonBlank(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must not be null or blank");
+        }
+        return value;
     }
 }

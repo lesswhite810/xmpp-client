@@ -2,7 +2,6 @@ package com.example.xmpp.protocol.model.extension;
 
 import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmlStringBuilder;
-import lombok.Builder;
 import lombok.Getter;
 
 /**
@@ -14,7 +13,6 @@ import lombok.Getter;
  * @since 2026-02-09
  */
 @Getter
-@Builder
 public class ConnectionRequest implements ExtensionElement {
     /**
      * 元素名称。
@@ -42,9 +40,10 @@ public class ConnectionRequest implements ExtensionElement {
      * @param username CPE 用户名，用于身份验证
      * @param password CPE 密码，用于身份验证
      */
+    @lombok.Builder
     public ConnectionRequest(String username, String password) {
-        this.username = username;
-        this.password = password;
+        this.username = requireNonBlank(username, "username");
+        this.password = requireNonBlank(password, "password");
     }
 
     /**
@@ -76,13 +75,16 @@ public class ConnectionRequest implements ExtensionElement {
     public String toXml() {
         return new XmlStringBuilder()
                 .wrapElement(ELEMENT, NAMESPACE, xml -> {
-                    if (username != null) {
-                        xml.wrapElement("username", username);
-                    }
-                    if (password != null) {
-                        xml.wrapElement("password", password);
-                    }
+                    xml.wrapElement("username", username);
+                    xml.wrapElement("password", password);
                 })
                 .toString();
+    }
+
+    private static String requireNonBlank(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must not be null or blank");
+        }
+        return value;
     }
 }

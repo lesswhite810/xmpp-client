@@ -39,7 +39,7 @@ public class DeleteUser extends AbstractAdminCommand {
      * @param accountJid 要删除的用户账户 JID
      */
     public DeleteUser(String accountJid) {
-        this.accountJid = accountJid;
+        this.accountJid = requireNonBlank(accountJid, "accountJid");
         this.action = ACTION_COMPLETE;
     }
 
@@ -75,9 +75,14 @@ public class DeleteUser extends AbstractAdminCommand {
 
     @Override
     protected void appendFields(XmlStringBuilder xml) {
-        if (accountJid != null) {
-            xml.wrapElement("field", java.util.Map.of("var", "accountjids"),
-                    fieldXml -> fieldXml.wrapElement("value", accountJid));
+        xml.wrapElement("field", java.util.Map.of("var", "accountjids"),
+                fieldXml -> fieldXml.wrapElement("value", requireNonBlank(accountJid, "accountJid")));
+    }
+
+    private static String requireNonBlank(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must not be null or blank");
         }
+        return value;
     }
 }
