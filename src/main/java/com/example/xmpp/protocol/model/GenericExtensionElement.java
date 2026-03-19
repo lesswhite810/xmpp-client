@@ -163,7 +163,7 @@ public class GenericExtensionElement implements ExtensionElement {
                 .wrapElement(elementName, namespace.isEmpty() ? null : namespace, attributes, xml -> {
                     for (ContentNode contentNode : contentNodes) {
                         if (contentNode instanceof TextContent textContent) {
-                            xml.escapedContent(textContent.text());
+                            xml.escapeXml(textContent.text());
                         } else if (contentNode instanceof ElementContent elementContent) {
                             xml.append(elementContent.element().toXml());
                         }

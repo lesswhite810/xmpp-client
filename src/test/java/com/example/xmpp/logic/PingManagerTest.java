@@ -8,15 +8,16 @@ import com.example.xmpp.XmppConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.AfterEach;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.MockitoAnnotations;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,18 +30,27 @@ import static org.mockito.Mockito.when;
 /**
  * PingManager 单元测试。
  */
-@ExtendWith(MockitoExtension.class)
 class PingManagerTest {
 
     @Mock
     private XmppConnection connection;
 
+    private AutoCloseable mocks;
+
     private PingManager pingManager;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        mocks = MockitoAnnotations.openMocks(this);
         clearEventBusListeners();
         pingManager = new PingManager(connection);
+    }
+
+    @AfterEach
+    void tearDownMocks() throws Exception {
+        if (mocks != null) {
+            mocks.close();
+        }
     }
 
     @Test
@@ -135,7 +145,7 @@ class PingManagerTest {
         when(connection.getConfig()).thenReturn(config);
         when(connection.isConnected()).thenReturn(true);
         when(connection.isAuthenticated()).thenReturn(true);
-        when(connection.sendIqPacketAsync(any())).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+        when(connection.sendIqPacketAsync(any())).thenReturn(CompletableFuture.completedFuture(null));
 
         pingManager.setPingInterval(1);
         pingManager.startKeepAlive();
@@ -199,7 +209,7 @@ class PingManagerTest {
         when(connection.getConfig()).thenReturn(config);
         when(connection.isConnected()).thenReturn(true);
         when(connection.isAuthenticated()).thenReturn(true);
-        when(connection.sendIqPacketAsync(any())).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+        when(connection.sendIqPacketAsync(any())).thenReturn(CompletableFuture.completedFuture(null));
 
         invokeSendPing();
 

@@ -191,7 +191,7 @@ class IqRequestHandlerTest {
         }
 
         @Override
-        public void sendStanza(com.example.xmpp.protocol.model.XmppStanza stanza) {
+        public void sendStanza(XmppStanza stanza) {
             lastSentStanza = stanza;
         }
 

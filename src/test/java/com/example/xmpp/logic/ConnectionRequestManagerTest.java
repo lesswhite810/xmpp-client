@@ -3,14 +3,15 @@ package com.example.xmpp.logic;
 import com.example.xmpp.XmppConnection;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppStanza;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.MockitoAnnotations;
 
+import java.net.ConnectException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -21,17 +22,26 @@ import static org.mockito.Mockito.*;
 /**
  * ConnectionRequestManager 单元测试。
  */
-@ExtendWith(MockitoExtension.class)
 class ConnectionRequestManagerTest {
 
     @Mock
     private XmppConnection connection;
 
+    private AutoCloseable mocks;
+
     private ConnectionRequestManager manager;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        mocks = MockitoAnnotations.openMocks(this);
         manager = new ConnectionRequestManager(connection);
+    }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        if (mocks != null) {
+            mocks.close();
+        }
     }
 
     @Test
@@ -121,7 +131,7 @@ class ConnectionRequestManagerTest {
         manager.sendConnectionRequest(cpeJid, "user", "pass")
                 .whenComplete((response, error) -> {
                     assertNotNull(error);
-                    assertTrue(error.getCause() instanceof java.net.ConnectException);
+                    assertTrue(error.getCause() instanceof ConnectException);
                 });
 
         verify(connection, never()).sendIqPacketAsync(any(), anyLong(), any());

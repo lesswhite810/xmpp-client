@@ -46,17 +46,6 @@ public class XmlStringBuilder {
     }
 
     /**
-     * 添加转义的文本内容。
-     *
-     * @param content 文本内容
-     * @return 当前 XmlStringBuilder 实例
-     */
-    public XmlStringBuilder escapedContent(String content) {
-        escapeXml(content);
-        return this;
-    }
-
-    /**
      * 包装元素内容。
      *
      * <p>生成形如 <name>content</name> 的完整元素。字符串内容会自动转义。</p>
@@ -235,11 +224,13 @@ public class XmlStringBuilder {
      * <p>委托给 {@link SecurityUtils#escapeXmlAttribute(String)} 进行转义处理。</p>
      *
      * @param content 要转义并追加的内容
+     * @return 当前 XmlStringBuilder 实例
      */
-    private void escapeXml(String content) {
+    public XmlStringBuilder escapeXml(String content) {
         if (content != null) {
             sb.append(SecurityUtils.escapeXmlAttribute(content));
         }
+        return this;
     }
 
     private void appendAttributes(Map<String, ?> attributes) {

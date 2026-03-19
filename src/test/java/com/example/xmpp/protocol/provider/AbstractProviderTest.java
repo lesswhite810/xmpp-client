@@ -188,7 +188,7 @@ class AbstractProviderTest {
         @Override
         protected void serializeInstance(TestElement object, XmlStringBuilder xml) {
             xml.append("<test xmlns=\"urn:test\">");
-            xml.escapedContent(object.getContent());
+            xml.escapeXml(object.getContent());
             xml.append("</test>");
         }
     }

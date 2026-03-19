@@ -5,6 +5,7 @@ import com.example.xmpp.exception.AdminCommandException;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.XmppError;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,7 @@ class AdminManagerSessionIdTest {
                 .id("missing-session-id")
                 .build();
 
-        Method method = AdminManager.class.getDeclaredMethod("extractSessionId", com.example.xmpp.protocol.model.XmppStanza.class);
+        Method method = AdminManager.class.getDeclaredMethod("extractSessionId", XmppStanza.class);
         method.setAccessible(true);
         Object result = method.invoke(manager, responseIq);
 
@@ -121,7 +122,7 @@ class AdminManagerSessionIdTest {
                 .id("admin-cmd-timeout")
                 .to("example.com")
                 .build();
-        CompletableFuture<com.example.xmpp.protocol.model.XmppStanza> expectedFuture = CompletableFuture.completedFuture(requestIq);
+        CompletableFuture<XmppStanza> expectedFuture = CompletableFuture.completedFuture(requestIq);
 
         when(connection.sendIqPacketAsync(any(Iq.class), eq(4500L), eq(TimeUnit.MILLISECONDS)))
                 .thenReturn(expectedFuture);

@@ -18,7 +18,9 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -176,7 +178,7 @@ class XmppRealServerConcurrencyStressTest {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new CompletionException(e);
-        } catch (ExecutionException | java.util.concurrent.TimeoutException e) {
+        } catch (ExecutionException | TimeoutException e) {
             throw new CompletionException(e);
         }
     }
@@ -188,7 +190,7 @@ class XmppRealServerConcurrencyStressTest {
         return iq;
     }
 
-    private void awaitCondition(java.util.function.BooleanSupplier supplier, String message) throws Exception {
+    private void awaitCondition(BooleanSupplier supplier, String message) throws Exception {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         while (System.nanoTime() < deadline) {
             if (supplier.getAsBoolean()) {

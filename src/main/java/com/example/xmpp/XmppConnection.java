@@ -10,6 +10,7 @@ import com.example.xmpp.protocol.StanzaFilter;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.Iq;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * XMPP 连接管理接口。
@@ -96,7 +97,7 @@ public interface XmppConnection {
      *         如果超时或出错则 exceptionally 完成
      * @throws IllegalArgumentException 如果 iq 为 null、ID 为空、timeout 非法或 unit 为 null
      */
-    CompletableFuture<XmppStanza> sendIqPacketAsync(Iq iq, long timeout, java.util.concurrent.TimeUnit unit);
+    CompletableFuture<XmppStanza> sendIqPacketAsync(Iq iq, long timeout, TimeUnit unit);
 
     /**
      * 注册 IQ 请求处理器。

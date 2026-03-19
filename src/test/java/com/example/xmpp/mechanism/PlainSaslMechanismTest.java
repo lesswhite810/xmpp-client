@@ -3,6 +3,8 @@ package com.example.xmpp.mechanism;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import javax.security.sasl.SaslException;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -62,7 +64,7 @@ class PlainSaslMechanismTest {
 
         mechanism.processChallenge(new byte[0]);
 
-        assertThrows(javax.security.sasl.SaslException.class, () ->
+        assertThrows(SaslException.class, () ->
                 mechanism.processChallenge(new byte[0]));
     }
 

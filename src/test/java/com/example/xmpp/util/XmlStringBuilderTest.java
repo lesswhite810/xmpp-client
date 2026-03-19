@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -183,7 +184,7 @@ class XmlStringBuilderTest {
         void testWrapElementWithNamespaceConsumer() {
             XmlStringBuilder builder = new XmlStringBuilder();
             builder.wrapElement("bind", "urn:ietf:params:xml:ns:xmpp-bind",
-                    (java.util.function.Consumer<XmlStringBuilder>) xml -> {
+                    (Consumer<XmlStringBuilder>) xml -> {
                         xml.wrapElement("resource", "mobile");
                         xml.wrapElement("jid", "user@example.com/mobile");
                     });
@@ -198,7 +199,7 @@ class XmlStringBuilderTest {
         void testWrapElementConsumerEscapedContent() {
             XmlStringBuilder builder = new XmlStringBuilder();
             builder.wrapElement("success", "urn:ietf:params:xml:ns:xmpp-sasl",
-                    (java.util.function.Consumer<XmlStringBuilder>) xml -> xml.escapedContent("<ok>&\""));
+                    (Consumer<XmlStringBuilder>) xml -> xml.escapeXml("<ok>&\""));
             assertEquals("<success xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\">"
                     + "&lt;ok&gt;&amp;&quot;</success>", builder.toString());
         }
@@ -278,7 +279,7 @@ class XmlStringBuilderTest {
         @DisplayName("应正确转义特殊字符")
         void testEscape() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.escapedContent("<>&'\"");
+            builder.escapeXml("<>&'\"");
             String result = builder.toString();
             assertTrue(result.contains("&lt;"));
             assertTrue(result.contains("&gt;"));
@@ -288,10 +289,10 @@ class XmlStringBuilderTest {
         }
 
         @Test
-        @DisplayName("escapedContent() 为 null 时不添加")
-        void testEscapedContentNull() {
+        @DisplayName("escapeXml() 为 null 时不添加")
+        void testEscapeXmlNull() {
             XmlStringBuilder builder = new XmlStringBuilder();
-            builder.escapedContent(null);
+            builder.escapeXml(null);
             assertEquals("", builder.toString());
         }
     }

@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -105,7 +106,7 @@ public class Xep0133ComprehensiveTest {
      * @return 成功响应
      * @throws Exception 非预期异常
      */
-    private XmppStanza awaitOrSkipUnsupported(String commandName, java.util.concurrent.CompletableFuture<XmppStanza> future)
+    private XmppStanza awaitOrSkipUnsupported(String commandName, CompletableFuture<XmppStanza> future)
             throws Exception {
         try {
             return future.get(20, TimeUnit.SECONDS);

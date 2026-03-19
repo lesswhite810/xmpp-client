@@ -8,4 +8,10 @@
         <property name="message" value="long 类型整数字面量必须使用 L 后缀。"/>
         <property name="fileExtensions" value="java"/>
     </module>
+    <module name="RegexpSingleline">
+        <property name="format"
+                  value="^(?!\s*(?:import|package)\b).*(?&lt;![&quot;'])\b(?:java|javax|com)\.[A-Za-z0-9_$]+(?:\.[A-Za-z0-9_$]+)*\.[A-Z][A-Za-z0-9_$]*(?:\.class)?"/>
+        <property name="message" value="Java 代码中禁止直接使用全路径类名，必须通过 import 导入。"/>
+        <property name="fileExtensions" value="java"/>
+    </module>
 </module>

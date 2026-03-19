@@ -6,6 +6,7 @@ import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.logic.AdminManager;
 import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.PingIq;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.*;
 
@@ -125,7 +126,7 @@ public class AdminManagerIntegrationTest {
 
         // 发送一个简单的 ping IQ 到服务器
         String testId = "ping-" + System.currentTimeMillis();
-        Iq pingIq = com.example.xmpp.protocol.model.PingIq.createPingRequest(testId, XMPP_DOMAIN);
+        Iq pingIq = PingIq.createPingRequest(testId, XMPP_DOMAIN);
 
         log.info("Sending ping IQ: id={}", testId);
 

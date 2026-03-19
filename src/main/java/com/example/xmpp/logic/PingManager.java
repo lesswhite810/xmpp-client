@@ -12,6 +12,7 @@ import com.example.xmpp.protocol.model.PingIq;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -183,7 +184,7 @@ public final class PingManager {
         connection.sendIqPacketAsync(pingIq)
                 .whenComplete((res, ex) -> {
                     if (ex != null) {
-                        Throwable cause = ex instanceof java.util.concurrent.CompletionException completionException
+                        Throwable cause = ex instanceof CompletionException completionException
                                 && completionException.getCause() != null
                                 ? completionException.getCause()
                                 : ex;

@@ -8,7 +8,9 @@ import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.Message;
 import com.example.xmpp.protocol.model.PingIq;
 import com.example.xmpp.protocol.model.Presence;
+import com.example.xmpp.protocol.model.Stanza;
 import com.example.xmpp.protocol.model.extension.Bind;
+import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.util.XmlParser;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
@@ -180,7 +182,7 @@ public class XmppServerIntegrationTest {
                 .id("test-123")
                 .from("user@example.com")
                 .to("server.example.com")
-                .childElement(com.example.xmpp.protocol.model.extension.Ping.INSTANCE)
+                .childElement(Ping.INSTANCE)
                 .build();
 
         String serializedXml = toXml(originalIq);
@@ -298,7 +300,7 @@ public class XmppServerIntegrationTest {
         assertTrue(stanza.get() instanceof Presence, "Parsed stanza should be a Presence");
     }
 
-    private String toXml(com.example.xmpp.protocol.model.Stanza stanza) {
+    private String toXml(Stanza stanza) {
         return stanza.toXml();
     }
 }

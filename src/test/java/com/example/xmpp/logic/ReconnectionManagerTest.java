@@ -14,15 +14,16 @@ import com.example.xmpp.protocol.model.stream.StreamError;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.AfterEach;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.MockitoAnnotations;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -40,18 +41,27 @@ import static org.mockito.Mockito.when;
 /**
  * ReconnectionManager 单元测试。
  */
-@ExtendWith(MockitoExtension.class)
 class ReconnectionManagerTest {
 
     @Mock
     private XmppConnection connection;
 
+    private AutoCloseable mocks;
+
     private ReconnectionManager reconnectionManager;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        mocks = MockitoAnnotations.openMocks(this);
         clearEventBusListeners();
         reconnectionManager = new ReconnectionManager(connection);
+    }
+
+    @AfterEach
+    void tearDownMocks() throws Exception {
+        if (mocks != null) {
+            mocks.close();
+        }
     }
 
     @Test
@@ -237,7 +247,7 @@ class ReconnectionManagerTest {
 
         assertNotNull(firstTask, "第一次错误关闭后应已排队重连");
         assertNotNull(getCurrentTask(), "重复错误事件后仍应只有一个活动重连任务");
-        assertTrue(((java.util.concurrent.ScheduledFuture<?>) firstTask).isCancelled(),
+        assertTrue(((ScheduledFuture<?>) firstTask).isCancelled(),
                 "旧任务应在重复错误事件到来时被取消");
         verify(connection, never()).connect();
         reconnectionManager.shutdown();
@@ -311,7 +321,7 @@ class ReconnectionManagerTest {
     }
 
     private Object getCurrentTask() throws Exception {
-        java.lang.reflect.Field field = ReconnectionManager.class.getDeclaredField("currentTask");
+        Field field = ReconnectionManager.class.getDeclaredField("currentTask");
         field.setAccessible(true);
         return field.get(reconnectionManager);
     }

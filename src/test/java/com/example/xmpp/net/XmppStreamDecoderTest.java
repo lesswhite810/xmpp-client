@@ -12,10 +12,14 @@ import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.extension.Bind;
 import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.protocol.model.sasl.Auth;
+import com.example.xmpp.protocol.model.sasl.SaslChallenge;
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
+import com.example.xmpp.protocol.model.sasl.SaslResponse;
+import com.example.xmpp.protocol.model.sasl.SaslSuccess;
 import com.example.xmpp.protocol.model.stream.StreamError;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.protocol.model.stream.TlsElements;
+import com.example.xmpp.util.XmlStringBuilder;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.BeforeEach;
@@ -366,21 +370,21 @@ class XmppStreamDecoderTest {
 
         Object challenge = channel.readInbound();
         assertNotNull(challenge);
-        assertInstanceOf(com.example.xmpp.protocol.model.sasl.SaslChallenge.class, challenge);
+        assertInstanceOf(SaslChallenge.class, challenge);
         assertEquals("Y2hhbGxlbmdl",
-                ((com.example.xmpp.protocol.model.sasl.SaslChallenge) challenge).content());
+                ((SaslChallenge) challenge).content());
 
         Object response = channel.readInbound();
         assertNotNull(response);
-        assertInstanceOf(com.example.xmpp.protocol.model.sasl.SaslResponse.class, response);
+        assertInstanceOf(SaslResponse.class, response);
         assertEquals("cmVzcG9uc2U=",
-                ((com.example.xmpp.protocol.model.sasl.SaslResponse) response).content());
+                ((SaslResponse) response).content());
 
         Object success = channel.readInbound();
         assertNotNull(success);
-        assertInstanceOf(com.example.xmpp.protocol.model.sasl.SaslSuccess.class, success);
+        assertInstanceOf(SaslSuccess.class, success);
         assertEquals("c3VjY2Vzcw==",
-                ((com.example.xmpp.protocol.model.sasl.SaslSuccess) success).content());
+                ((SaslSuccess) success).content());
     }
 
     @Test
@@ -553,7 +557,7 @@ class XmppStreamDecoderTest {
         }
 
         @Override
-        public void serialize(ExtensionElement object, com.example.xmpp.util.XmlStringBuilder xml) {
+        public void serialize(ExtensionElement object, XmlStringBuilder xml) {
             throw new UnsupportedOperationException("Not needed in tests");
         }
 

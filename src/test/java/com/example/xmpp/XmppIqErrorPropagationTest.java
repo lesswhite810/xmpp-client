@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -212,7 +213,7 @@ class XmppIqErrorPropagationTest {
             return config;
         }
 
-        protected java.util.Queue<?> getCollectors() {
+        protected Queue<?> getCollectors() {
             return collectors;
         }
     }

@@ -1,6 +1,7 @@
 package com.example.xmpp.protocol.model.extension;
 
 import com.example.xmpp.util.XmppConstants;
+import com.example.xmpp.util.XmlStringBuilder;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,7 @@ class ExtensionComprehensiveTest {
             TestAdminCommand command = new TestAdminCommand();
 
             IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                    () -> command.appendHiddenField(new com.example.xmpp.util.XmlStringBuilder(), null, "value"));
+                    () -> command.appendHiddenField(new XmlStringBuilder(), null, "value"));
 
             assertEquals("var must not be null or blank", exception.getMessage());
         }
@@ -36,7 +37,7 @@ class ExtensionComprehensiveTest {
             TestAdminCommand command = new TestAdminCommand();
 
             IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                    () -> command.appendHiddenField(new com.example.xmpp.util.XmlStringBuilder(), "   ", "value"));
+                    () -> command.appendHiddenField(new XmlStringBuilder(), "   ", "value"));
 
             assertEquals("var must not be null or blank", exception.getMessage());
         }
@@ -58,7 +59,7 @@ class ExtensionComprehensiveTest {
             }
 
             @Override
-            protected void appendFields(com.example.xmpp.util.XmlStringBuilder xml) {
+            protected void appendFields(XmlStringBuilder xml) {
                 // no-op
             }
         }

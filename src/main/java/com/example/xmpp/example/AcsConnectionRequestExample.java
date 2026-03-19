@@ -15,6 +15,7 @@ import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.util.XmppConstants;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.ConnectException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -74,7 +75,7 @@ public class AcsConnectionRequestExample {
 
         if (error instanceof XmppAuthException) {
             log.error("认证失败 - ACS 配置的凭据无效，请检查用户名密码");
-        } else if (error instanceof java.net.ConnectException) {
+        } else if (error instanceof ConnectException) {
             log.warn("无法连接到 XMPP 服务器，请检查服务器地址和端口");
         } else {
             log.warn("连接因错误关闭，ReconnectionManager 将尝试重连");

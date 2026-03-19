@@ -84,6 +84,7 @@ public class StreamError implements ExtensionElement {
     /**
      * 流错误条件枚举。
      */
+    @Getter
     public enum Condition {
         BAD_FORMAT("bad-format"),
         BAD_NAMESPACE_PREFIX("bad-namespace-prefix"),
@@ -121,15 +122,6 @@ public class StreamError implements ExtensionElement {
          */
         Condition(String elementName) {
             this.elementName = elementName;
-        }
-
-        /**
-         * 获取元素名称。
-         *
-         * @return 元素名称
-         */
-        public String getElementName() {
-            return elementName;
         }
 
         /**

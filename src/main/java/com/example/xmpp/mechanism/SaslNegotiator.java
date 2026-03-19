@@ -13,6 +13,7 @@ import io.netty.handler.ssl.SslHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.security.sasl.SaslException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
@@ -61,7 +62,7 @@ public class SaslNegotiator {
             byte[] init;
             try {
                 init = mechanism.processChallenge(null);
-            } catch (javax.security.sasl.SaslException e) {
+            } catch (SaslException e) {
                 throw new XmppAuthException("Failed to generate initial response", e);
             }
             if (init != null) {
@@ -88,7 +89,7 @@ public class SaslNegotiator {
         byte[] response;
         try {
             response = mechanism.processChallenge(cContent);
-        } catch (javax.security.sasl.SaslException e) {
+        } catch (SaslException e) {
             throw new XmppAuthException("Failed to process challenge", e);
         }
         String responseB64 = BASE64_ENCODER.encodeToString(response);
@@ -110,7 +111,7 @@ public class SaslNegotiator {
         if (contentB64 != null && !contentB64.isEmpty()) {
             try {
                 mechanism.processChallenge(BASE64_DECODER.decode(contentB64));
-            } catch (javax.security.sasl.SaslException e) {
+            } catch (SaslException e) {
                 throw new XmppAuthException("Failed to verify server signature", e);
             }
         }

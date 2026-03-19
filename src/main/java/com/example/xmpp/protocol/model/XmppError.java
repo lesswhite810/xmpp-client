@@ -144,6 +144,7 @@ public class XmppError implements XmppExtension {
      * 枚举常量使用大写字母加下划线命名。
      *
      */
+    @Getter
     public enum Condition {
         BAD_REQUEST("bad-request", Type.MODIFY),
         CONFLICT("conflict", Type.CANCEL),
@@ -174,24 +175,6 @@ public class XmppError implements XmppExtension {
         Condition(String elementName, Type defaultType) {
             this.elementName = elementName;
             this.defaultType = defaultType;
-        }
-
-        /**
-         * 获取元素名称。
-         *
-         * @return 元素名称
-         */
-        public String getElementName() {
-            return elementName;
-        }
-
-        /**
-         * 获取默认类型。
-         *
-         * @return 默认类型
-         */
-        public Type getDefaultType() {
-            return defaultType;
         }
 
         /**

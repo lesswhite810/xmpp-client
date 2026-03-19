@@ -17,7 +17,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Supplier;
 
 /**
  * SASL SCRAM 机制的基础抽象实现。
@@ -335,23 +334,6 @@ public abstract class ScramMechanism implements SaslMechanism {
     }
 
     /**
-     * 执行加密操作并统一处理异常（代码质量优化 - 提取公共异常处理）。
-     *
-     * @param operation 加密操作名称（用于错误消息）
-     * @param supplier 要执行的操作
-     * @return 操作结果
-     * @throws SaslException 如果操作失败
-     */
-    private byte[] executeCryptoOperation(String operation, Supplier<byte[]> supplier)
-            throws SaslException {
-        try {
-            return supplier.get();
-        } catch (Exception e) {
-            throw new SaslException(operation + " failed", e);
-        }
-    }
-
-    /**
      * PBKDF2 密钥派生函数（HI 函数）。
      *
      * @param password 密码
@@ -361,16 +343,13 @@ public abstract class ScramMechanism implements SaslMechanism {
      * @throws SaslException 如果派生失败
      */
     private byte[] hi(char[] password, byte[] salt, int iterations) throws SaslException {
-        return executeCryptoOperation(PBKDF2_OPERATION, () -> {
-            try {
-                PBEKeySpec spec = new PBEKeySpec(password, salt, iterations, hashSize() * 8);
-                javax.crypto.SecretKeyFactory skf = javax.crypto.SecretKeyFactory
-                        .getInstance(getPBKDF2Algorithm());
-                return skf.generateSecret(spec).getEncoded();
-            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        try {
+            PBEKeySpec spec = new PBEKeySpec(password, salt, iterations, hashSize() * 8);
+            SecretKeyFactory skf = SecretKeyFactory.getInstance(getPBKDF2Algorithm());
+            return skf.generateSecret(spec).getEncoded();
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            throw new SaslException(PBKDF2_OPERATION + " failed", e);
+        }
     }
 
     /**
@@ -382,15 +361,13 @@ public abstract class ScramMechanism implements SaslMechanism {
      * @throws SaslException 如果计算失败
      */
     private byte[] hmac(byte[] key, byte[] data) throws SaslException {
-        return executeCryptoOperation(HMAC_OPERATION, () -> {
-            try {
-                Mac mac = Mac.getInstance(getHmacAlgorithm());
-                mac.init(new SecretKeySpec(key, getHmacAlgorithm()));
-                return mac.doFinal(data);
-            } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        try {
+            Mac mac = Mac.getInstance(getHmacAlgorithm());
+            mac.init(new SecretKeySpec(key, getHmacAlgorithm()));
+            return mac.doFinal(data);
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new SaslException(HMAC_OPERATION + " failed", e);
+        }
     }
 
     /**

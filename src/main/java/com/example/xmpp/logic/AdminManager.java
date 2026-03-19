@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -92,7 +93,7 @@ public class AdminManager {
      */
     private CompletableFuture<XmppStanza> sendAdminCommand(Iq iq) {
         log.debug("Sent admin command: id={}, to={}", iq.getId(), iq.getTo());
-        return connection.sendIqPacketAsync(iq, timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+        return connection.sendIqPacketAsync(iq, timeoutMs, TimeUnit.MILLISECONDS);
     }
 
     /**

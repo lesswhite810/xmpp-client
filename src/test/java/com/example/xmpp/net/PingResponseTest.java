@@ -1,6 +1,7 @@
 package com.example.xmpp.net;
 
 import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.extension.Bind;
 import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.util.XmlStringBuilder;
 import io.netty.buffer.ByteBuf;
@@ -73,7 +74,7 @@ class PingResponseTest {
         // 非 PING 请求
         Iq normalIq = new Iq.Builder(Iq.Type.GET)
                 .id("iq-1")
-                .childElement(com.example.xmpp.protocol.model.extension.Bind.builder().resource("test").build())
+                .childElement(Bind.builder().resource("test").build())
                 .build();
 
         assertFalse(normalIq.getChildElement() instanceof Ping,

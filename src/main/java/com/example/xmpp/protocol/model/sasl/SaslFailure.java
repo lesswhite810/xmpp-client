@@ -3,6 +3,7 @@ package com.example.xmpp.protocol.model.sasl;
 import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmlStringBuilder;
+import lombok.Getter;
 
 /**
  * SASL 失败元素，表示 SASL 认证流程失败。
@@ -66,6 +67,7 @@ public record SaslFailure(String condition, String text) implements ExtensionEle
     /**
      * SASL 失败条件枚举。
      */
+    @Getter
     public enum Condition {
         ABORTED("aborted"),
         CREDENTIALS_EXPIRED("credentials-expired"),
@@ -89,13 +91,5 @@ public record SaslFailure(String condition, String text) implements ExtensionEle
             this.value = value;
         }
 
-        /**
-         * 获取条件字符串值。
-         *
-         * @return 条件字符串值
-         */
-        public String getValue() {
-            return value;
-        }
     }
 }

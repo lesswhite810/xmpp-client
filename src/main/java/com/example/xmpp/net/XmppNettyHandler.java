@@ -4,6 +4,7 @@ import com.example.xmpp.XmppTcpConnection;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
+import com.example.xmpp.exception.XmppStreamErrorException;
 import com.example.xmpp.net.state.StateContext;
 import com.example.xmpp.net.state.XmppHandlerState;
 import com.example.xmpp.protocol.model.XmlSerializable;
@@ -192,7 +193,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
         if (msg instanceof StreamError streamError) {
             log.warn("Received stream error - condition: {}",
                     streamError.getCondition());
-            connection.failConnection(ctx.channel(), new com.example.xmpp.exception.XmppStreamErrorException(streamError));
+            connection.failConnection(ctx.channel(), new XmppStreamErrorException(streamError));
             ctx.close();
             return;
         }

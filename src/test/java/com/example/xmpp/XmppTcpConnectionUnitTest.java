@@ -5,8 +5,10 @@ import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
+import com.example.xmpp.exception.XmppProtocolException;
 import com.example.xmpp.net.XmppNettyHandler;
 import com.example.xmpp.protocol.model.XmlSerializable;
+import com.example.xmpp.protocol.model.XmppStanza;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
@@ -203,7 +205,7 @@ class XmppTcpConnectionUnitTest {
 
         assertSame(expected, direct);
         assertSame(expected, wrapped);
-        assertInstanceOf(com.example.xmpp.exception.XmppProtocolException.class, fallback);
+        assertInstanceOf(XmppProtocolException.class, fallback);
     }
 
     @Test
@@ -383,7 +385,7 @@ class XmppTcpConnectionUnitTest {
         }
     }
 
-    private static final class TestStanza implements com.example.xmpp.protocol.model.XmppStanza, XmlSerializable {
+    private static final class TestStanza implements XmppStanza, XmlSerializable {
 
         private final String xml;
 

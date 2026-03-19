@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import java.io.ByteArrayInputStream;
@@ -100,7 +101,7 @@ class XmlParserUtilsTest {
         // 遍历到 child 元素
         while (reader.hasNext()) {
             int event = reader.next();
-            if (event == javax.xml.stream.XMLStreamConstants.START_ELEMENT) {
+            if (event == XMLStreamConstants.START_ELEMENT) {
                 if ("child".equals(reader.getLocalName())) {
                     assertEquals("text", reader.getElementText());
                     break;
@@ -123,7 +124,7 @@ class XmlParserUtilsTest {
         // 遍历到 root 元素
         while (reader.hasNext()) {
             int event = reader.next();
-            if (event == javax.xml.stream.XMLStreamConstants.START_ELEMENT) {
+            if (event == XMLStreamConstants.START_ELEMENT) {
                 if ("root".equals(reader.getLocalName())) {
                     assertEquals("http://example.com", reader.getNamespaceURI());
                     break;
@@ -170,7 +171,7 @@ class XmlParserUtilsTest {
         boolean foundRoot = false;
         while (reader.hasNext()) {
             int event = reader.next();
-            if (event == javax.xml.stream.XMLStreamConstants.START_ELEMENT) {
+            if (event == XMLStreamConstants.START_ELEMENT) {
                 if ("root".equals(reader.getLocalName())) {
                     foundRoot = true;
                 }
@@ -192,7 +193,7 @@ class XmlParserUtilsTest {
         
         while (reader.hasNext()) {
             int event = reader.next();
-            if (event == javax.xml.stream.XMLStreamConstants.START_ELEMENT) {
+            if (event == XMLStreamConstants.START_ELEMENT) {
                 if ("root".equals(reader.getLocalName())) {
                     assertEquals("value1", reader.getAttributeValue(null, "attr1"));
                     assertEquals("value2", reader.getAttributeValue(null, "attr2"));
@@ -215,7 +216,7 @@ class XmlParserUtilsTest {
         
         while (reader.hasNext()) {
             int event = reader.next();
-            if (event == javax.xml.stream.XMLStreamConstants.CHARACTERS) {
+            if (event == XMLStreamConstants.CHARACTERS) {
                 String text = reader.getText().trim();
                 if (!text.isEmpty()) {
                     assertTrue(text.contains("<tag>"));

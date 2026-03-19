@@ -6,6 +6,7 @@ import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppStanzaErrorException;
 import com.example.xmpp.logic.AdminManager;
+import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.PingIq;
 import com.example.xmpp.protocol.model.XmppStanza;
@@ -21,6 +22,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -152,7 +154,7 @@ class XmppRealServerScenarioTest {
         Iq versionQuery = new Iq.Builder(Iq.Type.GET)
                 .id("unknown-query-" + System.currentTimeMillis())
                 .to(XMPP_DOMAIN)
-                .childElement(new com.example.xmpp.protocol.model.GenericExtensionElement.Builder("query", "urn:example:unsupported:feature").build())
+                .childElement(new GenericExtensionElement.Builder("query", "urn:example:unsupported:feature").build())
                 .build();
 
         ExecutionException exception = assertThrows(ExecutionException.class,
@@ -223,7 +225,7 @@ class XmppRealServerScenarioTest {
         return iq;
     }
 
-    private void awaitCondition(java.util.function.BooleanSupplier supplier, String message) throws Exception {
+    private void awaitCondition(BooleanSupplier supplier, String message) throws Exception {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         while (System.nanoTime() < deadline) {
             if (supplier.getAsBoolean()) {

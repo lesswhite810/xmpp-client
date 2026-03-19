@@ -6,6 +6,7 @@ import com.example.xmpp.exception.XmppNetworkException;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.net.InetSocketAddress;
@@ -81,7 +82,7 @@ class XmppRealServerFailureModeTest {
                 .securityMode(XmppClientConfig.SecurityMode.REQUIRED)
                 .tlsAuthenticationMode(XmppClientConfig.TlsAuthenticationMode.MUTUAL)
                 .customTrustManager(new TrustManager[]{TRUST_ALL_MANAGER})
-                .keyManagers(new javax.net.ssl.KeyManager[0])
+                .keyManagers(new KeyManager[0])
                 .build());
 
         XmppException exception = assertThrows(XmppException.class, connection::connect,

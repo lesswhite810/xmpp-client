@@ -3,8 +3,8 @@ package com.example.xmpp.protocol;
 /**
  * 协议扩展 Provider 接口（SPI）。
  *
- * <p>实现此接口并在 META-INF/services/com.example.xmpp.protocol.ProtocolProvider 中注册，
- * 即可自动扩展 XMPP 协议解析器。ProviderRegistry 会通过 Java ServiceLoader 自动发现并加载。</p>
+ * <p>实现此接口并在 ServiceLoader 配置中注册，
+ * 即可自动扩展 XMPP 协议解析器。ProviderRegistry 会自动发现并加载。</p>
  *
  * @since 2026-02-15
  */

@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.Map;
+
 /**
  * XEP-0133: Service Administration - 删除用户命令。
  *
@@ -82,7 +84,7 @@ public class DeleteUser extends AbstractAdminCommand {
         if (StringUtils.isBlank(accountJid)) {
             throw new IllegalArgumentException("accountJid must not be null or blank");
         }
-        xml.wrapElement("field", java.util.Map.of("var", "accountjids"),
+        xml.wrapElement("field", Map.of("var", "accountjids"),
                 fieldXml -> fieldXml.wrapElement("value", accountJid));
     }
 }

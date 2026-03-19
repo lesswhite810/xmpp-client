@@ -5,8 +5,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import javax.crypto.Mac;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
 import javax.security.sasl.SaslException;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -286,21 +293,20 @@ class ScramMechanismTest {
 
     private byte[] pbkdf2(char[] password, byte[] salt, int iterations) throws SaslException {
         try {
-            javax.crypto.SecretKeyFactory skf = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-            javax.crypto.spec.PBEKeySpec spec =
-                    new javax.crypto.spec.PBEKeySpec(password, salt, iterations, 256);
+            SecretKeyFactory skf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+            PBEKeySpec spec = new PBEKeySpec(password, salt, iterations, 256);
             return skf.generateSecret(spec).getEncoded();
-        } catch (java.security.NoSuchAlgorithmException | java.security.spec.InvalidKeySpecException e) {
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new SaslException("Failed to derive PBKDF2 key", e);
         }
     }
 
     private byte[] hmac(byte[] key, String algorithm, byte[] data) throws SaslException {
         try {
-            javax.crypto.Mac mac = javax.crypto.Mac.getInstance(algorithm);
-            mac.init(new javax.crypto.spec.SecretKeySpec(key, algorithm));
+            Mac mac = Mac.getInstance(algorithm);
+            mac.init(new SecretKeySpec(key, algorithm));
             return mac.doFinal(data);
-        } catch (java.security.NoSuchAlgorithmException | java.security.InvalidKeyException e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new SaslException("Failed to compute HMAC", e);
         }
     }

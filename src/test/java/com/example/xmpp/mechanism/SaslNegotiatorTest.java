@@ -6,10 +6,11 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.MockitoAnnotations;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
@@ -17,7 +18,6 @@ import static org.mockito.Mockito.when;
 /**
  * SaslNegotiator 单元测试。
  */
-@ExtendWith(MockitoExtension.class)
 class SaslNegotiatorTest {
 
     @Mock
@@ -34,6 +34,20 @@ class SaslNegotiatorTest {
 
     @Mock
     private Future<Channel> handshakeFuture;
+
+    private AutoCloseable mocks;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        mocks = MockitoAnnotations.openMocks(this);
+    }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        if (mocks != null) {
+            mocks.close();
+        }
+    }
 
     @Test
     void testPlainStartRejectsFailedTlsHandshake() {

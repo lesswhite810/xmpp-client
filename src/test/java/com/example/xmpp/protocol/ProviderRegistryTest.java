@@ -11,6 +11,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import javax.xml.stream.XMLEventReader;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -239,7 +241,7 @@ class ProviderRegistryTest {
         }
 
         @Override
-        public TestElement parse(javax.xml.stream.XMLEventReader reader) throws XmppParseException {
+        public TestElement parse(XMLEventReader reader) throws XmppParseException {
             return new TestElement("test-content");
         }
 
