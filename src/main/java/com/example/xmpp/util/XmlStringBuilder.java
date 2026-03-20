@@ -1,5 +1,6 @@
 package com.example.xmpp.util;
 
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.Map;
@@ -234,7 +235,7 @@ public class XmlStringBuilder {
     }
 
     private void appendAttributes(Map<String, ?> attributes) {
-        if (attributes == null || attributes.isEmpty()) {
+        if (MapUtils.isEmpty(attributes)) {
             return;
         }
         for (Map.Entry<String, ?> entry : attributes.entrySet()) {

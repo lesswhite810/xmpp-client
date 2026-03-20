@@ -2,6 +2,8 @@ package com.example.xmpp.event;
 
 import com.example.xmpp.XmppConnection;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -84,7 +86,7 @@ public final class XmppEventBus {
         if (connection == null) {
             throw new IllegalArgumentException("Connection must not be null");
         }
-        if (handlers == null || handlers.isEmpty()) {
+        if (MapUtils.isEmpty(handlers)) {
             return () -> {};
         }
 
@@ -163,7 +165,7 @@ public final class XmppEventBus {
         }
 
         List<Consumer<ConnectionEvent>> handlers = connectionHandlers.get(event.eventType());
-        if (handlers == null || handlers.isEmpty()) {
+        if (CollectionUtils.isEmpty(handlers)) {
             log.trace("No handlers for event: {}@{}", event.eventType(), connection);
             return;
         }

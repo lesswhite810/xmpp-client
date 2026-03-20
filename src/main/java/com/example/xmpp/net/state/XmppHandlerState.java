@@ -27,6 +27,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.ssl.SslHandler;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
@@ -114,7 +115,7 @@ public enum XmppHandlerState implements HandlerState {
         }
 
         private void handleSecureConnectionFeatures(StateContext context, ChannelHandlerContext ctx, StreamFeatures features) {
-            if (features.getMechanisms() != null && !features.getMechanisms().isEmpty()) {
+            if (CollectionUtils.isNotEmpty(features.getMechanisms())) {
                 startSaslAuthentication(context, ctx, features.getMechanisms());
             } else if (features.isBindAvailable()) {
                 handleBindRequest(context, ctx);
@@ -135,7 +136,7 @@ public enum XmppHandlerState implements HandlerState {
 
             if (features.isStarttlsAvailable() && mode != XmppClientConfig.SecurityMode.DISABLED) {
                 initiateStartTls(context, ctx);
-            } else if (features.getMechanisms() != null && !features.getMechanisms().isEmpty()) {
+            } else if (CollectionUtils.isNotEmpty(features.getMechanisms())) {
                 startSaslAuthentication(context, ctx, features.getMechanisms());
             } else if (features.isBindAvailable()) {
                 handleBindRequest(context, ctx);
@@ -153,7 +154,7 @@ public enum XmppHandlerState implements HandlerState {
         }
 
         private void startSaslAuthentication(StateContext context, ChannelHandlerContext ctx, List<String> serverMechanisms) {
-            if (serverMechanisms == null || serverMechanisms.isEmpty()) {
+            if (CollectionUtils.isEmpty(serverMechanisms)) {
                 log.warn("No SASL mechanisms available from server");
                 context.closeConnectionOnError(ctx, "No SASL mechanisms available");
                 return;

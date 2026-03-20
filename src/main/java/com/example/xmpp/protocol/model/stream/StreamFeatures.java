@@ -7,6 +7,7 @@ import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Singular;
+import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.List;
 
@@ -92,7 +93,7 @@ public class StreamFeatures implements ExtensionElement {
                             xml.wrapElement(TlsElements.StartTls.ELEMENT, XmppConstants.NS_XMPP_TLS, "");
                         }
                     }
-                    if (mechanisms != null && !mechanisms.isEmpty()) {
+                    if (CollectionUtils.isNotEmpty(mechanisms)) {
                         xml.wrapElement("mechanisms", XmppConstants.NS_XMPP_SASL, mechanismXml -> {
                             for (String mechanism : mechanisms) {
                                 mechanismXml.wrapElement("mechanism", mechanism);

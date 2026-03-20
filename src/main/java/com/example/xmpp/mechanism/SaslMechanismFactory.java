@@ -5,6 +5,7 @@ import com.example.xmpp.util.XmppConstants;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
@@ -149,7 +150,7 @@ public class SaslMechanismFactory {
      */
     public Optional<SaslMechanism> createBestMechanism(List<String> serverMechanisms, Set<String> enabledMechanisms,
             String username, char[] password) {
-        if (serverMechanisms == null || serverMechanisms.isEmpty()) {
+        if (CollectionUtils.isEmpty(serverMechanisms)) {
             log.warn("Server SASL mechanisms list is null or empty");
             return Optional.empty();
         }
@@ -158,7 +159,7 @@ public class SaslMechanismFactory {
             if (!serverMechanismSet.contains(entry.name)) {
                 continue;
             }
-            if (enabledMechanisms != null && !enabledMechanisms.isEmpty()) {
+            if (CollectionUtils.isNotEmpty(enabledMechanisms)) {
                 if (!enabledMechanisms.contains(entry.name)) {
                     continue;
                 }

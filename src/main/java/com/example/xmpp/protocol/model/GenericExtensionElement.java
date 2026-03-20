@@ -1,6 +1,7 @@
 package com.example.xmpp.protocol.model;
 
 import com.example.xmpp.util.XmlStringBuilder;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.xml.namespace.QName;
@@ -298,7 +299,7 @@ public class GenericExtensionElement implements ExtensionElement {
          * @return Builder 实例
          */
         public Builder addAttributes(Map<String, String> attrs) {
-            if (attrs == null || attrs.isEmpty()) {
+            if (MapUtils.isEmpty(attrs)) {
                 return this;
             }
             if (attributes == null) {
