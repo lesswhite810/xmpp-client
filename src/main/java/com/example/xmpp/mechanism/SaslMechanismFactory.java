@@ -150,6 +150,7 @@ public class SaslMechanismFactory {
     public Optional<SaslMechanism> createBestMechanism(List<String> serverMechanisms, Set<String> enabledMechanisms,
             String username, char[] password) {
         if (serverMechanisms == null || serverMechanisms.isEmpty()) {
+            log.warn("Server SASL mechanisms list is null or empty");
             return Optional.empty();
         }
         Set<String> serverMechanismSet = new HashSet<>(serverMechanisms);
@@ -162,12 +163,20 @@ public class SaslMechanismFactory {
                     continue;
                 }
             }
-            SaslMechanism mechanism = entry.factory.apply(username, password);
+            SaslMechanism mechanism;
+            try {
+                mechanism = entry.factory.apply(username, password);
+            } catch (Exception e) {
+                log.error("Failed to create SASL mechanism '{}': {}", entry.name, e.getMessage());
+                throw e;
+            }
             if (mechanism == null) {
+                log.error("SASL mechanism factory returned null for '{}'", entry.name);
                 throw new IllegalStateException("SASL mechanism factory returned null for " + entry.name);
             }
             String mechanismName = mechanism.getMechanismName();
             if (StringUtils.isBlank(mechanismName)) {
+                log.error("SASL mechanism '{}' returned invalid (blank) mechanism name", entry.name);
                 throw new IllegalStateException("SASL mechanism returned invalid name for " + entry.name);
             }
             return Optional.of(mechanism);
