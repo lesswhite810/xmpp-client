@@ -13,7 +13,6 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class XmppStreamErrorException extends XmppProtocolException {
 
-    @Getter
     private final StreamError streamError;
 
     /**

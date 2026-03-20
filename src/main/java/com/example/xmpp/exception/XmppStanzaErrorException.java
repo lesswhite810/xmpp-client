@@ -13,7 +13,6 @@ import lombok.Getter;
  */
 public class XmppStanzaErrorException extends XmppException {
 
-    @Getter
     private final Iq errorIq;
 
     @Getter

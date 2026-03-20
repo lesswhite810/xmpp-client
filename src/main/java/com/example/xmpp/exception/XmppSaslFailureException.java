@@ -13,7 +13,6 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class XmppSaslFailureException extends XmppAuthException {
 
-    @Getter
     private final SaslFailure saslFailure;
 
     /**

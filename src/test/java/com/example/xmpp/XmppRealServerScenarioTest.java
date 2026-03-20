@@ -164,9 +164,8 @@ class XmppRealServerScenarioTest extends AbstractRealServerTest {
         XmppStanzaErrorException stanzaErrorException = (XmppStanzaErrorException) exception.getCause();
         assertNotNull(stanzaErrorException.getXmppError(), "错误异常应包含 xmpp error");
         assertNotNull(stanzaErrorException.getXmppError().getCondition(), "错误响应应包含错误条件");
-        log.info("Unsupported custom query returned condition={}, xml={}",
-                stanzaErrorException.getXmppError().getCondition(),
-                stanzaErrorException.getErrorIq().toXml());
+        log.info("Unsupported custom query returned condition={}",
+                stanzaErrorException.getXmppError().getCondition());
     }
 
     private XmppTcpConnection openAuthenticatedConnection(String username, String password) throws Exception {

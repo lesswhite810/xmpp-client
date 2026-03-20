@@ -75,23 +75,17 @@ class Xep0133ServerDiagnosticsTest extends AbstractRealServerTest {
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
             if (cause instanceof XmppStanzaErrorException see) {
-                Iq errorIq = see.getErrorIq();
                 XmppError error = see.getXmppError();
                 XmppError.Condition condition = error != null ? error.getCondition() : null;
                 XmppError.Type type = error != null ? error.getType() : null;
                 String text = error != null ? error.getText() : null;
-                log.warn("{} failed: condition={}, type={}, text={}, xml={}",
-                        commandName, condition, type, text, errorIq.toXml());
+                log.warn("{} failed: condition={}, type={}, text={}",
+                        commandName, condition, type, text);
                 return;
             }
-            if (cause instanceof AdminCommandException ace && ace.hasErrorResponse()) {
-                Iq errorIq = ace.getErrorResponse();
-                XmppError error = errorIq.getError();
-                XmppError.Condition condition = error != null ? error.getCondition() : null;
-                XmppError.Type type = error != null ? error.getType() : null;
-                String text = error != null ? error.getText() : null;
-                log.warn("{} failed: condition={}, type={}, text={}, xml={}",
-                        commandName, condition, type, text, errorIq.toXml());
+            if (cause instanceof AdminCommandException ace) {
+                XmppError.Condition condition = ace.getErrorCondition();
+                log.warn("{} failed: condition={}", commandName, condition);
                 return;
             }
             fail("Unexpected exception for " + commandName + ": " + cause, cause);

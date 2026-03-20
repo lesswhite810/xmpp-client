@@ -288,14 +288,12 @@ class XmppRealServerAdvancedScenarioTest extends AbstractRealServerTest {
     }
 
     private boolean isUnsupportedAdminCommand(Throwable throwable, String commandName) {
-        if (!(throwable instanceof AdminCommandException adminCommandException)) {
+        if (!(throwable instanceof AdminCommandException ace)) {
             return false;
         }
-        if (!commandName.equals(adminCommandException.getCommandName())) {
+        if (!commandName.equals(ace.getCommandName())) {
             return false;
         }
-        return adminCommandException.hasErrorResponse()
-                && adminCommandException.getErrorResponse().getError() != null
-                        && adminCommandException.getErrorResponse().getError().getCondition() == XmppError.Condition.ITEM_NOT_FOUND;
+        return ace.getErrorCondition() == XmppError.Condition.ITEM_NOT_FOUND;
     }
 }

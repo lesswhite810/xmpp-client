@@ -1,6 +1,7 @@
 package com.example.xmpp.exception;
 
 import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.XmppError;
 import lombok.Getter;
 
 /**
@@ -13,7 +14,6 @@ public class AdminCommandException extends XmppException {
     /**
      * 服务器返回的错误 IQ 响应，可能为 null（如缺少 session ID 场景）
      */
-    @Getter
     private final Iq errorResponse;
 
     /**
@@ -65,5 +65,18 @@ public class AdminCommandException extends XmppException {
      */
     public boolean hasErrorResponse() {
         return errorResponse != null;
+    }
+
+    /**
+     * 获取错误条件（如果可用）。
+     *
+     * @return 错误条件，不存在则返回 null
+     */
+    public XmppError.Condition getErrorCondition() {
+        if (errorResponse == null) {
+            return null;
+        }
+        XmppError error = errorResponse.getError();
+        return error != null ? error.getCondition() : null;
     }
 }

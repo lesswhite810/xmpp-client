@@ -60,8 +60,6 @@ class XmppIqErrorPropagationTest {
 
         CompletionException exception = assertThrows(CompletionException.class, future::join);
         XmppStanzaErrorException cause = assertInstanceOf(XmppStanzaErrorException.class, exception.getCause());
-        assertEquals("iq-error-1", cause.getErrorIq().getId());
-        assertEquals(Iq.Type.ERROR, cause.getErrorIq().getType());
         assertNotNull(cause.getXmppError());
         assertEquals(XmppError.Condition.SERVICE_UNAVAILABLE, cause.getXmppError().getCondition());
     }

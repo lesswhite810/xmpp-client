@@ -167,30 +167,6 @@ class XmppRealServerEdgeCaseTest extends AbstractRealServerTest {
     }
 
     /**
-     * 等待管理命令失败，并提取服务端错误。
-     *
-     * @param future 管理命令 Future
-     * @return 管理命令异常
-     * @throws Exception 非预期异常
-     */
-    private Iq awaitAdminFailure(CompletableFuture<XmppStanza> future) throws Exception {
-        try {
-            XmppStanza stanza = future.get(20, TimeUnit.SECONDS);
-            fail("Expected admin command to fail, but received: " + stanza);
-            return null;
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof XmppStanzaErrorException see) {
-                return see.getErrorIq();
-            }
-            if (cause instanceof AdminCommandException ace) {
-                return ace.getErrorResponse();
-            }
-            throw e;
-        }
-    }
-
-    /**
      * 等待管理命令成功并返回 IQ。
      *
      * @param future 管理命令 Future
