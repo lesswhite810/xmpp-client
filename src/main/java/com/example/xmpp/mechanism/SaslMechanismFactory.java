@@ -163,13 +163,7 @@ public class SaslMechanismFactory {
                     continue;
                 }
             }
-            SaslMechanism mechanism;
-            try {
-                mechanism = entry.factory.apply(username, password);
-            } catch (Exception e) {
-                log.error("Failed to create SASL mechanism '{}': {}", entry.name, e.getMessage());
-                throw e;
-            }
+            SaslMechanism mechanism = entry.factory.apply(username, password);
             if (mechanism == null) {
                 log.error("SASL mechanism factory returned null for '{}'", entry.name);
                 throw new IllegalStateException("SASL mechanism factory returned null for " + entry.name);
