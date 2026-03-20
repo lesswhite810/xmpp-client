@@ -294,6 +294,7 @@ class XmppRealServerAdvancedScenarioTest extends AbstractRealServerTest {
         if (!commandName.equals(ace.getCommandName())) {
             return false;
         }
-        return ace.getErrorCondition() == XmppError.Condition.ITEM_NOT_FOUND;
+        XmppError error = ace.getErrorResponse() != null ? ace.getErrorResponse().getError() : null;
+        return error != null && error.getCondition() == XmppError.Condition.ITEM_NOT_FOUND;
     }
 }

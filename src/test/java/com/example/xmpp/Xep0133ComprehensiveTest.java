@@ -120,7 +120,8 @@ public class Xep0133ComprehensiveTest extends AbstractRealServerTest {
                         () -> String.format("Server does not support admin command '%s'", commandName));
             }
             if (cause instanceof AdminCommandException ace) {
-                boolean unsupported = ace.getErrorCondition() == XmppError.Condition.ITEM_NOT_FOUND;
+                XmppError error = ace.getErrorResponse() != null ? ace.getErrorResponse().getError() : null;
+                boolean unsupported = error != null && error.getCondition() == XmppError.Condition.ITEM_NOT_FOUND;
                 assumeFalse(unsupported,
                         () -> String.format("Server does not support admin command '%s'", commandName));
             }

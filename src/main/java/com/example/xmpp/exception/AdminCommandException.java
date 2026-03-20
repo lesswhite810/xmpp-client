@@ -67,17 +67,4 @@ public class AdminCommandException extends XmppException {
     public boolean hasErrorResponse() {
         return errorResponse != null;
     }
-
-    /**
-     * 获取错误条件（如果可用）。
-     *
-     * @return 错误条件，不存在则返回 null
-     */
-    public XmppError.Condition getErrorCondition() {
-        if (errorResponse == null) {
-            return null;
-        }
-        XmppError error = errorResponse.getError();
-        return error != null ? error.getCondition() : null;
-    }
 }

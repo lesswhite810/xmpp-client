@@ -84,7 +84,8 @@ class Xep0133ServerDiagnosticsTest extends AbstractRealServerTest {
                 return;
             }
             if (cause instanceof AdminCommandException ace) {
-                XmppError.Condition condition = ace.getErrorCondition();
+                XmppError error = ace.getErrorResponse() != null ? ace.getErrorResponse().getError() : null;
+                XmppError.Condition condition = error != null ? error.getCondition() : null;
                 log.warn("{} failed: condition={}", commandName, condition);
                 return;
             }
