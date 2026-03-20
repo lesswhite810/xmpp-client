@@ -13,7 +13,7 @@ import java.util.function.Consumer;
  * @since 2026-03-18
  */
 @Slf4j
-public class ConnectionRequestHandler implements IqRequestHandler {
+public class ConnectionRequestHandler extends AbstractIqRequestHandler {
 
     private final Consumer<ConnectionRequest> callback;
 
@@ -23,6 +23,7 @@ public class ConnectionRequestHandler implements IqRequestHandler {
      * @param callback 回调
      */
     public ConnectionRequestHandler(Consumer<ConnectionRequest> callback) {
+        super(ConnectionRequest.ELEMENT, ConnectionRequest.NAMESPACE, Iq.Type.SET);
         this.callback = Objects.requireNonNull(callback, "Callback cannot be null");
     }
 
@@ -67,43 +68,4 @@ public class ConnectionRequestHandler implements IqRequestHandler {
         return iq.getExtension(ConnectionRequest.class).orElse(null);
     }
 
-    /**
-     * 获取元素名称。
-     *
-     * @return 元素名称
-     */
-    @Override
-    public String getElement() {
-        return ConnectionRequest.ELEMENT;
-    }
-
-    /**
-     * 获取命名空间。
-     *
-     * @return 命名空间
-     */
-    @Override
-    public String getNamespace() {
-        return ConnectionRequest.NAMESPACE;
-    }
-
-    /**
-     * 获取 IQ 类型。
-     *
-     * @return IQ 类型
-     */
-    @Override
-    public Iq.Type getIqType() {
-        return Iq.Type.SET;
-    }
-
-    /**
-     * 获取处理模式。
-     *
-     * @return 同步模式
-     */
-    @Override
-    public Mode getMode() {
-        return Mode.SYNC;
-    }
 }
