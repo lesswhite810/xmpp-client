@@ -3,7 +3,9 @@ package com.example.xmpp.mechanism;
 import com.example.xmpp.util.XmppConstants;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,6 +35,7 @@ import java.util.function.BiFunction;
  *
  * @since 2026-02-09
  */
+@Slf4j
 public class SaslMechanismFactory {
 
     private static final SaslMechanismFactory INSTANCE = new SaslMechanismFactory();
@@ -94,13 +97,24 @@ public class SaslMechanismFactory {
      * @param factory 机制工厂函数，接收用户名和密码（char[]），返回 SaslMechanism 实例
      */
     public void register(String name, int priority, BiFunction<String, char[], SaslMechanism> factory) {
-        if (name == null || name.isBlank()) {
+        if (StringUtils.isBlank(name)) {
             throw new IllegalArgumentException("name must not be null or blank");
         }
         Objects.requireNonNull(factory, "factory must not be null");
         registrationLock.lock();
         try {
             List<MechanismEntry> updated = new ArrayList<>(registeredMechanisms);
+            MechanismEntry existing = null;
+            for (MechanismEntry entry : registeredMechanisms) {
+                if (entry.name.equals(name)) {
+                    existing = entry;
+                    break;
+                }
+            }
+            if (existing != null) {
+                log.warn("SASL mechanism '{}' already registered with priority {}, replacing with priority {}",
+                        name, existing.priority, priority);
+            }
             updated.removeIf(entry -> entry.name.equals(name));
             updated.add(new MechanismEntry(name, priority, factory));
             updated.sort((a, b) -> Integer.compare(b.priority, a.priority));
@@ -153,7 +167,7 @@ public class SaslMechanismFactory {
                 throw new IllegalStateException("SASL mechanism factory returned null for " + entry.name);
             }
             String mechanismName = mechanism.getMechanismName();
-            if (mechanismName == null || mechanismName.isBlank()) {
+            if (StringUtils.isBlank(mechanismName)) {
                 throw new IllegalStateException("SASL mechanism returned invalid name for " + entry.name);
             }
             return Optional.of(mechanism);

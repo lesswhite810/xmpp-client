@@ -20,6 +20,7 @@ import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -282,7 +283,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
                 .map(XmlSerializable.class::cast)
                 .map(serializable -> {
                     String xml = serializable.toXml();
-                    if (xml.isEmpty()) {
+                    if (StringUtils.isEmpty(xml)) {
                         return null;
                     }
                     if (packet instanceof XmppStanza stanza) {

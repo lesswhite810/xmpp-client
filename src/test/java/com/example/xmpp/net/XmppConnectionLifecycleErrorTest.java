@@ -468,6 +468,10 @@ class XmppConnectionLifecycleErrorTest {
 
             CompletableFuture<Void> firstFuture = connection.connectAsync();
             assertTrue(acceptedLatch.await(5, TimeUnit.SECONDS));
+            waitFor(() -> connection.getChannel() != null && connection.getChannel().isActive(),
+                    TEST_WAIT_TIMEOUT_MS,
+                    "连接进行中时应已绑定活动通道");
+            assertFalse(firstFuture.isDone(), "复用 connectAsync 前首次 future 应仍处于进行中");
 
             CompletableFuture<Void> secondFuture = connection.connectAsync();
 

@@ -3,6 +3,7 @@ package com.example.xmpp.protocol.model.sasl;
 import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmlStringBuilder;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Map;
 
@@ -47,7 +48,7 @@ public record Auth(String mechanism, String content) implements ExtensionElement
      */
     @Override
     public String toXml() {
-        if (mechanism == null || mechanism.isBlank()) {
+        if (StringUtils.isBlank(mechanism)) {
             throw new IllegalArgumentException("mechanism must not be null or blank");
         }
 

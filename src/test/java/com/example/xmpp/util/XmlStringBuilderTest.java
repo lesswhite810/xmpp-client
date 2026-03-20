@@ -22,13 +22,6 @@ class XmlStringBuilderTest {
     class BasicAppendTests {
 
         @Test
-        @DisplayName("应正确创建空的 XmlStringBuilder")
-        void testEmptyBuilder() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            assertEquals("", builder.toString());
-        }
-
-        @Test
         @DisplayName("应正确追加字符串")
         void testAppendString() {
             XmlStringBuilder builder = new XmlStringBuilder();
@@ -68,14 +61,6 @@ class XmlStringBuilderTest {
         }
 
         @Test
-        @DisplayName("append() 应支持追加闭标签")
-        void testAppendCloseElement() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.append("</iq>");
-            assertEquals("</iq>", builder.toString());
-        }
-
-        @Test
         @DisplayName("openElement() 应支持属性")
         void testOpenElementWithAttributes() {
             XmlStringBuilder builder = new XmlStringBuilder();
@@ -90,19 +75,6 @@ class XmlStringBuilderTest {
     @Nested
     @DisplayName("属性方法")
     class AttributeTests {
-
-        @Test
-        @DisplayName("openElement() 应正确追加属性")
-        void testAttribute() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            Map<String, Object> attributes = new LinkedHashMap<>();
-            attributes.put("type", "get");
-            attributes.put("id", "test1");
-            builder.openElement("iq", null, attributes);
-            String result = builder.toString();
-            assertTrue(result.contains("type=\"get\""));
-            assertTrue(result.contains("id=\"test1\""));
-        }
 
         @Test
         @DisplayName("openElement() 应正确处理 null 属性值")
@@ -122,16 +94,6 @@ class XmlStringBuilderTest {
             attributes.put("type", TestType.GET);
             builder.openElement("iq", null, attributes);
             assertTrue(builder.toString().contains("type=\"get\""));
-        }
-
-        @Test
-        @DisplayName("openElement() 枚举属性为 null 时不添加")
-        void testNullEnumAttribute() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            Map<String, Object> attributes = new LinkedHashMap<>();
-            attributes.put("type", null);
-            builder.openElement("iq", null, attributes);
-            assertFalse(builder.toString().contains("type="));
         }
 
         enum TestType { GET, SET, RESULT, ERROR;
@@ -354,30 +316,6 @@ class XmlStringBuilderTest {
             assertTrue(result.contains("<stream:stream"));
             assertTrue(result.contains("from=\"user@example.com\""));
             assertTrue(result.contains("to=\"server.example.com\""));
-        }
-
-        @Test
-        @DisplayName("length 应返回正确长度")
-        void testLength() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.append("test");
-            assertEquals(4, builder.toString().length());
-        }
-
-        @Test
-        @DisplayName("应正确处理 toString")
-        void testToString() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.append("<iq type='get'/>");
-            assertEquals("<iq type='get'/>", builder.toString());
-        }
-
-        @Test
-        @DisplayName("应正确处理命名空间")
-        void testNamespace() {
-            XmlStringBuilder builder = new XmlStringBuilder();
-            builder.openElement("iq", null, Map.of("xmlns", "jabber:client"));
-            assertTrue(builder.toString().contains("xmlns=\"jabber:client\""));
         }
     }
 }

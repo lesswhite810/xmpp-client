@@ -5,10 +5,11 @@ import com.example.xmpp.exception.AdminCommandException;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
-import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.XmppError;
-import lombok.extern.slf4j.Slf4j;
+import com.example.xmpp.protocol.model.XmppStanza;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -28,8 +29,9 @@ import static org.mockito.Mockito.when;
 /**
  * 测试 extractSessionId 方法是否能正确从 GenericExtensionElement 中提取 sessionid。
  */
-@Slf4j
 class AdminManagerSessionIdTest {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminManagerSessionIdTest.class);
 
     @Test
     void testExtractSessionIdMethodReturnsOptionalEmptyWhenMissing() throws Exception {

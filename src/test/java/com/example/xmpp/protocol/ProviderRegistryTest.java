@@ -1,7 +1,9 @@
 package com.example.xmpp.protocol;
 
 import com.example.xmpp.exception.XmppParseException;
+import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.ExtensionElement;
+import com.example.xmpp.protocol.IqProvider;
 import com.example.xmpp.protocol.model.extension.Bind;
 import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.protocol.provider.BindProvider;
@@ -179,11 +181,32 @@ class ProviderRegistryTest {
     }
 
     @Test
+    @DisplayName("移除不存在的 Provider 应返回 empty")
+    void testRemoveMissingProvider() {
+        assertTrue(registry.removeProvider("missing", "urn:missing").isEmpty());
+    }
+
+    @Test
     @DisplayName("注册 null Provider 应抛出异常")
     void testRegisterNullProvider() {
         assertThrows(NullPointerException.class, () -> {
             registry.registerProvider(null);
         });
+    }
+
+    @Test
+    @DisplayName("应能注册并查找 IQ Provider")
+    void testRegisterIqProvider() {
+        TestIqProvider provider = new TestIqProvider();
+        registry.registerProvider(provider);
+
+        try {
+            assertSame(provider, registry.getIqProvider("test-iq", "urn:test:iq").orElse(null));
+            assertTrue(registry.getProvider("test-iq", "urn:test:iq").isPresent());
+            assertFalse(registry.getExtensionProvider("test-iq", "urn:test:iq").isPresent());
+        } finally {
+            registry.removeProvider("test-iq", "urn:test:iq");
+        }
     }
 
     // 测试辅助类
@@ -258,6 +281,34 @@ class ProviderRegistryTest {
         @Override
         public String getNamespace() {
             return namespace;
+        }
+    }
+
+    private static final class TestIqProvider implements IqProvider {
+
+        @Override
+        public Iq parse(XMLEventReader reader) throws XmppParseException {
+            return new Iq.Builder(Iq.Type.RESULT).build();
+        }
+
+        @Override
+        public Iq parse(XMLEventReader reader, Iq.Builder builder) {
+            return builder.build();
+        }
+
+        @Override
+        public void serialize(Iq object, XmlStringBuilder xml) {
+            xml.append(object.toXml());
+        }
+
+        @Override
+        public String getElementName() {
+            return "test-iq";
+        }
+
+        @Override
+        public String getNamespace() {
+            return "urn:test:iq";
         }
     }
 }

@@ -9,10 +9,11 @@ import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.XmppStanza;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -25,9 +26,10 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 /**
  * XEP-0133 Service Administration 综合测试
  */
-@Slf4j
 @RealServerTest
 public class Xep0133ComprehensiveTest {
+
+    private static final Logger log = LoggerFactory.getLogger(Xep0133ComprehensiveTest.class);
 
     private XmppTcpConnection connection;
     private AdminManager adminManager;

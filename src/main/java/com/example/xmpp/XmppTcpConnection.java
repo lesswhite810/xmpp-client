@@ -25,6 +25,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.ssl.SslHandler;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -205,7 +206,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     private record ConnectionTarget(String host, InetAddress address, int port) {
 
         static Optional<ConnectionTarget> of(InetAddress address, String host, int port) {
-            if (address == null && (host == null || host.isBlank())) {
+            if (address == null && StringUtils.isBlank(host)) {
                 return Optional.empty();
             }
             return Optional.of(new ConnectionTarget(host, address, port));

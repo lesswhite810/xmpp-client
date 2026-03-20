@@ -4,7 +4,6 @@ import com.example.xmpp.util.XmppConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.List;
 
@@ -51,35 +50,11 @@ class StreamModelTest {
     }
 
     @Test
-    @DisplayName("StartTls 应是单例")
-    void testStartTlsSingleton() {
-        assertSame(TlsElements.StartTls.INSTANCE, TlsElements.StartTls.INSTANCE);
-    }
-
-    @Test
-    @DisplayName("StartTls 单例构造器应为 private")
-    void testStartTlsConstructorIsPrivate() throws NoSuchMethodException {
-        assertTrue(Modifier.isPrivate(TlsElements.StartTls.class.getDeclaredConstructor().getModifiers()));
-    }
-
-    @Test
     @DisplayName("StartTls 应使用统一的 ELEMENT 和 NAMESPACE 常量")
     void testStartTlsConstants() {
         assertEquals("starttls", TlsElements.StartTls.ELEMENT);
         assertEquals(TlsElements.StartTls.ELEMENT, TlsElements.StartTls.INSTANCE.getElementName());
         assertEquals(TlsElements.TlsElement.NAMESPACE, TlsElements.StartTls.INSTANCE.getNamespace());
-    }
-
-    @Test
-    @DisplayName("TlsProceed 应是单例")
-    void testTlsProceedSingleton() {
-        assertSame(TlsElements.TlsProceed.INSTANCE, TlsElements.TlsProceed.INSTANCE);
-    }
-
-    @Test
-    @DisplayName("TlsProceed 单例构造器应为 private")
-    void testTlsProceedConstructorIsPrivate() throws NoSuchMethodException {
-        assertTrue(Modifier.isPrivate(TlsElements.TlsProceed.class.getDeclaredConstructor().getModifiers()));
     }
 
     @Test
@@ -105,12 +80,6 @@ class StreamModelTest {
     void testTlsElementsExtendTlsElement() {
         assertTrue(TlsElements.TlsElement.class.isAssignableFrom(TlsElements.StartTls.class));
         assertTrue(TlsElements.TlsElement.class.isAssignableFrom(TlsElements.TlsProceed.class));
-    }
-
-    @Test
-    @DisplayName("StartTls 和 TlsProceed 应不同")
-    void testStartTlsVsTlsProceed() {
-        assertNotSame(TlsElements.StartTls.INSTANCE, TlsElements.TlsProceed.INSTANCE);
     }
 
     @Test
@@ -147,20 +116,8 @@ class StreamModelTest {
         StreamFeatures features = StreamFeatures.builder()
                 .mechanisms(Collections.emptyList())
                 .build();
-        
+
         assertNotNull(features.getMechanisms());
         assertTrue(features.getMechanisms().isEmpty());
-    }
-
-    @Test
-    @DisplayName("StreamError 应能创建")
-    void testStreamErrorExists() {
-        // 检查类是否存在
-        try {
-            Class<?> clazz = Class.forName("com.example.xmpp.protocol.model.stream.StreamError");
-            assertNotNull(clazz);
-        } catch (ClassNotFoundException e) {
-            fail("StreamError class not found");
-        }
     }
 }

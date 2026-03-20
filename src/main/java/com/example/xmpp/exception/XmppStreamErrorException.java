@@ -2,6 +2,7 @@ package com.example.xmpp.exception;
 
 import com.example.xmpp.protocol.model.stream.StreamError;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * XMPP stream error 异常。
@@ -33,7 +34,7 @@ public class XmppStreamErrorException extends XmppProtocolException {
         if (streamError.getCondition() != null) {
             builder.append(": ").append(streamError.getCondition().getElementName());
         }
-        if (streamError.getText() != null && !streamError.getText().isBlank()) {
+        if (StringUtils.isNotBlank(streamError.getText())) {
             builder.append(" (").append(streamError.getText()).append(")");
         }
         return builder.toString();

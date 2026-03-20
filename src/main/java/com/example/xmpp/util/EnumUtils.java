@@ -1,6 +1,7 @@
 package com.example.xmpp.util;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -27,7 +28,7 @@ public final class EnumUtils {
      * @return 解析后的枚举值的 Optional，无效则返回 Optional.empty()
      */
     public static <T extends Enum<T>> Optional<T> fromString(Class<T> enumClass, String value) {
-        if (value == null || value.isEmpty()) {
+        if (StringUtils.isEmpty(value)) {
             return Optional.empty();
         }
         try {

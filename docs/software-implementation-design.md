@@ -1013,7 +1013,7 @@ Netty 负责：
 
 ### 18.3 敏感信息处理
 
-- 日志输出通过 `SecurityUtils.filterSensitiveXml(...)` 过滤敏感字段
+- 日志输出通过 `SecurityUtils.summarizeXml(...)` / `summarizeStanza(...)` / `summarizeExtensionElement(...)` 过滤敏感字段
 - 密码使用 `char[]`
 - 关闭连接错误输出时避免直接透传敏感异常文本
 

@@ -262,6 +262,15 @@ public class XmppClientConfig {
     }
 
     /**
+     * 获取密码副本。
+     *
+     * @return 密码字符数组副本
+     */
+    public char[] getPassword() {
+        return password.clone();
+    }
+
+    /**
      * 获取当前实际生效的端口号。
      *
      * @return 显式配置端口；若原始字段值为 0，则普通模式返回 5222，Direct TLS 模式返回 5223
@@ -308,4 +317,5 @@ public class XmppClientConfig {
                 ? handshakeTimeoutMs
                 : Math.toIntExact(TimeUnit.SECONDS.toMillis(XmppConstants.SSL_HANDSHAKE_TIMEOUT_SECONDS));
     }
+
 }

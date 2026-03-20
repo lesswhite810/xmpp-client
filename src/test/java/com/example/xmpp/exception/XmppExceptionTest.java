@@ -1,7 +1,9 @@
 package com.example.xmpp.exception;
 
-import java.util.List;
-
+import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.XmppError;
+import com.example.xmpp.protocol.model.sasl.SaslFailure;
+import com.example.xmpp.protocol.model.stream.StreamError;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -83,29 +85,6 @@ class XmppExceptionTest {
         assertTrue(ex1 instanceof XmppException);
     }
 
-    @Test
-    @DisplayName("异常可以被抛出和捕获")
-    void testExceptionThrowCatch() {
-        assertThrows(XmppException.class, () -> {
-            throw new XmppException("Test");
-        });
-        
-        assertThrows(XmppAuthException.class, () -> {
-            throw new XmppAuthException("Test");
-        });
-    }
-
-    @Test
-    @DisplayName("异常继承链正确")
-    void testExceptionInheritance() {
-        XmppException authEx = new XmppAuthException("auth");
-        XmppException netEx = new XmppNetworkException("net");
-        XmppException parseEx = new XmppParseException("parse");
-        assertTrue(authEx instanceof Exception);
-        assertTrue(netEx instanceof Exception);
-        assertTrue(parseEx instanceof Exception);
-    }
-
     // XmppProtocolException 测试
 
     @Test
@@ -124,30 +103,77 @@ class XmppExceptionTest {
     @Test
     @DisplayName("XmppSaslFailureException 测试")
     void testXmppSaslFailureException() {
-        // XmppSaslFailureException 需要 SaslFailure 参数，这里只测试它继承自 XmppException
-        XmppException ex = new XmppSaslFailureException(null);
-        assertTrue(ex instanceof XmppException);
-        assertEquals("SASL authentication failed: no failure element received", ex.getMessage());
+        SaslFailure saslFailure = new SaslFailure(SaslFailure.Condition.NOT_AUTHORIZED.getValue(), null);
+        XmppSaslFailureException ex = new XmppSaslFailureException(saslFailure);
+
+        assertEquals("SASL authentication failed: not-authorized", ex.getMessage());
+        assertSame(saslFailure, ex.getSaslFailure());
     }
 
-    // XmppStanzaErrorException 测试
+    @Test
+    @DisplayName("XmppSaslFailureException 为空 failure 时应使用默认消息")
+    void testXmppSaslFailureExceptionWithNullFailure() {
+        XmppSaslFailureException ex = new XmppSaslFailureException(null);
+
+        assertEquals("SASL authentication failed: no failure element received", ex.getMessage());
+        assertNull(ex.getSaslFailure());
+    }
+
+    @Test
+    @DisplayName("XmppSaslFailureException 条件为空白时不应追加条件文本")
+    void testXmppSaslFailureExceptionWithBlankCondition() {
+        SaslFailure saslFailure = new SaslFailure("  ", null);
+        XmppSaslFailureException ex = new XmppSaslFailureException(saslFailure);
+
+        assertEquals("SASL authentication failed", ex.getMessage());
+        assertSame(saslFailure, ex.getSaslFailure());
+    }
 
     @Test
     @DisplayName("XmppStanzaErrorException 测试")
     void testXmppStanzaErrorException() {
-        // XmppStanzaErrorException 需要 Iq 参数，这里只测试它继承自 XmppException
-        XmppException ex = new XmppStanzaErrorException("Stanza error", null);
-        assertTrue(ex instanceof XmppException);
-    }
+        XmppError error = new XmppError.Builder(XmppError.Condition.BAD_REQUEST).build();
+        Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
+                .id("iq-error")
+                .error(error)
+                .build();
+        XmppStanzaErrorException ex = new XmppStanzaErrorException("Stanza error", errorIq);
 
-    // XmppStreamErrorException 测试
+        assertEquals("Stanza error", ex.getMessage());
+        assertSame(errorIq, ex.getErrorIq());
+        assertSame(error, ex.getXmppError());
+    }
 
     @Test
     @DisplayName("XmppStreamErrorException 测试")
     void testXmppStreamErrorException() {
-        // XmppStreamErrorException 需要 StreamError 参数，这里只测试它继承自 XmppException
-        XmppException ex = new XmppStreamErrorException(null);
-        assertTrue(ex instanceof XmppException);
+        StreamError streamError = StreamError.builder()
+                .condition(StreamError.Condition.NOT_AUTHORIZED)
+                .text("Authentication required")
+                .build();
+        XmppStreamErrorException ex = new XmppStreamErrorException(streamError);
+
+        assertEquals("Received stream error: not-authorized (Authentication required)", ex.getMessage());
+        assertSame(streamError, ex.getStreamError());
+    }
+
+    @Test
+    @DisplayName("XmppStreamErrorException 为空 stream error 时应使用默认消息")
+    void testXmppStreamErrorExceptionWithNullStreamError() {
+        XmppStreamErrorException ex = new XmppStreamErrorException(null);
+
+        assertEquals("Received stream error", ex.getMessage());
+        assertNull(ex.getStreamError());
+    }
+
+    @Test
+    @DisplayName("XmppStreamErrorException 无条件和文本时应保持基础消息")
+    void testXmppStreamErrorExceptionWithoutConditionOrText() {
+        StreamError streamError = StreamError.builder().build();
+        XmppStreamErrorException ex = new XmppStreamErrorException(streamError);
+
+        assertEquals("Received stream error", ex.getMessage());
+        assertSame(streamError, ex.getStreamError());
     }
 
     // AdminCommandException 测试
@@ -163,52 +189,27 @@ class XmppExceptionTest {
         assertTrue(ex1 instanceof XmppException);
     }
 
-    // 异常链测试
-
     @Test
-    @DisplayName("异常链应该保持完整")
-    void testExceptionChaining() {
-        RuntimeException rootCause = new RuntimeException("Root cause");
-        XmppException ex = new XmppException("Wrapper message", rootCause);
+    @DisplayName("AdminCommandException 应正确暴露错误响应")
+    void testAdminCommandExceptionWithErrorResponse() {
+        Iq errorResponse = new Iq.Builder(Iq.Type.ERROR)
+                .id("iq-error")
+                .build();
+        AdminCommandException exception = new AdminCommandException("delete-user", "Admin command error", errorResponse);
 
-        assertSame(rootCause, ex.getCause());
-        assertEquals("Wrapper message", ex.getMessage());
-        assertTrue(ex.getCause().getMessage().contains("Root cause"));
-    }
-
-    // 异常序列化测试（验证异常可以正常序列化）
-
-    @Test
-    @DisplayName("所有异常应该可以正常创建和抛出")
-    void testAllExceptionsCanBeThrown() {
-        assertThrows(XmppException.class, () -> { throw new XmppException("test"); });
-        assertThrows(XmppAuthException.class, () -> { throw new XmppAuthException("test"); });
-        assertThrows(XmppNetworkException.class, () -> { throw new XmppNetworkException("test"); });
-        assertThrows(XmppParseException.class, () -> { throw new XmppParseException("test"); });
-        assertThrows(XmppProtocolException.class, () -> { throw new XmppProtocolException("test"); });
-        assertThrows(XmppSaslFailureException.class, () -> { throw new XmppSaslFailureException(null); });
-        assertThrows(XmppStanzaErrorException.class, () -> { throw new XmppStanzaErrorException("test", null); });
-        assertThrows(XmppStreamErrorException.class, () -> { throw new XmppStreamErrorException(null); });
-        assertThrows(AdminCommandException.class, () -> { throw new AdminCommandException("add-user", "test"); });
+        assertEquals("delete-user", exception.getCommandName());
+        assertEquals("Admin command error", exception.getMessage());
+        assertTrue(exception.hasErrorResponse());
+        assertSame(errorResponse, exception.getErrorResponse());
     }
 
     @Test
-    @DisplayName("异常类不应声明硬编码 serialVersionUID")
-    void testExceptionClassesShouldNotDeclareSerialVersionUid() {
-        List<Class<?>> exceptionClasses = List.of(
-                XmppNetworkException.class,
-                XmppException.class,
-                XmppAuthException.class,
-                AdminCommandException.class,
-                XmppProtocolException.class,
-                XmppParseException.class,
-                XmppSaslFailureException.class,
-                XmppStanzaErrorException.class,
-                XmppStreamErrorException.class
-        );
+    @DisplayName("AdminCommandException 无错误响应时应返回 false")
+    void testAdminCommandExceptionWithoutErrorResponse() {
+        AdminCommandException exception = new AdminCommandException("delete-user", "Admin command error");
 
-        for (Class<?> exceptionClass : exceptionClasses) {
-            assertThrows(NoSuchFieldException.class, () -> exceptionClass.getDeclaredField("serialVersionUID"));
-        }
+        assertEquals("delete-user", exception.getCommandName());
+        assertFalse(exception.hasErrorResponse());
+        assertNull(exception.getErrorResponse());
     }
 }

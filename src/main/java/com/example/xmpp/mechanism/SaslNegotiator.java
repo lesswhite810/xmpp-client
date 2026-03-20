@@ -12,6 +12,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.security.sasl.SaslException;
 import java.util.Base64;
@@ -108,7 +109,7 @@ public class SaslNegotiator {
      * @throws XmppAuthException 如果成功结果校验失败
      */
     public boolean handleSuccess(String contentB64) throws XmppAuthException {
-        if (contentB64 != null && !contentB64.isEmpty()) {
+        if (StringUtils.isNotEmpty(contentB64)) {
             try {
                 mechanism.processChallenge(BASE64_DECODER.decode(contentB64));
             } catch (IllegalArgumentException e) {
@@ -161,7 +162,7 @@ public class SaslNegotiator {
 
     private String resolveMechanismName() throws XmppAuthException {
         String mechanismName = mechanism.getMechanismName();
-        if (mechanismName == null || mechanismName.isBlank()) {
+        if (StringUtils.isBlank(mechanismName)) {
             throw new XmppAuthException("SASL mechanism name must not be null or blank");
         }
         return mechanismName;

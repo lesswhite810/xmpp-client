@@ -105,6 +105,24 @@ class SslUtilsTest {
     }
 
     @Test
+    @DisplayName("双向认证模式在提供自定义 SSLContext 时可跳过 KeyManager 校验")
+    void testMutualTlsWithCustomSslContextSucceeds() throws Exception {
+        SSLContext customContext = SSLContext.getInstance("TLS");
+        customContext.init(null, null, null);
+
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .host("example.com")
+                .tlsAuthenticationMode(XmppClientConfig.TlsAuthenticationMode.MUTUAL)
+                .customSslContext(customContext)
+                .build();
+
+        SslHandler handler = SslUtils.createSslHandler(config);
+
+        assertNotNull(handler);
+    }
+
+    @Test
     @DisplayName("创建 SslHandler 时不启用主机校验参数")
     void testCreateSslHandlerDoesNotUsePeerHostVerification() throws XmppNetworkException {
         XmppClientConfig config = XmppClientConfig.builder()

@@ -1,452 +1,165 @@
 package com.example.xmpp.event;
 
 import com.example.xmpp.XmppConnection;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 /**
- * XmppEventBus 单元测试。
+ * XmppEventBus 行为测试。
  */
 class XmppEventBusTest {
 
-    private XmppEventBus eventBus;
-    private XmppConnection mockConnection1;
-    private XmppConnection mockConnection2;
+    private final XmppEventBus eventBus = XmppEventBus.getInstance();
+    private final XmppConnection connection1 = mock(XmppConnection.class);
+    private final XmppConnection connection2 = mock(XmppConnection.class);
 
-    @BeforeEach
-    void setUp() {
-        eventBus = XmppEventBus.getInstance();
-        clearEventBusListeners();
-
-        // 创建 mock 连接
-        mockConnection1 = mock(XmppConnection.class);
-        mockConnection2 = mock(XmppConnection.class);
+    @AfterEach
+    void tearDown() {
+        eventBus.unsubscribeAll(connection1);
+        eventBus.unsubscribeAll(connection2);
     }
 
     @Test
-    @DisplayName("单例实例应返回相同对象")
+    @DisplayName("getInstance 应返回单例")
     void testSingleton() {
-        XmppEventBus instance1 = XmppEventBus.getInstance();
-        XmppEventBus instance2 = XmppEventBus.getInstance();
-
-        assertSame(instance1, instance2);
+        assertSame(eventBus, XmppEventBus.getInstance());
     }
 
-    // 订阅测试
-
     @Test
-    @DisplayName("应正确订阅事件")
-    void testSubscribe() {
+    @DisplayName("订阅后应收到对应事件，取消订阅后不再收到")
+    void testSubscribeAndUnsubscribe() {
         AtomicBoolean handled = new AtomicBoolean(false);
 
-        Runnable unsubscribe = eventBus.subscribe(
-                mockConnection1,
-                ConnectionEventType.CONNECTED,
+        Runnable unsubscribe = eventBus.subscribe(connection1, ConnectionEventType.CONNECTED,
                 event -> handled.set(true));
 
-        assertTrue(hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
-        assertEquals(1, getSubscriberCount(mockConnection1, ConnectionEventType.CONNECTED));
-
-        // 触发事件
-        publish(mockConnection1, ConnectionEventType.CONNECTED);
-
+        eventBus.publish(connection1, ConnectionEventType.CONNECTED);
         assertTrue(handled.get());
 
-        // 取消订阅
+        handled.set(false);
         unsubscribe.run();
-        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
+        eventBus.publish(connection1, ConnectionEventType.CONNECTED);
+
+        assertFalse(handled.get());
     }
 
     @Test
-    @DisplayName("应正确发布事件")
-    void testPublish() {
-        AtomicInteger counter = new AtomicInteger(0);
+    @DisplayName("publish 应将事件分发给同一连接的所有处理器")
+    void testPublishFanOut() {
+        AtomicInteger counter = new AtomicInteger();
 
-        eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> counter.incrementAndGet());
-        eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> counter.incrementAndGet());
+        eventBus.subscribe(connection1, ConnectionEventType.CONNECTED, event -> counter.incrementAndGet());
+        eventBus.subscribe(connection1, ConnectionEventType.CONNECTED, event -> counter.incrementAndGet());
 
-        publish(mockConnection1, ConnectionEventType.CONNECTED);
+        eventBus.publish(connection1, ConnectionEventType.CONNECTED);
 
         assertEquals(2, counter.get());
     }
 
     @Test
-    @DisplayName("应正确取消订阅")
-    void testUnsubscribe() {
-        AtomicBoolean handled = new AtomicBoolean(false);
-        Consumer<ConnectionEvent> handler = event -> handled.set(true);
-
-        // 使用 subscribe 返回的 Runnable 取消订阅
-        Runnable unsub = eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, handler);
-        unsub.run();
-
-        publish(mockConnection1, ConnectionEventType.CONNECTED);
-
-        assertFalse(handled.get());
-    }
-
-    @Test
-    @DisplayName("无订阅者时发布事件应正常返回")
-    void testPublishNoSubscribers() {
-        assertDoesNotThrow(() ->
-            publish(mockConnection1, ConnectionEventType.CONNECTED));
-    }
-
-    @Test
-    @DisplayName("清除所有订阅者应成功")
-    void testClear() {
-        eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> {});
-        eventBus.subscribe(mockConnection1, ConnectionEventType.AUTHENTICATED, event -> {});
-
-        clearEventBusListeners();
-
-        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
-        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.AUTHENTICATED));
-    }
-
-    @Test
-    @DisplayName("不同事件类型应相互独立")
-    void testIndependentEventTypes() {
-        AtomicInteger connectedCount = new AtomicInteger(0);
-        AtomicInteger authCount = new AtomicInteger(0);
-
-        eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> connectedCount.incrementAndGet());
-        eventBus.subscribe(mockConnection1, ConnectionEventType.AUTHENTICATED, event -> authCount.incrementAndGet());
-
-        publish(mockConnection1, ConnectionEventType.CONNECTED);
-        publish(mockConnection1, ConnectionEventType.AUTHENTICATED);
-
-        assertEquals(1, connectedCount.get());
-        assertEquals(1, authCount.get());
-    }
-
-    @Test
-    @DisplayName("多个订阅者时一个失败不应影响其他")
-    void testHandlerExceptionIsolation() {
-        AtomicBoolean firstHandlerCalled = new AtomicBoolean(false);
-        AtomicBoolean thirdHandlerCalled = new AtomicBoolean(false);
-
-        eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> {
-            throw new RuntimeException("Intentional error");
-        });
-        eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> firstHandlerCalled.set(true));
-        eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> thirdHandlerCalled.set(true));
-
-        assertDoesNotThrow(() -> publish(mockConnection1, ConnectionEventType.CONNECTED));
-
-        assertTrue(firstHandlerCalled.get());
-        assertTrue(thirdHandlerCalled.get());
-    }
-
-    @Test
-    @DisplayName("获取不存在的订阅者数量应返回 0")
-    void testGetSubscriberCountNonexistent() {
-        assertEquals(0, getSubscriberCount(mockConnection1, ConnectionEventType.CONNECTED));
-    }
-
-    // 连接隔离测试
-
-    @Test
-    @DisplayName("不同连接的事件应相互独立")
-    void testIndependentConnections() {
-        AtomicInteger count1 = new AtomicInteger(0);
-        AtomicInteger count2 = new AtomicInteger(0);
-
-        eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> count1.incrementAndGet());
-        eventBus.subscribe(mockConnection2, ConnectionEventType.CONNECTED, event -> count2.incrementAndGet());
-
-        // 向 connection1 发布
-        publish(mockConnection1, ConnectionEventType.CONNECTED);
-        // 向 connection2 发布
-        publish(mockConnection2, ConnectionEventType.CONNECTED);
-
-        assertEquals(1, count1.get());
-        assertEquals(1, count2.get());
-    }
-
-    @Test
-    @DisplayName("只应接收指定连接的事件")
-    void testConnectionSpecificEvents() {
-        AtomicBoolean handled1 = new AtomicBoolean(false);
-        AtomicBoolean handled2 = new AtomicBoolean(false);
-
-        // 为 connection1 订阅
-        eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> handled1.set(true));
-        // 为 connection2 订阅
-        eventBus.subscribe(mockConnection2, ConnectionEventType.CONNECTED, event -> handled2.set(true));
-
-        // 只向 connection1 发布
-        publish(mockConnection1, ConnectionEventType.CONNECTED);
-
-        assertTrue(handled1.get());
-        assertFalse(handled2.get());
-    }
-
-    @Test
-    @DisplayName("应正确取消特定连接的所有订阅")
-    void testUnsubscribeAllForConnection() {
-        AtomicBoolean handled1 = new AtomicBoolean(false);
-        AtomicBoolean handled2 = new AtomicBoolean(false);
-
-        eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> handled1.set(true));
-        eventBus.subscribe(mockConnection1, ConnectionEventType.AUTHENTICATED, event -> handled2.set(true));
-        // connection2 的订阅
-        eventBus.subscribe(mockConnection2, ConnectionEventType.CONNECTED, event -> {});
-
-        // 只取消 connection1 的所有订阅
-        eventBus.unsubscribeAll(mockConnection1);
-
-        // connection1 的订阅应该被取消
-        assertEquals(0, getTotalSubscriberCount(mockConnection1));
-        // connection2 的订阅应该还在
-        assertEquals(1, getTotalSubscriberCount(mockConnection2));
-
-        publish(mockConnection1, ConnectionEventType.CONNECTED);
-        publish(mockConnection1, ConnectionEventType.AUTHENTICATED);
-
-        assertFalse(handled1.get());
-        assertFalse(handled2.get());
-    }
-
-    @Test
-    @DisplayName("订阅返回的 Runnable 应可取消订阅")
-    void testUnsubscribeRunnable() {
-        AtomicBoolean handled = new AtomicBoolean(false);
-
-        Runnable unsub = eventBus.subscribe(
-                mockConnection1,
-                ConnectionEventType.CONNECTED,
-                event -> handled.set(true));
-
-        // 第一次取消
-        unsub.run();
-
-        // 再次取消应该没问题
-        unsub.run();
-
-        publish(mockConnection1, ConnectionEventType.CONNECTED);
-
-        assertFalse(handled.get());
-    }
-
-    @Test
-    @DisplayName("带错误的事件应正确传递错误信息")
-    void testEventWithError() {
-        AtomicBoolean handled = new AtomicBoolean(false);
-        RuntimeException testError = new RuntimeException("Test error");
-
-        eventBus.subscribe(mockConnection1, ConnectionEventType.ERROR, event -> {
-            handled.set(true);
-            assertEquals(testError, event.error());
-        });
-
-        eventBus.publish(mockConnection1, ConnectionEventType.ERROR, testError);
-
-        assertTrue(handled.get());
-    }
-
-    @Test
-    @DisplayName("ConnectionEvent 对象应正确包含事件信息")
-    void testConnectionEventObject() {
-        AtomicBoolean handled = new AtomicBoolean(false);
-        RuntimeException testError = new RuntimeException("Test error");
-
-        eventBus.subscribe(mockConnection1, ConnectionEventType.ERROR, event -> {
-            handled.set(true);
-            assertEquals(mockConnection1, event.connection());
-            assertEquals(ConnectionEventType.ERROR, event.eventType());
-            assertEquals(testError, event.error());
-        });
-
-        eventBus.publish(mockConnection1, ConnectionEventType.ERROR, testError);
-
-        assertTrue(handled.get());
-
-    }
-
-    // 批量订阅测试
-
-    @Test
-    @DisplayName("应正确批量订阅多个事件")
+    @DisplayName("subscribeAll 应批量订阅并支持批量取消")
     void testSubscribeAll() {
-        AtomicInteger connectedCount = new AtomicInteger(0);
-        AtomicInteger authCount = new AtomicInteger(0);
-        AtomicInteger errorCount = new AtomicInteger(0);
+        AtomicInteger connectedCount = new AtomicInteger();
+        AtomicInteger errorCount = new AtomicInteger();
 
-        Runnable unsubscribe = eventBus.subscribeAll(mockConnection1, Map.of(
+        Runnable unsubscribe = eventBus.subscribeAll(connection1, Map.of(
                 ConnectionEventType.CONNECTED, event -> connectedCount.incrementAndGet(),
-                ConnectionEventType.AUTHENTICATED, event -> authCount.incrementAndGet(),
                 ConnectionEventType.ERROR, event -> errorCount.incrementAndGet()
         ));
 
-        // 验证订阅成功
-        assertTrue(hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
-        assertTrue(hasSubscribers(mockConnection1, ConnectionEventType.AUTHENTICATED));
-        assertTrue(hasSubscribers(mockConnection1, ConnectionEventType.ERROR));
-
-        // 发布事件
-        publish(mockConnection1, ConnectionEventType.CONNECTED);
-        publish(mockConnection1, ConnectionEventType.AUTHENTICATED);
-        eventBus.publish(mockConnection1, ConnectionEventType.ERROR, new RuntimeException("test"));
+        eventBus.publish(connection1, ConnectionEventType.CONNECTED);
+        eventBus.publish(connection1, ConnectionEventType.ERROR, new RuntimeException("boom"));
 
         assertEquals(1, connectedCount.get());
-        assertEquals(1, authCount.get());
         assertEquals(1, errorCount.get());
 
-        // 批量取消
         unsubscribe.run();
+        eventBus.publish(connection1, ConnectionEventType.CONNECTED);
+        eventBus.publish(connection1, ConnectionEventType.ERROR, new RuntimeException("boom"));
 
-        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
-        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.AUTHENTICATED));
-        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.ERROR));
+        assertEquals(1, connectedCount.get());
+        assertEquals(1, errorCount.get());
     }
 
     @Test
-    @DisplayName("空 handlers 映射应返回空 Runnable")
-    void testSubscribeAllEmptyHandlers() {
-        Runnable unsubscribe = eventBus.subscribeAll(mockConnection1, Map.of());
+    @DisplayName("空 handlers 的批量订阅应返回无操作取消器")
+    void testSubscribeAllWithEmptyHandlers() {
+        Runnable unsubscribe = eventBus.subscribeAll(connection1, Map.of());
 
-        // 不应有订阅
-        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.CONNECTED));
-
-        // 空 Runnable 不应抛异常
         assertDoesNotThrow(unsubscribe::run);
+        eventBus.publish(connection1, ConnectionEventType.CONNECTED);
     }
 
     @Test
-    @DisplayName("null handlers 应返回空 Runnable")
-    void testSubscribeAllNullHandlers() {
-        Runnable unsubscribe = eventBus.subscribeAll(mockConnection1, null);
+    @DisplayName("不同连接的事件应相互隔离")
+    void testConnectionIsolation() {
+        AtomicBoolean firstHandled = new AtomicBoolean(false);
+        AtomicBoolean secondHandled = new AtomicBoolean(false);
 
-        assertEquals(0, getTotalSubscriberCount(mockConnection1));
-        assertDoesNotThrow(unsubscribe::run);
+        eventBus.subscribe(connection1, ConnectionEventType.CONNECTED, event -> firstHandled.set(true));
+        eventBus.subscribe(connection2, ConnectionEventType.CONNECTED, event -> secondHandled.set(true));
+
+        eventBus.publish(connection1, ConnectionEventType.CONNECTED);
+
+        assertTrue(firstHandled.get());
+        assertFalse(secondHandled.get());
     }
 
     @Test
-    @DisplayName("null 连接应抛出异常")
-    void testSubscribeAllNullConnection() {
-        assertThrows(IllegalArgumentException.class, () ->
-                eventBus.subscribeAll(null, Map.of(ConnectionEventType.CONNECTED, event -> {})));
+    @DisplayName("单个处理器抛异常不应影响其他处理器")
+    void testHandlerExceptionIsolation() {
+        AtomicBoolean handled = new AtomicBoolean(false);
+
+        eventBus.subscribe(connection1, ConnectionEventType.CONNECTED, event -> {
+            throw new RuntimeException("boom");
+        });
+        eventBus.subscribe(connection1, ConnectionEventType.CONNECTED, event -> handled.set(true));
+
+        assertDoesNotThrow(() -> eventBus.publish(connection1, ConnectionEventType.CONNECTED));
+        assertTrue(handled.get());
     }
 
     @Test
-    @DisplayName("已有连接但目标事件无处理器时发布应安全返回")
-    void testPublishWhenConnectionExistsButEventHasNoHandlers() {
-        eventBus.subscribe(mockConnection1, ConnectionEventType.CONNECTED, event -> { });
+    @DisplayName("带错误的事件应携带原始异常")
+    void testEventWithError() {
+        RuntimeException error = new RuntimeException("boom");
+        AtomicBoolean handled = new AtomicBoolean(false);
 
-        assertDoesNotThrow(() -> publish(mockConnection1, ConnectionEventType.ERROR));
-        assertFalse(hasSubscribers(mockConnection1, ConnectionEventType.ERROR));
-    }
-
-    @Test
-    @DisplayName("unsubscribeAll 对不存在的连接应安全返回")
-    void testUnsubscribeAllForUnknownConnection() {
-        assertDoesNotThrow(() -> eventBus.unsubscribeAll(mockConnection1));
-        assertEquals(0, getTotalSubscriberCount(mockConnection1));
-    }
-
-    @Nested
-    @DisplayName("ConnectionEvent 测试")
-    class ConnectionEventTests {
-
-        @Test
-        @DisplayName("ConnectionEvent 构造器应设置所有属性")
-        void testConnectionEventConstructor() {
-            ConnectionEvent event = new ConnectionEvent(mockConnection1, ConnectionEventType.CONNECTED);
-
-            assertEquals(mockConnection1, event.connection());
-            assertEquals(ConnectionEventType.CONNECTED, event.eventType());
-            assertNull(event.error());
-        }
-
-        @Test
-        @DisplayName("ConnectionEvent 构造器应支持带错误")
-        void testConnectionEventConstructorWithError() {
-            Exception testError = new RuntimeException("Test error");
-            ConnectionEvent event = new ConnectionEvent(mockConnection1, ConnectionEventType.ERROR, testError);
-
-            assertEquals(mockConnection1, event.connection());
+        eventBus.subscribe(connection1, ConnectionEventType.ERROR, event -> {
+            handled.set(true);
+            assertSame(connection1, event.connection());
             assertEquals(ConnectionEventType.ERROR, event.eventType());
-            assertEquals(testError, event.error());
-        }
+            assertSame(error, event.error());
+        });
 
-        @Test
-        @DisplayName("ConnectionEvent.toString 无错误时应生成正确格式")
-        void testConnectionEventToStringNoError() {
-            ConnectionEvent event = new ConnectionEvent(mockConnection1, ConnectionEventType.CONNECTED);
-            String str = event.toString();
+        eventBus.publish(connection1, ConnectionEventType.ERROR, error);
 
-            assertTrue(str.contains("ConnectionEvent"));
-            assertTrue(str.contains("CONNECTED"));
-            assertFalse(str.contains("error="));
-        }
-
-        @Test
-        @DisplayName("ConnectionEvent.toString 有错误时应生成正确格式")
-        void testConnectionEventToStringWithError() {
-            Exception testError = new RuntimeException("Test error message");
-            ConnectionEvent event = new ConnectionEvent(mockConnection1, ConnectionEventType.ERROR, testError);
-            String str = event.toString();
-
-            assertTrue(str.contains("ConnectionEvent"));
-            assertTrue(str.contains("ERROR"));
-            assertTrue(str.contains("errorType="));
-            assertTrue(str.contains("RuntimeException"));
-            assertFalse(str.contains("Test error message"));
-        }
+        assertTrue(handled.get());
     }
 
-    private void publish(XmppConnection connection, ConnectionEventType eventType) {
-        eventBus.publish(connection, eventType, null);
+    @Test
+    @DisplayName("null 连接的批量订阅应抛出异常")
+    void testSubscribeAllNullConnection() {
+        assertThrows(IllegalArgumentException.class,
+                () -> eventBus.subscribeAll(null, Map.of(ConnectionEventType.CONNECTED, event -> {})));
     }
 
-    private boolean hasSubscribers(XmppConnection connection, ConnectionEventType eventType) {
-        return getSubscriberCount(connection, eventType) > 0;
-    }
-
-    private int getSubscriberCount(XmppConnection connection, ConnectionEventType eventType) {
-        return getConnectionHandlers(connection).getOrDefault(eventType, List.of()).size();
-    }
-
-    private int getTotalSubscriberCount(XmppConnection connection) {
-        return getConnectionHandlers(connection).values().stream()
-                .mapToInt(List::size)
-                .sum();
-    }
-
-    private Map<ConnectionEventType, List<Consumer<ConnectionEvent>>> getConnectionHandlers(XmppConnection connection) {
-        try {
-            Field field = XmppEventBus.class.getDeclaredField("listeners");
-            field.setAccessible(true);
-            Object listenersObject = field.get(eventBus);
-            Map<XmppConnection, Map<ConnectionEventType, List<Consumer<ConnectionEvent>>>> listeners =
-                    (Map<XmppConnection, Map<ConnectionEventType, List<Consumer<ConnectionEvent>>>>) listenersObject;
-            return listeners.getOrDefault(connection, Map.of());
-        } catch (ReflectiveOperationException e) {
-            throw new AssertionError("无法读取 XmppEventBus 订阅状态", e);
-        }
-    }
-
-    private void clearEventBusListeners() {
-        try {
-            Field field = XmppEventBus.class.getDeclaredField("listeners");
-            field.setAccessible(true);
-            Object listenersObject = field.get(eventBus);
-            ((Map<?, ?>) listenersObject).clear();
-        } catch (ReflectiveOperationException e) {
-            throw new AssertionError("无法清理 XmppEventBus 订阅状态", e);
-        }
+    @Test
+    @DisplayName("取消不存在连接的订阅应安全返回")
+    void testUnsubscribeAllForUnknownConnection() {
+        assertDoesNotThrow(() -> eventBus.unsubscribeAll(connection1));
     }
 }

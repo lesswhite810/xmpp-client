@@ -2,6 +2,7 @@ package com.example.xmpp.exception;
 
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * SASL 失败异常。
@@ -30,7 +31,7 @@ public class XmppSaslFailureException extends XmppAuthException {
             return "SASL authentication failed: no failure element received";
         }
         StringBuilder builder = new StringBuilder("SASL authentication failed");
-        if (saslFailure.condition() != null && !saslFailure.condition().isBlank()) {
+        if (StringUtils.isNotBlank(saslFailure.condition())) {
             builder.append(": ").append(saslFailure.condition());
         }
         return builder.toString();

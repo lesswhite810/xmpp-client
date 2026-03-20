@@ -494,11 +494,30 @@ class XmppStreamDecoderTest {
             Message message = (Message) msg;
             assertEquals(1, message.getExtensions().size());
             assertInstanceOf(GenericExtensionElement.class, message.getExtensions().getFirst());
-            assertEquals("value",
-                    ((GenericExtensionElement) message.getExtensions().getFirst()).getElementName());
+            GenericExtensionElement extension = (GenericExtensionElement) message.getExtensions().getFirst();
+            assertEquals("value", extension.getElementName());
+            assertEquals("ignored", extension.getText());
         } finally {
             registry.removeProvider("broken", "urn:test:broken");
         }
+    }
+
+    @Test
+    @DisplayName("应跳过格式错误的 stanza 并继续解析后续消息")
+    void testMalformedStanzaIsDroppedAndFollowingMessageStillParses() {
+        sendStreamHeader();
+        sendXml("<message type='chat' id='broken'><body>broken</body></iq>");
+        assertNull(channel.readInbound());
+
+        sendXml("<iq type='get' id='after-broken'><ping xmlns='urn:xmpp:ping'/></iq>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(Iq.class, msg);
+        assertEquals("after-broken", ((Iq) msg).getId());
+        assertNotNull(((Iq) msg).getChildElement());
+        assertEquals("ping", ((Iq) msg).getChildElement().getElementName());
+        assertNull(channel.readInbound());
     }
 
     @Test

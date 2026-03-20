@@ -4,7 +4,8 @@ import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -37,8 +38,9 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li>管理员: admin / 密码: admin</li>
  * </ul>
  */
-@Slf4j
 public class XmppIntegrationTest {
+
+    private static final Logger log = LoggerFactory.getLogger(XmppIntegrationTest.class);
 
     private static final String HOST = "localhost";
     private static final String DOMAIN = "lesswhite";

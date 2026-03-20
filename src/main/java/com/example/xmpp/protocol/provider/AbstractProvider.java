@@ -6,6 +6,7 @@ import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmlParserUtils;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
@@ -116,8 +117,8 @@ public abstract class AbstractProvider<T extends ExtensionElement>
         String namespace = event.asEndElement().getName().getNamespaceURI();
         String expectedNamespace = getNamespace();
 
-        if (expectedNamespace == null || expectedNamespace.isEmpty()) {
-            return namespace == null || namespace.isEmpty();
+        if (StringUtils.isEmpty(expectedNamespace)) {
+            return StringUtils.isEmpty(namespace);
         }
         return expectedNamespace.equals(namespace);
     }

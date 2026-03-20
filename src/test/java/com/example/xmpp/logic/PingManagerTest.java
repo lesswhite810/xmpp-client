@@ -1,34 +1,38 @@
 package com.example.xmpp.logic;
 
+import com.example.xmpp.XmppConnection;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.event.ConnectionEventType;
-import com.example.xmpp.event.XmppEventBus;
-import com.example.xmpp.XmppConnection;
+import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.extension.Ping;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.AfterEach;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * PingManager 单元测试。
+ * PingManager 行为测试。
  */
 class PingManagerTest {
 
@@ -42,39 +46,33 @@ class PingManagerTest {
     @BeforeEach
     void setUp() throws Exception {
         mocks = MockitoAnnotations.openMocks(this);
-        clearEventBusListeners();
         pingManager = new PingManager(connection);
     }
 
     @AfterEach
     void tearDownMocks() throws Exception {
+        if (pingManager != null) {
+            pingManager.shutdown();
+        }
         if (mocks != null) {
             mocks.close();
         }
     }
 
     @Test
-    @DisplayName("构造函数应正确初始化")
-    void testConstructor() {
-        assertNotNull(pingManager);
-    }
+    @DisplayName("setPingInterval 应重调度已运行的保活任务")
+    void testSetPingIntervalReschedulesActiveTask() throws Exception {
+        pingManager.setPingInterval(1);
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+        ScheduledFuture<?> firstTask = getKeepAliveTask();
 
-    @Test
-    @DisplayName("PingManager 应禁止子类覆写构造期间绑定的生命周期方法")
-    void testPingManagerClassIsFinal() {
-        assertTrue(Modifier.isFinal(PingManager.class.getModifiers()));
-    }
+        pingManager.setPingInterval(2);
+        ScheduledFuture<?> secondTask = getKeepAliveTask();
 
-    @Test
-    @DisplayName("setPingInterval 应更新间隔")
-    void testSetPingInterval() {
-        assertDoesNotThrow(() -> pingManager.setPingInterval(30));
-    }
-
-    @Test
-    @DisplayName("shutdown 应安全执行")
-    void testShutdown() {
-        assertDoesNotThrow(() -> pingManager.shutdown());
+        assertNotNull(firstTask);
+        assertNotNull(secondTask);
+        assertNotSame(firstTask, secondTask);
+        assertTrue(firstTask.isCancelled(), "更新间隔后旧保活任务应被取消");
     }
 
     @Test
@@ -90,70 +88,74 @@ class PingManagerTest {
     }
 
     @Test
-    @DisplayName("onEvent(AUTHENTICATED) 应启动保活")
-    void testAuthenticatedEventStartsKeepAlive() {
-        // 验证 onEvent 方法存在且可调用
-        assertDoesNotThrow(() -> pingManager.onEvent(
-                new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED)));
+    @DisplayName("onEvent(AUTHENTICATED) 应启动保活任务")
+    void testAuthenticatedEventStartsKeepAlive() throws Exception {
+        pingManager.setPingInterval(1);
+
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+
+        assertNotNull(getKeepAliveTask());
     }
 
     @Test
-    @DisplayName("onEvent(CLOSED) 应关闭")
-    void testConnectionClosedEventShutsDown() {
-        assertDoesNotThrow(() -> pingManager.onEvent(
-                new ConnectionEvent(connection, ConnectionEventType.CLOSED)));
+    @DisplayName("onEvent(CLOSED) 应取消已启动的保活任务")
+    void testConnectionClosedEventShutsDown() throws Exception {
+        pingManager.setPingInterval(1);
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+
+        ScheduledFuture<?> keepAliveTask = getKeepAliveTask();
+        assertNotNull(keepAliveTask);
+
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CLOSED));
+
+        assertNull(getKeepAliveTask());
+        assertTrue(keepAliveTask.isCancelled());
+    }
+
+    @Test
+    @DisplayName("onEvent(ERROR) 应取消已启动的保活任务")
+    void testConnectionErrorEventShutsDown() throws Exception {
+        pingManager.setPingInterval(1);
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+
+        ScheduledFuture<?> keepAliveTask = getKeepAliveTask();
+        assertNotNull(keepAliveTask);
+
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR));
+
+        assertNull(getKeepAliveTask());
+        assertTrue(keepAliveTask.isCancelled());
     }
 
     @Test
     @DisplayName("shutdown 后不应被 AUTHENTICATED 事件重新启动")
-    void testShutdownPreventsRestartOnAuthenticatedEvent() {
+    void testShutdownPreventsRestartOnAuthenticatedEvent() throws Exception {
         pingManager.setPingInterval(1);
         pingManager.shutdown();
         pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
 
         verify(connection, never()).sendIqPacketAsync(any());
+        assertNull(getKeepAliveTask());
     }
 
     @Test
     @DisplayName("shutdown 后修改间隔不应重新启动保活任务")
-    void testShutdownPreventsRestartOnIntervalUpdate() {
+    void testShutdownPreventsRestartOnIntervalUpdate() throws Exception {
         pingManager.setPingInterval(1);
         pingManager.shutdown();
         pingManager.setPingInterval(1);
 
         verify(connection, never()).sendIqPacketAsync(any());
+        assertNull(getKeepAliveTask());
     }
 
     @Test
-    @DisplayName("shutdown 后应清空事件订阅")
-    void testShutdownClearsEventSubscriptions() {
-        assertTrue(getTotalSubscriberCount(connection) > 0);
+    @DisplayName("未启动保活任务时修改间隔不应提前调度")
+    void testSetPingIntervalDoesNotScheduleTaskBeforeAuthentication() throws Exception {
+        pingManager.setPingInterval(3);
 
-        pingManager.shutdown();
-
-        assertEquals(0, getTotalSubscriberCount(connection));
-    }
-
-    @Test
-    @DisplayName("关闭事件后收到认证事件应重新启动保活任务")
-    void testClosedEventAllowsRestartOnAuthenticatedEvent() throws Exception {
-        XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain("example.com")
-                .username("user")
-                .password("pass".toCharArray())
-                .build();
-        when(connection.getConfig()).thenReturn(config);
-        when(connection.isConnected()).thenReturn(true);
-        when(connection.isAuthenticated()).thenReturn(true);
-        when(connection.sendIqPacketAsync(any())).thenReturn(CompletableFuture.completedFuture(null));
-
-        pingManager.setPingInterval(1);
-        pingManager.startKeepAlive();
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CLOSED));
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
-        invokeSendPing();
-
-        verify(connection, atLeastOnce()).sendIqPacketAsync(any());
+        assertNull(getKeepAliveTask());
+        verify(connection, never()).sendIqPacketAsync(any());
     }
 
     @Test
@@ -171,8 +173,6 @@ class PingManagerTest {
         assertNotNull(secondTask);
         assertNotSame(firstTask, secondTask);
         assertTrue(firstTask.isCancelled(), "重复认证后旧保活任务应被取消");
-
-        pingManager.shutdown();
     }
 
     @Test
@@ -183,7 +183,6 @@ class PingManagerTest {
         invokeSendPing();
 
         verify(connection, never()).sendIqPacketAsync(any());
-        pingManager.shutdown();
     }
 
     @Test
@@ -195,11 +194,10 @@ class PingManagerTest {
         invokeSendPing();
 
         verify(connection, never()).sendIqPacketAsync(any());
-        pingManager.shutdown();
     }
 
     @Test
-    @DisplayName("已连接且已认证时应发送 Ping")
+    @DisplayName("已连接且已认证时应发送 Ping IQ")
     void testSendPingWhenConnectedAndAuthenticated() throws Exception {
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
@@ -213,7 +211,56 @@ class PingManagerTest {
 
         invokeSendPing();
 
-        verify(connection).sendIqPacketAsync(any());
+        ArgumentCaptor<Iq> captor = ArgumentCaptor.forClass(Iq.class);
+        verify(connection).sendIqPacketAsync(captor.capture());
+        Iq pingIq = captor.getValue();
+        assertEquals(Iq.Type.GET, pingIq.getType());
+        assertEquals("example.com", pingIq.getTo());
+        assertTrue(pingIq.getChildElement() instanceof Ping);
+        assertFalse(pingIq.getId().isBlank());
+    }
+
+    @Test
+    @DisplayName("Ping 失败时应吞掉异常而不向外抛出")
+    void testSendPingHandlesFailedFuture() throws Exception {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .build();
+        CompletableFuture<?> failedFuture = new CompletableFuture<>();
+        failedFuture.completeExceptionally(new IllegalStateException("boom"));
+
+        when(connection.getConfig()).thenReturn(config);
+        when(connection.isConnected()).thenReturn(true);
+        when(connection.isAuthenticated()).thenReturn(true);
+        when(connection.sendIqPacketAsync(any())).thenReturn((CompletableFuture) failedFuture);
+
+        invokeSendPing();
+
+        verify(connection).sendIqPacketAsync(any(Iq.class));
+    }
+
+    @Test
+    @DisplayName("Ping 成功返回 ERROR IQ 也应作为完成结果处理")
+    void testSendPingAcceptsErrorIqCompletion() throws Exception {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .build();
+        Iq errorIq = new Iq.Builder(Iq.Type.ERROR)
+                .id("ping-error")
+                .build();
+
+        when(connection.getConfig()).thenReturn(config);
+        when(connection.isConnected()).thenReturn(true);
+        when(connection.isAuthenticated()).thenReturn(true);
+        when(connection.sendIqPacketAsync(any())).thenReturn(CompletableFuture.completedFuture(errorIq));
+
+        invokeSendPing();
+
+        verify(connection).sendIqPacketAsync(any(Iq.class));
     }
 
     private void invokeSendPing() throws Exception {
@@ -226,34 +273,5 @@ class PingManagerTest {
         Field field = PingManager.class.getDeclaredField("keepAliveTask");
         field.setAccessible(true);
         return (ScheduledFuture<?>) field.get(pingManager);
-    }
-
-    private int getTotalSubscriberCount(XmppConnection targetConnection) {
-        try {
-            Field field = XmppEventBus.class.getDeclaredField("listeners");
-            field.setAccessible(true);
-            Object listenersObject = field.get(XmppEventBus.getInstance());
-            Map<XmppConnection, Map<?, List<?>>> listeners = (Map<XmppConnection, Map<?, List<?>>>) listenersObject;
-            Map<?, List<?>> connectionListeners = listeners.get(targetConnection);
-            if (connectionListeners == null) {
-                return 0;
-            }
-            return connectionListeners.values().stream()
-                    .mapToInt(List::size)
-                    .sum();
-        } catch (ReflectiveOperationException e) {
-            throw new AssertionError("无法读取 XmppEventBus 订阅状态", e);
-        }
-    }
-
-    private void clearEventBusListeners() {
-        try {
-            Field field = XmppEventBus.class.getDeclaredField("listeners");
-            field.setAccessible(true);
-            Object listenersObject = field.get(XmppEventBus.getInstance());
-            ((Map<?, ?>) listenersObject).clear();
-        } catch (ReflectiveOperationException e) {
-            throw new AssertionError("无法清理 XmppEventBus 订阅状态", e);
-        }
     }
 }

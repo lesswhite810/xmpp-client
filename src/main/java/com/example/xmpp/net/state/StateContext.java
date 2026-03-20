@@ -14,6 +14,7 @@ import io.netty.channel.ChannelHandlerContext;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * 状态上下文（状态模式）。
@@ -135,7 +136,7 @@ public class StateContext {
     public ChannelFuture sendStanza(ChannelHandlerContext ctx, Object packet) {
         if (packet instanceof XmlSerializable serializable) {
             String xmlStr = serializable.toXml();
-            if (!xmlStr.isEmpty()) {
+            if (StringUtils.isNotEmpty(xmlStr)) {
                 return NettyUtils.writeAndFlushStringAsync(ctx, xmlStr);
             }
         } else {

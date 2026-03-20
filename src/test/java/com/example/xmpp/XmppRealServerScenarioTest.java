@@ -10,9 +10,10 @@ import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.PingIq;
 import com.example.xmpp.protocol.model.XmppStanza;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,9 +34,10 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * @since 2026-03-13
  */
-@Slf4j
 @RealServerTest
 class XmppRealServerScenarioTest {
+
+    private static final Logger log = LoggerFactory.getLogger(XmppRealServerScenarioTest.class);
 
     private static final String XMPP_DOMAIN = "lesswhite";
     private static final String HOST = "localhost";

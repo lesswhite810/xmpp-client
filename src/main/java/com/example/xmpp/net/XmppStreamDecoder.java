@@ -23,6 +23,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
@@ -261,7 +262,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         int openingTagEndIndex = openingTagEnd.orElseThrow();
 
         String tagName = readTagName(in, startIndex + 1, openingTagEndIndex).orElse("");
-        if (tagName.isBlank()) {
+        if (StringUtils.isBlank(tagName)) {
             return Optional.empty();
         }
         if (isStreamOpenTag(tagName)) {
@@ -518,7 +519,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     private Auth parseSaslAuth(XMLEventReader reader, StartElement element) throws XMLStreamException {
         String mechanism = getAttributeValue(element, "mechanism");
         String content = XmlParserUtils.getElementText(reader);
-        return new Auth(mechanism, content.isEmpty() ? null : content);
+        return new Auth(mechanism, StringUtils.defaultIfEmpty(content, null));
     }
 
     private SaslFailure parseSaslFailure(XMLEventReader reader) throws XMLStreamException {

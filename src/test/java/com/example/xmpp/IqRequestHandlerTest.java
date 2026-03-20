@@ -4,8 +4,9 @@ import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.handler.IqRequestHandler;
 import com.example.xmpp.handler.AbstractIqRequestHandler;
 import com.example.xmpp.handler.PingIqRequestHandler;
-import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppError;
+import com.example.xmpp.protocol.model.ExtensionElement;
+import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.protocol.model.extension.Ping;
@@ -148,6 +149,57 @@ class IqRequestHandlerTest {
     }
 
     @Test
+    @DisplayName("非 GET/SET 类型的 IQ 请求不应被处理")
+    void testHandleIqRequestReturnsFalseForNonRequestType() {
+        Iq iq = new Iq.Builder(Iq.Type.RESULT)
+                .id("result-1")
+                .childElement(Ping.INSTANCE)
+                .build();
+
+        assertFalse(connection.handleIqRequest(iq));
+        assertNull(connection.getLastSentStanza());
+    }
+
+    @Test
+    @DisplayName("没有子元素的 IQ 请求不应被处理")
+    void testHandleIqRequestReturnsFalseWhenChildElementMissing() {
+        Iq iq = new Iq.Builder(Iq.Type.GET)
+                .id("get-1")
+                .build();
+
+        assertFalse(connection.handleIqRequest(iq));
+        assertNull(connection.getLastSentStanza());
+    }
+
+    @Test
+    @DisplayName("子元素缺少命名空间时不应分派给处理器")
+    void testHandleIqRequestReturnsFalseWhenChildElementNamespaceMissing() {
+        Iq iq = new Iq.Builder(Iq.Type.GET)
+                .id("get-2")
+                .childElement(new NullNamespaceElement())
+                .build();
+
+        assertFalse(connection.handleIqRequest(iq));
+        assertNull(connection.getLastSentStanza());
+    }
+
+    @Test
+    @DisplayName("处理器元素名为空时注册应抛出异常")
+    void testRegisterHandlerWithNullElementThrowsException() {
+        IqRequestHandler handler = new NullElementHandler();
+
+        assertThrows(IllegalArgumentException.class, () -> connection.registerIqRequestHandler(handler));
+    }
+
+    @Test
+    @DisplayName("处理器 IQ 类型为空时注册应抛出异常")
+    void testRegisterHandlerWithNullIqTypeThrowsException() {
+        IqRequestHandler handler = new NullTypeHandler();
+
+        assertThrows(IllegalArgumentException.class, () -> connection.registerIqRequestHandler(handler));
+    }
+
+    @Test
     @DisplayName("处理器注册方法应禁止子类覆盖")
     void testHandlerRegistrationMethodsAreFinal() throws NoSuchMethodException {
         assertTrue(Modifier.isFinal(AbstractXmppConnection.class
@@ -220,6 +272,48 @@ class IqRequestHandlerTest {
         @Override
         public Iq handleIqRequest(Iq iqRequest) {
             return Iq.createResultResponse(iqRequest, null);
+        }
+    }
+
+    private static class NullElementHandler extends AbstractIqRequestHandler {
+
+        NullElementHandler() {
+            super(null, Ping.NAMESPACE, Iq.Type.GET);
+        }
+
+        @Override
+        public Iq handleIqRequest(Iq iqRequest) {
+            return null;
+        }
+    }
+
+    private static class NullTypeHandler extends AbstractIqRequestHandler {
+
+        NullTypeHandler() {
+            super("null-type", Ping.NAMESPACE, null);
+        }
+
+        @Override
+        public Iq handleIqRequest(Iq iqRequest) {
+            return null;
+        }
+    }
+
+    private static class NullNamespaceElement implements ExtensionElement {
+
+        @Override
+        public String getElementName() {
+            return "no-namespace";
+        }
+
+        @Override
+        public String getNamespace() {
+            return null;
+        }
+
+        @Override
+        public String toXml() {
+            return "<no-namespace/>";
         }
     }
 }

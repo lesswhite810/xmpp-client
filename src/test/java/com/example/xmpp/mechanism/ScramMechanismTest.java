@@ -10,7 +10,9 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.security.sasl.SaslException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -315,6 +317,19 @@ class ScramMechanismTest {
 
         assertThrows(SaslException.class,
                 () -> mechanism.processChallenge(serverFinalMessage.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    @Test
+    @DisplayName("XOR 操作数长度不一致应抛出异常")
+    void testXorRejectsDifferentLengthInputs() throws Exception {
+        Method method = ScramMechanism.class.getDeclaredMethod("xor", byte[].class, byte[].class);
+        method.setAccessible(true);
+
+        InvocationTargetException exception = assertThrows(InvocationTargetException.class,
+                () -> method.invoke(mechanism, new byte[] {1, 2}, new byte[] {1}));
+
+        assertInstanceOf(SaslException.class, exception.getCause());
+        assertTrue(exception.getCause().getMessage().contains("same length"));
     }
 
     @Test

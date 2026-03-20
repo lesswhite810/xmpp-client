@@ -7,8 +7,9 @@ import com.example.xmpp.logic.AdminManager;
 import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppStanza;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
@@ -30,10 +31,11 @@ import static org.junit.jupiter.api.Assertions.*;
  * 4. 删除测试用户
  * 5. 验证用户删除成功
  */
-@Slf4j
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @RealServerTest
 public class Xep0133FullTest {
+
+    private static final Logger log = LoggerFactory.getLogger(Xep0133FullTest.class);
 
     private static final String XMPP_DOMAIN = "lesswhite";
     private static final String ADMIN_USERNAME = "admin";

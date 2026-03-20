@@ -1,5 +1,12 @@
 package com.example.xmpp.util;
 
+import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.Message;
+import com.example.xmpp.protocol.model.Presence;
+import com.example.xmpp.protocol.model.ExtensionElement;
+import com.example.xmpp.protocol.model.XmppStanza;
+import com.example.xmpp.protocol.model.extension.Ping;
+import com.example.xmpp.protocol.model.sasl.Auth;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -25,21 +32,6 @@ class SecurityUtilsTest {
     }
 
     @Test
-    @DisplayName("clear 应正确处理 null 字符数组")
-    void testClearNullCharArray() {
-        // 不应抛出异常
-        assertDoesNotThrow(() -> SecurityUtils.clear((char[]) null));
-    }
-
-    @Test
-    @DisplayName("clear 应正确清理空字符数组")
-    void testClearEmptyCharArray() {
-        char[] chars = new char[0];
-        
-        assertDoesNotThrow(() -> SecurityUtils.clear(chars));
-    }
-
-    @Test
     @DisplayName("clear 应正确清理字节数组")
     void testClearByteArray() {
         byte[] bytes = "secret".getBytes(StandardCharsets.UTF_8);
@@ -49,20 +41,6 @@ class SecurityUtilsTest {
         for (byte b : bytes) {
             assertEquals(0, b);
         }
-    }
-
-    @Test
-    @DisplayName("clear 应正确处理 null 字节数组")
-    void testClearNullByteArray() {
-        assertDoesNotThrow(() -> SecurityUtils.clear((byte[]) null));
-    }
-
-    @Test
-    @DisplayName("clear 应正确处理空字节数组")
-    void testClearEmptyByteArray() {
-        byte[] bytes = new byte[0];
-        
-        assertDoesNotThrow(() -> SecurityUtils.clear(bytes));
     }
 
     @Test
@@ -131,6 +109,12 @@ class SecurityUtilsTest {
     }
 
     @Test
+    @DisplayName("summarizeXml 在没有结构属性时只保留元素名")
+    void testSummarizeXmlWithoutAttributes() {
+        assertEquals("presence", SecurityUtils.summarizeXml("<presence/>"));
+    }
+
+    @Test
     @DisplayName("summarizeXml 应正确处理 null")
     void testSummarizeXmlNull() {
         String masked = SecurityUtils.summarizeXml(null);
@@ -155,11 +139,118 @@ class SecurityUtilsTest {
     }
 
     @Test
+    @DisplayName("summarizeXml 对仅注释内容应返回不可解析摘要")
+    void testSummarizeXmlWithoutStartElement() {
+        assertEquals("xml(unparseable)", SecurityUtils.summarizeXml("<!-- comment only -->"));
+    }
+
+    @Test
+    @DisplayName("summarizeStanza 应摘要 IQ 的结构信息")
+    void testSummarizeStanzaIq() {
+        Iq iq = new Iq.Builder(Iq.Type.GET)
+                .id("iq-1")
+                .from("a@example.com")
+                .to("b@example.com")
+                .childElement(Ping.INSTANCE)
+                .build();
+
+        String summary = SecurityUtils.summarizeStanza(iq);
+
+        assertEquals("iq type=get id=iq-1 from=a@example.com to=b@example.com child=ping childNs=urn:xmpp:ping",
+                summary);
+    }
+
+    @Test
+    @DisplayName("summarizeStanza 应摘要 Message 和 Presence")
+    void testSummarizeStanzaMessageAndPresence() {
+        Message message = new Message.Builder(Message.Type.CHAT)
+                .id("m-1")
+                .from("alice@example.com")
+                .to("bob@example.com")
+                .build();
+        Presence presence = new Presence.Builder(Presence.Type.SUBSCRIBE)
+                .id("p-1")
+                .from("alice@example.com")
+                .to("bob@example.com")
+                .build();
+
+        assertEquals("message type=chat id=m-1 from=alice@example.com to=bob@example.com",
+                SecurityUtils.summarizeStanza(message));
+        assertEquals("presence type=subscribe id=p-1 from=alice@example.com to=bob@example.com",
+                SecurityUtils.summarizeStanza(presence));
+    }
+
+    @Test
+    @DisplayName("summarizeExtensionElement 应摘要扩展元素结构")
+    void testSummarizeExtensionElement() {
+        Auth auth = new Auth("PLAIN", "c2VjcmV0");
+
+        assertEquals("auth xmlns=urn:ietf:params:xml:ns:xmpp-sasl mechanism=PLAIN",
+                SecurityUtils.summarizeExtensionElement(auth));
+        assertNull(SecurityUtils.summarizeExtensionElement(null));
+    }
+
+    @Test
+    @DisplayName("summarizeExtensionElement 对非 Auth 扩展只保留结构信息")
+    void testSummarizeExtensionElementForGenericExtension() {
+        ExtensionElement extension = new ExtensionElement() {
+            @Override
+            public String getElementName() {
+                return "x";
+            }
+
+            @Override
+            public String getNamespace() {
+                return "";
+            }
+
+            @Override
+            public String toXml() {
+                return "<x/>";
+            }
+        };
+
+        assertEquals("x", SecurityUtils.summarizeExtensionElement(extension));
+    }
+
+    @Test
+    @DisplayName("summarizeStanza 应处理 null 和未知 stanza 实现")
+    void testSummarizeStanzaNullAndUnknownType() {
+        XmppStanza stanza = new XmppStanza() {
+            @Override
+            public String getId() {
+                return null;
+            }
+
+            @Override
+            public String getFrom() {
+                return null;
+            }
+
+            @Override
+            public String getTo() {
+                return null;
+            }
+        };
+
+        assertNull(SecurityUtils.summarizeStanza(null));
+        assertEquals(stanza.getClass().getSimpleName(), SecurityUtils.summarizeStanza(stanza));
+    }
+
+    @Test
     @DisplayName("escapeXmlAttribute 应正确转义")
     void testEscapeXmlAttribute() {
         String escaped = SecurityUtils.escapeXmlAttribute("\"'<>&");
 
         assertTrue(escaped.contains("&quot;"));
         assertTrue(escaped.contains("&apos;"));
+    }
+
+    @Test
+    @DisplayName("escapeXmlAttribute 应保留 null 空串和普通文本")
+    void testEscapeXmlAttributeWithNullEmptyAndPlainText() {
+        assertNull(SecurityUtils.escapeXmlAttribute(null));
+        assertEquals("", SecurityUtils.escapeXmlAttribute(""));
+        assertEquals("plain-text", SecurityUtils.escapeXmlAttribute("plain-text"));
     }
 }

@@ -4,6 +4,7 @@ import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -126,7 +127,7 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
      * @throws IllegalArgumentException 如果 var 为 null 或空白
      */
     protected void appendHiddenField(XmlStringBuilder xml, String var, String value) {
-        if (var == null || var.isBlank()) {
+        if (StringUtils.isBlank(var)) {
             throw new IllegalArgumentException("var must not be null or blank");
         }
         xml.wrapElement(FIELD_ELEMENT, Map.of(VAR_ATTRIBUTE, var, TYPE_ATTRIBUTE, "hidden"),

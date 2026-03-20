@@ -7,12 +7,16 @@ import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
+import com.example.xmpp.exception.XmppStanzaErrorException;
 import com.example.xmpp.protocol.model.XmlSerializable;
 import com.example.xmpp.protocol.model.Iq;
+import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.protocol.model.extension.Bind;
+import com.example.xmpp.protocol.model.sasl.SaslFailure;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.net.state.StateContext;
+import com.example.xmpp.net.state.XmppHandlerState;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
@@ -216,6 +220,141 @@ class XmppNettyHandlerTest {
     }
 
     @Test
+    void testAwaitingFeaturesIgnoresUnexpectedStanza() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            drainOutboundStrings(channel);
+            channel.writeInbound(new Iq.Builder(Iq.Type.GET).id("ignored").build());
+
+            assertEquals("AWAITING_FEATURES", currentStateName(handler));
+            assertNull(channel.readOutbound());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testDirectTlsWithBindOnlyFeaturesStartsResourceBinding() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .usingDirectTLS(true)
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            drainOutboundStrings(channel);
+            currentStateContext(handler).transitionTo(XmppHandlerState.AWAITING_FEATURES, channel.pipeline().lastContext());
+            drainOutboundStrings(channel);
+
+            channel.writeInbound(StreamFeatures.builder()
+                    .bindAvailable(true)
+                    .build());
+
+            String outbound = drainOutboundStrings(channel);
+            assertTrue(outbound.contains("<iq "), outbound);
+            assertTrue(outbound.contains("urn:ietf:params:xml:ns:xmpp-bind"), outbound);
+            assertEquals("BINDING", currentStateName(handler));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testTlsRequiredWithoutStartTlsFailsConnection() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.REQUIRED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            drainOutboundStrings(channel);
+            channel.writeInbound(StreamFeatures.builder().build());
+
+            CompletionException exception = assertThrows(CompletionException.class,
+                    () -> connection.getConnectionReadyFuture().join());
+            assertInstanceOf(XmppException.class, exception.getCause());
+            assertTrue(exception.getCause().getMessage().contains("TLS required but not supported"));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testPlainMechanismWithoutTlsFailsConnection() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .enabledSaslMechanisms(Set.of("PLAIN"))
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            drainOutboundStrings(channel);
+            channel.writeInbound(StreamFeatures.builder()
+                    .mechanisms(List.of("PLAIN"))
+                    .build());
+
+            CompletionException exception = assertThrows(CompletionException.class,
+                    () -> connection.getConnectionReadyFuture().join());
+            assertInstanceOf(XmppException.class, exception.getCause());
+            assertTrue(exception.getCause().getMessage().contains("PLAIN mechanism requires TLS encryption"));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testNoSupportedMechanismFailsConnection() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .enabledSaslMechanisms(Set.of("SCRAM-SHA-512"))
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            drainOutboundStrings(channel);
+            channel.writeInbound(StreamFeatures.builder()
+                    .mechanisms(List.of("SCRAM-SHA-1"))
+                    .build());
+
+            CompletionException exception = assertThrows(CompletionException.class,
+                    () -> connection.getConnectionReadyFuture().join());
+            assertInstanceOf(XmppException.class, exception.getCause());
+            assertTrue(exception.getCause().getMessage().contains("No supported SASL mechanism"));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void testSaslWriteFailureCompletesConnectionFutureImmediately() {
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
@@ -241,6 +380,35 @@ class XmppNettyHandlerTest {
                     () -> connection.getConnectionReadyFuture().join());
             XmppAuthException cause = assertInstanceOf(XmppAuthException.class, exception.getCause());
             assertTrue(cause.getMessage().contains("Failed to send SASL stanza"));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testSaslFailureCompletesConnectionWithAuthException() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .enabledSaslMechanisms(Set.of("SCRAM-SHA-1"))
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            drainOutboundStrings(channel);
+            channel.writeInbound(StreamFeatures.builder()
+                    .mechanisms(List.of("SCRAM-SHA-1"))
+                    .build());
+            channel.writeInbound(new SaslFailure("not-authorized", "bad credentials"));
+
+            CompletionException exception = assertThrows(CompletionException.class,
+                    () -> connection.getConnectionReadyFuture().join());
+            assertInstanceOf(XmppAuthException.class, exception.getCause());
+            assertTrue(exception.getCause().getMessage().contains("SASL authentication failed"));
         } finally {
             channel.finishAndReleaseAll();
         }
@@ -546,6 +714,38 @@ class XmppNettyHandlerTest {
             assertFalse(connection.getConnectionReadyFuture().isDone());
             assertEquals(0, authenticatedCount.get());
             assertFalse(connection.isAuthenticated());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testBindErrorCompletesConnectionWithStanzaErrorException() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            drainOutboundStrings(channel);
+            channel.writeInbound(StreamFeatures.builder()
+                    .bindAvailable(true)
+                    .build());
+            channel.writeInbound(new Iq.Builder(Iq.Type.ERROR)
+                    .id("bind-1")
+                    .error(new XmppError.Builder(XmppError.Condition.NOT_AUTHORIZED).build())
+                    .build());
+
+            CompletionException exception = assertThrows(CompletionException.class,
+                    () -> connection.getConnectionReadyFuture().join());
+            XmppStanzaErrorException cause = assertInstanceOf(XmppStanzaErrorException.class, exception.getCause());
+            assertTrue(cause.getMessage().contains("Resource binding failed"));
+            assertTrue(cause.getMessage().contains("condition=NOT_AUTHORIZED"));
         } finally {
             channel.finishAndReleaseAll();
         }

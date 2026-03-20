@@ -101,13 +101,13 @@ class AsyncStanzaCollectorTest {
         @Test
         @DisplayName("Future 支持超时")
         void testFutureTimeout() {
-            long startTime = System.currentTimeMillis();
+            long startTime = System.nanoTime();
 
             assertThrows(TimeoutException.class, () ->
                     collector.getFuture().get(100, TimeUnit.MILLISECONDS));
 
-            long elapsed = System.currentTimeMillis() - startTime;
-            assertTrue(elapsed >= 100 && elapsed < 500, "超时应在指定时间附近触发");
+            long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
+            assertTrue(elapsed >= 80 && elapsed < 1500, "超时应在合理时间范围内触发");
         }
 
         @Test

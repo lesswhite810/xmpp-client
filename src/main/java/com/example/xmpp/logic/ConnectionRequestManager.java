@@ -11,13 +11,18 @@ import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.extension.ConnectionRequest;
+import com.example.xmpp.util.SecurityUtils;
 import com.example.xmpp.util.StanzaIdGenerator;
 import com.example.xmpp.util.XmppScheduler;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import java.net.ConnectException;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * ACS 连接请求管理器。
@@ -103,7 +108,7 @@ public class ConnectionRequestManager {
     }
 
     private void validateRequestArguments(String cpeJid, String username, String password) {
-        if (cpeJid == null || cpeJid.isBlank()) {
+        if (StringUtils.isBlank(cpeJid)) {
             throw new IllegalArgumentException("CPE JID cannot be null or blank");
         }
         if (username == null || password == null) {
@@ -202,15 +207,17 @@ public class ConnectionRequestManager {
                 TimeUnit.MILLISECONDS
         );
 
-        // Clean up timeout task when future completes
+        // Clean up timeout task and event subscription when future completes
         future.whenComplete((result, error) -> timeoutTask.cancel(false));
+        future.whenComplete((result, error) -> unsubscribe.run());
 
         return future;
     }
 
     private CompletableFuture<XmppStanza> handleResponse(XmppStanza response, String cpeJid) {
         if (response instanceof Iq responseIq && responseIq.getType() == Iq.Type.ERROR) {
-            log.warn("CPE {} returned error response: {}", cpeJid, responseIq.toXml());
+            log.warn("CPE {} returned error response: {}",
+                    cpeJid, SecurityUtils.summarizeStanza(responseIq));
             XmppError error = responseIq.getError();
             if (error == null) {
                 return CompletableFuture.failedFuture(

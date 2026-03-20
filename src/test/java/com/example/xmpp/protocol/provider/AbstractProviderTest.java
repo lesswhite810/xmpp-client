@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.events.XMLEvent;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -139,6 +140,42 @@ class AbstractProviderTest {
         assertSame(cause, ex.getCause());
     }
 
+    @Test
+    @DisplayName("isElementEnd 应匹配相同名称和命名空间")
+    void testIsElementEndMatchesNameAndNamespace() throws Exception {
+        TestProvider provider = new TestProvider();
+        XMLEventReader reader = XmlParserUtils.createReader("<test xmlns='urn:test'/>".getBytes());
+        reader.nextEvent();
+        reader.nextEvent();
+        XMLEvent endEvent = reader.nextEvent();
+
+        assertTrue(provider.matchesEnd(endEvent));
+    }
+
+    @Test
+    @DisplayName("isElementEnd 应将 null 和空命名空间视为等价")
+    void testIsElementEndTreatsNullAndEmptyNamespaceAsEquivalent() throws Exception {
+        NoNamespaceProvider provider = new NoNamespaceProvider();
+        XMLEventReader reader = XmlParserUtils.createReader("<test/>".getBytes());
+        reader.nextEvent();
+        reader.nextEvent();
+        XMLEvent endEvent = reader.nextEvent();
+
+        assertTrue(provider.matchesEnd(endEvent));
+    }
+
+    @Test
+    @DisplayName("isElementEnd 应拒绝不同名称或命名空间")
+    void testIsElementEndRejectsDifferentNameOrNamespace() throws Exception {
+        TestProvider provider = new TestProvider();
+        XMLEventReader reader = XmlParserUtils.createReader("<other xmlns='urn:other'/>".getBytes());
+        reader.nextEvent();
+        reader.nextEvent();
+        XMLEvent endEvent = reader.nextEvent();
+
+        assertFalse(provider.matchesEnd(endEvent));
+    }
+
     // 测试辅助类
 
     private static class TestElement implements ExtensionElement {
@@ -190,6 +227,17 @@ class AbstractProviderTest {
             xml.append("<test xmlns=\"urn:test\">");
             xml.escapeXml(object.getContent());
             xml.append("</test>");
+        }
+
+        boolean matchesEnd(XMLEvent event) {
+            return isElementEnd(event);
+        }
+    }
+
+    private static class NoNamespaceProvider extends TestProvider {
+        @Override
+        public String getNamespace() {
+            return "";
         }
     }
 

@@ -4,6 +4,7 @@ import com.example.xmpp.exception.XmppParseException;
 import com.example.xmpp.protocol.model.GenericExtensionElement;
 import com.example.xmpp.util.XmlStringBuilder;
 import com.example.xmpp.util.XmlParserUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
@@ -78,7 +79,7 @@ public class GenericExtensionProvider {
                 builder.addChild(child);
             } else if (event.isCharacters()) {
                 String text = event.asCharacters().getData();
-                if (!text.isBlank()) {
+                if (StringUtils.isNotBlank(text)) {
                     builder.text(text);
                 }
             }

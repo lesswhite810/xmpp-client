@@ -7,8 +7,9 @@ import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.logic.AdminManager;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.PingIq;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
@@ -27,10 +28,11 @@ import static org.junit.jupiter.api.Assertions.*;
  * <p>注意：此测试需要 Openfire 服务器启用 Admin 组件。
  * 如果测试失败，请检查服务器配置。</p>
  */
-@Slf4j
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @RealServerTest
 public class AdminManagerIntegrationTest {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminManagerIntegrationTest.class);
 
     private static final String XMPP_DOMAIN = "lesswhite";
     private static final String ADMIN_USERNAME = "admin";

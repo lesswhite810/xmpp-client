@@ -7,7 +7,8 @@ import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.PingIq;
 import com.example.xmpp.protocol.model.XmppStanza;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -27,8 +28,9 @@ import java.util.concurrent.TimeoutException;
  *
  * @since 2026-02-13
  */
-@Slf4j
 public class PingFunctionalityTest {
+
+    private static final Logger log = LoggerFactory.getLogger(PingFunctionalityTest.class);
 
     private static final String SERVER_DOMAIN = "lesswhite";
     private static final String USERNAME = "acs";

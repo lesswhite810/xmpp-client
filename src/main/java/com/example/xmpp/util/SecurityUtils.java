@@ -6,6 +6,7 @@ import com.example.xmpp.protocol.model.Message;
 import com.example.xmpp.protocol.model.Presence;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.sasl.Auth;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.StringReader;
 import java.nio.ByteBuffer;
@@ -85,7 +86,7 @@ public class SecurityUtils {
      * @return 摘要字符串
      */
     public static String summarizeXml(String xml) {
-        if (xml == null || xml.isEmpty()) {
+        if (StringUtils.isEmpty(xml)) {
             return xml;
         }
 
@@ -186,14 +187,14 @@ public class SecurityUtils {
     }
 
     private static void appendSummaryField(StringBuilder summary, String name, String value) {
-        if (value == null || value.isEmpty()) {
+        if (StringUtils.isEmpty(value)) {
             return;
         }
         summary.append(' ').append(name).append('=').append(value);
     }
 
     private static String emptyToNull(String value) {
-        return value == null || value.isEmpty() ? null : value;
+        return StringUtils.defaultIfEmpty(value, null);
     }
 
     /**
@@ -212,7 +213,7 @@ public class SecurityUtils {
      * @return 转义后的字符串；如果输入为 null 则返回 null
      */
     public static String escapeXmlAttribute(String input) {
-        if (input == null || input.isEmpty()) {
+        if (StringUtils.isEmpty(input)) {
             return input;
         }
 

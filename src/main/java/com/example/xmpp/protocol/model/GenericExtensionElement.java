@@ -1,6 +1,7 @@
 package com.example.xmpp.protocol.model;
 
 import com.example.xmpp.util.XmlStringBuilder;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.xml.namespace.QName;
 import java.util.ArrayList;
@@ -160,7 +161,7 @@ public class GenericExtensionElement implements ExtensionElement {
         }
 
         return new XmlStringBuilder()
-                .wrapElement(elementName, namespace.isEmpty() ? null : namespace, attributes, xml -> {
+                .wrapElement(elementName, StringUtils.defaultIfEmpty(namespace, null), attributes, xml -> {
                     for (ContentNode contentNode : contentNodes) {
                         if (contentNode instanceof TextContent textContent) {
                             xml.escapeXml(textContent.text());
@@ -179,7 +180,7 @@ public class GenericExtensionElement implements ExtensionElement {
      */
     private String buildEmptyElementXml() {
         return new XmlStringBuilder()
-                .wrapElement(elementName, namespace.isEmpty() ? null : namespace, attributes, "")
+                .wrapElement(elementName, StringUtils.defaultIfEmpty(namespace, null), attributes, "")
                 .toString();
     }
 

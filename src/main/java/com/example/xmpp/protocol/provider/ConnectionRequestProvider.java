@@ -67,6 +67,10 @@ public final class ConnectionRequestProvider extends AbstractProvider<Connection
         String username = null;
         String password = null;
 
+        if (reader.hasNext() && reader.peek().isStartElement()) {
+            reader.nextEvent();
+        }
+
         while (reader.hasNext()) {
             XMLEvent event = reader.nextEvent();
 
@@ -86,10 +90,14 @@ public final class ConnectionRequestProvider extends AbstractProvider<Connection
             }
         }
 
-        return ConnectionRequest.builder()
-                .username(username)
-                .password(password)
-                .build();
+        try {
+            return ConnectionRequest.builder()
+                    .username(username)
+                    .password(password)
+                    .build();
+        } catch (IllegalArgumentException e) {
+            throw new XMLStreamException("Invalid ConnectionRequest payload", e);
+        }
     }
 
     /**

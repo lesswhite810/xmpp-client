@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Optional;
@@ -49,6 +50,20 @@ class StanzaModelTest {
         void testIqTypeNullDefaultsToGet() {
             Iq iq = new Iq.Builder((Iq.Type) null).build();
             assertEquals(Iq.Type.GET, iq.getType());
+        }
+
+        @Test
+        @DisplayName("Iq 字符串类型构造器和设置器应处理有效值与空值")
+        void testIqStringTypeBuilder() {
+            Iq valid = new Iq.Builder("result").build();
+            Iq invalid = new Iq.Builder("missing").build();
+            Iq nullType = new Iq.Builder((String) null).build();
+            Iq updated = new Iq.Builder(Iq.Type.GET).type("set").build();
+
+            assertEquals(Iq.Type.RESULT, valid.getType());
+            assertEquals(Iq.Type.GET, invalid.getType());
+            assertEquals(Iq.Type.GET, nullType.getType());
+            assertEquals(Iq.Type.SET, updated.getType());
         }
 
         @Test
@@ -789,6 +804,25 @@ class StanzaModelTest {
             assertTrue(ping.isPresent());
             assertTrue(err.isPresent());
         }
+
+        @Test
+        @DisplayName("Stanza.Builder 应忽略 null 扩展并保持扩展列表不可变")
+        void testStanzaBuilderIgnoresNullExtensionsAndCopiesInput() {
+            List<ExtensionElement> source = new ArrayList<>();
+            source.add(Ping.INSTANCE);
+
+            Iq iq = new Iq.Builder(Iq.Type.GET)
+                    .addExtension(null)
+                    .addExtensions(null)
+                    .addExtensions(source)
+                    .build();
+
+            source.add(new XmppError.Builder(XmppError.Condition.BAD_REQUEST).build());
+
+            assertEquals(1, iq.getExtensions().size());
+            assertSame(Ping.INSTANCE, iq.getExtensions().get(0));
+            assertThrows(UnsupportedOperationException.class, () -> iq.getExtensions().add(Ping.INSTANCE));
+        }
     }
 
     @Nested
@@ -808,6 +842,15 @@ class StanzaModelTest {
             assertEquals("set", Iq.Type.SET.toString());
             assertEquals("result", Iq.Type.RESULT.toString());
             assertEquals("error", Iq.Type.ERROR.toString());
+        }
+
+        @Test
+        @DisplayName("Iq.Type.fromString 应处理有效值和非法值")
+        void testIqTypeFromString() {
+            assertEquals(Iq.Type.GET, Iq.Type.fromString("get"));
+            assertEquals(Iq.Type.ERROR, Iq.Type.fromString("ERROR"));
+            assertThrows(IllegalArgumentException.class, () -> Iq.Type.fromString(null));
+            assertThrows(IllegalArgumentException.class, () -> Iq.Type.fromString("missing"));
         }
     }
 

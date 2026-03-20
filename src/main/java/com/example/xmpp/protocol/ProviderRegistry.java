@@ -4,6 +4,7 @@ import com.example.xmpp.protocol.provider.BindProvider;
 import com.example.xmpp.protocol.provider.ConnectionRequestProvider;
 import com.example.xmpp.protocol.provider.PingProvider;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Map;
 import java.util.Objects;
@@ -174,7 +175,7 @@ public final class ProviderRegistry {
     }
 
     private String createKey(String elementName, String namespace) {
-        if (namespace == null || namespace.isEmpty()) {
+        if (StringUtils.isEmpty(namespace)) {
             return elementName;
         }
         return elementName + ':' + namespace;

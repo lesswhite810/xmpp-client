@@ -27,6 +27,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.ssl.SslHandler;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -174,7 +175,7 @@ public enum XmppHandlerState implements HandlerState {
 
         private void startResolvedSaslAuthentication(StateContext context, ChannelHandlerContext ctx, SaslMechanism mechanism) {
             String mechanismName = mechanism.getMechanismName();
-            if (mechanismName == null || mechanismName.isBlank()) {
+            if (StringUtils.isBlank(mechanismName)) {
                 context.closeConnectionOnError(ctx, "Invalid SASL mechanism name");
                 return;
             }

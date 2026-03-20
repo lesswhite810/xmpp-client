@@ -2,6 +2,7 @@ package com.example.xmpp.mechanism;
 
 import com.example.xmpp.util.SecurityUtils;
 import com.example.xmpp.util.XmppConstants;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.security.sasl.SaslException;
 import java.nio.ByteBuffer;
@@ -73,7 +74,7 @@ public class PlainSaslMechanism implements SaslMechanism {
             throw new SaslException("Authentication already completed.");
         }
 
-        if (username.isBlank()) {
+        if (StringUtils.isBlank(username)) {
             SecurityUtils.clear(password);
             password = null;
             throw new SaslException("Username cannot be blank");

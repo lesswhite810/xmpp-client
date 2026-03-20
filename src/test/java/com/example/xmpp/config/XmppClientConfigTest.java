@@ -4,6 +4,7 @@ import com.example.xmpp.util.XmppConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -30,6 +31,30 @@ class XmppClientConfigTest {
     }
 
     @Test
+    @DisplayName("getXmlLang 应返回有效语言标签")
+    void testXmlLangFromLocale() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .language(Locale.ENGLISH)
+                .build();
+
+        assertEquals("en", config.getXmlLang());
+    }
+
+    @Test
+    @DisplayName("getXmlLang 在未定义语言或显式 null 时应返回 null")
+    void testXmlLangReturnsNullForUndefinedOrNullLanguage() {
+        XmppClientConfig undefinedLanguage = XmppClientConfig.builder()
+                .language(Locale.forLanguageTag("und"))
+                .build();
+        XmppClientConfig nullLanguage = XmppClientConfig.builder()
+                .language(null)
+                .build();
+
+        assertNull(undefinedLanguage.getXmlLang());
+        assertNull(nullLanguage.getXmlLang());
+    }
+
+    @Test
     @DisplayName("Builder 应正确构建配置")
     void testBuilder() {
         XmppClientConfig config = XmppClientConfig.builder()
@@ -47,6 +72,19 @@ class XmppClientConfigTest {
         assertEquals("user", config.getUsername());
         assertArrayEquals("pass".toCharArray(), config.getPassword());
         assertEquals("mobile", config.getResource());
+    }
+
+    @Test
+    @DisplayName("getPassword 应返回防御性副本")
+    void testPasswordGetterReturnsDefensiveCopy() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .password("pass".toCharArray())
+                .build();
+
+        char[] password = config.getPassword();
+        password[0] = 'x';
+
+        assertArrayEquals("pass".toCharArray(), config.getPassword());
     }
 
     @Test
