@@ -168,7 +168,6 @@
                 <configuration>
                     <groups>${surefire.groups}</groups>
                     <excludedGroups>${surefire.excludedGroups}</excludedGroups>
-                    <argLine>-Dnet.bytebuddy.experimental=true</argLine>
                 </configuration>
             </plugin>
             <!-- JaCoCo for test coverage -->
