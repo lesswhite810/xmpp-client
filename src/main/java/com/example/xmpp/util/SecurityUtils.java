@@ -8,18 +8,14 @@ import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.sasl.Auth;
 import org.apache.commons.lang3.StringUtils;
 
-import java.io.StringReader;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Map;
 
 import lombok.experimental.UtilityClass;
 
-import javax.xml.stream.XMLEventReader;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.events.StartElement;
+
 
 /**
  * 安全工具类。
@@ -74,43 +70,6 @@ public class SecurityUtils {
         byte[] result = new byte[buf.remaining()];
         buf.get(result);
         return result;
-    }
-
-    /**
-     * 生成 XML 日志摘要。
-     *
-     * <p>仅保留元素名、命名空间以及 id、type、from、to
-     * 等结构信息。</p>
-     *
-     * @param xml 原始 XML 字符串
-     * @return 摘要字符串
-     */
-    public static String summarizeXml(String xml) {
-        if (StringUtils.isEmpty(xml)) {
-            return xml;
-        }
-
-        XMLEventReader reader = null;
-        try {
-            reader = XmlParserUtils.createInputFactory().createXMLEventReader(new StringReader(xml));
-            while (reader.hasNext()) {
-                var event = reader.nextEvent();
-                if (event.isStartElement()) {
-                    return buildSummary(event.asStartElement());
-                }
-            }
-            return "xml";
-        } catch (XMLStreamException e) {
-            return "xml(unparseable)";
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (XMLStreamException ignored) {
-                    // Ignore close failure for log summarization.
-                }
-            }
-        }
     }
 
     /**
@@ -173,17 +132,6 @@ public class SecurityUtils {
             return summary.toString();
         }
         return stanza.getClass().getSimpleName();
-    }
-
-    private static String buildSummary(StartElement element) {
-        Map<String, String> attrs = XmlParserUtils.getAttributes(element);
-        StringBuilder summary = new StringBuilder(element.getName().getLocalPart());
-        appendSummaryField(summary, "xmlns", emptyToNull(element.getName().getNamespaceURI()));
-        appendSummaryField(summary, "id", attrs.get("id"));
-        appendSummaryField(summary, "type", attrs.get("type"));
-        appendSummaryField(summary, "from", attrs.get("from"));
-        appendSummaryField(summary, "to", attrs.get("to"));
-        return summary.toString();
     }
 
     private static void appendSummaryField(StringBuilder summary, String name, String value) {

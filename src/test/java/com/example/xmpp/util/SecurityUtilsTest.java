@@ -83,68 +83,6 @@ class SecurityUtilsTest {
     }
 
     @Test
-    @DisplayName("summarizeXml 应返回 auth 摘要")
-    void testSummarizeXmlAuth() {
-        String xml = "<auth mechanism='PLAIN'>c2VjcmV0</auth>";
-
-        String masked = SecurityUtils.summarizeXml(xml);
-
-        assertEquals("auth", masked);
-    }
-
-    @Test
-    @DisplayName("summarizeXml 应返回结构属性摘要")
-    void testSummarizeXmlPassword() {
-        String xml = "<message xmlns='jabber:client' id='m1' type='chat' from='a@b' to='c@d'><body>secret123</body></message>";
-
-        String masked = SecurityUtils.summarizeXml(xml);
-
-        assertTrue(masked.contains("message"));
-        assertTrue(masked.contains("xmlns=jabber:client"));
-        assertTrue(masked.contains("id=m1"));
-        assertTrue(masked.contains("type=chat"));
-        assertTrue(masked.contains("from=a@b"));
-        assertTrue(masked.contains("to=c@d"));
-        assertFalse(masked.contains("secret123"));
-    }
-
-    @Test
-    @DisplayName("summarizeXml 在没有结构属性时只保留元素名")
-    void testSummarizeXmlWithoutAttributes() {
-        assertEquals("presence", SecurityUtils.summarizeXml("<presence/>"));
-    }
-
-    @Test
-    @DisplayName("summarizeXml 应正确处理 null")
-    void testSummarizeXmlNull() {
-        String masked = SecurityUtils.summarizeXml(null);
-        
-        assertNull(masked);
-    }
-
-    @Test
-    @DisplayName("summarizeXml 应正确处理空字符串")
-    void testSummarizeXmlEmpty() {
-        String masked = SecurityUtils.summarizeXml("");
-
-        assertEquals("", masked);
-    }
-
-    @Test
-    @DisplayName("summarizeXml 应处理非法 XML")
-    void testSummarizeXmlInvalid() {
-        String summary = SecurityUtils.summarizeXml("<message");
-
-        assertEquals("xml(unparseable)", summary);
-    }
-
-    @Test
-    @DisplayName("summarizeXml 对仅注释内容应返回不可解析摘要")
-    void testSummarizeXmlWithoutStartElement() {
-        assertEquals("xml(unparseable)", SecurityUtils.summarizeXml("<!-- comment only -->"));
-    }
-
-    @Test
     @DisplayName("summarizeStanza 应摘要 IQ 的结构信息")
     void testSummarizeStanzaIq() {
         Iq iq = new Iq.Builder(Iq.Type.GET)
