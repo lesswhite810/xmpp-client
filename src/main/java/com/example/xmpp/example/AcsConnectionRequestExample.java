@@ -13,6 +13,9 @@ import com.example.xmpp.logic.ConnectionRequestManager;
 import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.util.XmppConstants;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.ConnectException;
@@ -138,7 +141,7 @@ public class AcsConnectionRequestExample {
                                 log.error("CPE {} 认证失败，请检查凭据", cpeJid);
                             }
                         }
-                        return null;
+                        throw new UncheckedIOException(new IOException(cause));
                     });
 
             // 方式二：发送请求并自动重试

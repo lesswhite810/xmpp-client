@@ -116,24 +116,6 @@ public final class Iq extends Stanza {
     }
 
     /**
-     * 获取子元素名称。
-     *
-     * @return 子元素名称，不存在则返回 null
-     */
-    public String getChildElementName() {
-        return childElement != null ? childElement.getElementName() : null;
-    }
-
-    /**
-     * 获取子元素命名空间。
-     *
-     * @return 子元素命名空间，不存在则返回 null
-     */
-    public String getChildElementNamespace() {
-        return childElement != null ? childElement.getNamespace() : null;
-    }
-
-    /**
      * 判断是否为错误类型。
      *
      * @return 是错误类型返回 true

@@ -142,20 +142,6 @@ class StanzaModelTest {
         }
 
         @Test
-        @DisplayName("Iq.getChildElementName 应返回子元素名称")
-        void testGetChildElementName() {
-            Iq iq = new Iq.Builder(Iq.Type.GET).childElement(Ping.INSTANCE).build();
-            assertEquals("ping", iq.getChildElementName());
-        }
-
-        @Test
-        @DisplayName("Iq.getChildElementName 无子元素时返回 null")
-        void testGetChildElementNameNull() {
-            Iq iq = new Iq.Builder(Iq.Type.GET).build();
-            assertNull(iq.getChildElementName());
-        }
-
-        @Test
         @DisplayName("Iq Builder 默认构建应正常工作")
         void testIqBuilderDefaultConstruction() {
             Iq iq = new Iq.Builder(Iq.Type.GET).build();
@@ -280,22 +266,6 @@ class StanzaModelTest {
             assertTrue(setIq.isSet());
             assertTrue(resultIq.isResult());
             assertTrue(errorIq.isError());
-        }
-
-        @Test
-        @DisplayName("Iq.getChildElementNamespace 应返回子元素命名空间")
-        void testGetChildElementNamespace() {
-            Iq iq = new Iq.Builder(Iq.Type.GET).childElement(Ping.INSTANCE).build();
-
-            assertEquals("urn:xmpp:ping", iq.getChildElementNamespace());
-        }
-
-        @Test
-        @DisplayName("Iq.getChildElementNamespace 无子元素时返回 null")
-        void testGetChildElementNamespaceNull() {
-            Iq iq = new Iq.Builder(Iq.Type.GET).build();
-
-            assertNull(iq.getChildElementNamespace());
         }
     }
 

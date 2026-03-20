@@ -152,7 +152,7 @@ public class SecurityUtils {
     }
 
     private static String typeToString(Enum<?> type) {
-        return type != null ? type.toString() : null;
+        return type.toString();
     }
 
     private static String emptyToNull(String value) {
