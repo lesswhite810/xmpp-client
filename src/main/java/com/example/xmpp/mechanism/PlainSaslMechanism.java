@@ -2,6 +2,7 @@ package com.example.xmpp.mechanism;
 
 import com.example.xmpp.util.SecurityUtils;
 import com.example.xmpp.util.XmppConstants;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.security.sasl.SaslException;
@@ -19,6 +20,7 @@ import java.util.Objects;
  *
  * @since 2026-02-09
  */
+@Slf4j
 public class PlainSaslMechanism implements SaslMechanism {
 
     private static final byte NUL_BYTE = 0;
@@ -61,10 +63,12 @@ public class PlainSaslMechanism implements SaslMechanism {
     @Override
     public byte[] processChallenge(byte[] challenge) throws SaslException {
         if (complete) {
+            log.warn("SASL PLAIN authentication attempt after completion.");
             throw new SaslException("Authentication already completed.");
         }
 
         if (StringUtils.isBlank(username)) {
+            log.warn("SASL PLAIN authentication rejected: username is blank.");
             SecurityUtils.clear(password);
             password = null;
             throw new SaslException("Username cannot be blank");

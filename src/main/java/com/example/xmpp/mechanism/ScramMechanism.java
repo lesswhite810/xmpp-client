@@ -217,9 +217,11 @@ public abstract class ScramMechanism implements SaslMechanism {
                     throw new SaslException("Invalid state");
             }
         } catch (SaslException e) {
+            log.warn("SCRAM {} authentication failed: {}", getMechanismName(), e.getMessage());
             clearSensitiveState();
             throw e;
         } catch (RuntimeException e) {
+            log.error("SCRAM {} unexpected error during authentication.", getMechanismName(), e);
             clearSensitiveState();
             throw new SaslException("SCRAM processing failed", e);
         }
@@ -247,6 +249,7 @@ public abstract class ScramMechanism implements SaslMechanism {
 
         serverNonce = attributes.get('r');
         if (serverNonce == null || !serverNonce.startsWith(clientNonce)) {
+            log.warn("SCRAM {} server nonce validation failed.", getMechanismName());
             throw new SaslException("Invalid server nonce");
         }
 
@@ -254,6 +257,7 @@ public abstract class ScramMechanism implements SaslMechanism {
         String iterationsStr = attributes.get('i');
 
         if (saltBase64 == null || iterationsStr == null) {
+            log.warn("SCRAM {} server message missing required attributes (salt or iterations).", getMechanismName());
             throw new SaslException("Missing salt or iterations");
         }
 
@@ -261,6 +265,7 @@ public abstract class ScramMechanism implements SaslMechanism {
         try {
             salt = Base64.getDecoder().decode(saltBase64);
         } catch (IllegalArgumentException e) {
+            log.warn("SCRAM {} failed to decode salt (invalid Base64).", getMechanismName());
             throw new SaslException("Invalid SCRAM salt", e);
         }
 
@@ -268,10 +273,13 @@ public abstract class ScramMechanism implements SaslMechanism {
         try {
             iterations = Integer.parseInt(iterationsStr);
         } catch (NumberFormatException e) {
+            log.warn("SCRAM {} failed to parse iterations value.", getMechanismName());
             throw new SaslException("Invalid SCRAM iterations", e);
         }
 
         if (iterations < EFFECTIVE_MIN_ITERATIONS) {
+            log.warn("SCRAM {} iterations ({}) below minimum threshold ({}).",
+                    getMechanismName(), iterations, EFFECTIVE_MIN_ITERATIONS);
             throw new SaslException(
                     "Iterations too low: " + iterations + ", minimum is " + EFFECTIVE_MIN_ITERATIONS);
         }
@@ -308,11 +316,13 @@ public abstract class ScramMechanism implements SaslMechanism {
     private void verifyServerFinalMessage(String serverFinalMessage) throws SaslException {
         Map<Character, String> attributes = parseAttributes(serverFinalMessage);
         if (attributes.containsKey('e')) {
+            log.warn("SCRAM {} server returned error (type=e).", getMechanismName());
             throw new SaslException("Server returned error: " + attributes.get('e'));
         }
 
         String verifierBase64 = attributes.get('v');
         if (verifierBase64 == null) {
+            log.warn("SCRAM {} server final message missing verifier attribute.", getMechanismName());
             throw new SaslException("Missing verifier in server final message");
         }
 
@@ -323,10 +333,12 @@ public abstract class ScramMechanism implements SaslMechanism {
         try {
             serverSignatureExpected = Base64.getDecoder().decode(verifierBase64);
         } catch (IllegalArgumentException e) {
+            log.warn("SCRAM {} failed to decode server verifier (invalid Base64).", getMechanismName());
             throw new SaslException("Invalid server verifier", e);
         }
 
         if (!MessageDigest.isEqual(serverSignature, serverSignatureExpected)) {
+            log.error("SCRAM {} server signature verification failed.", getMechanismName());
             throw new SaslException("Server signature verification failed");
         }
         clearSensitiveState();
@@ -357,6 +369,7 @@ public abstract class ScramMechanism implements SaslMechanism {
             SecretKeyFactory skf = SecretKeyFactory.getInstance(getPBKDF2Algorithm());
             return skf.generateSecret(spec).getEncoded();
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            log.error("SCRAM {} key derivation failed: {}.", PBKDF2_OPERATION, e.getMessage());
             throw new SaslException(PBKDF2_OPERATION + " failed", e);
         }
     }
@@ -375,6 +388,7 @@ public abstract class ScramMechanism implements SaslMechanism {
             mac.init(new SecretKeySpec(key, getHmacAlgorithm()));
             return mac.doFinal(data);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            log.error("SCRAM {} HMAC computation failed.", getMechanismName(), e);
             throw new SaslException(HMAC_OPERATION + " failed", e);
         }
     }
@@ -391,6 +405,7 @@ public abstract class ScramMechanism implements SaslMechanism {
             MessageDigest digest = MessageDigest.getInstance(getDigestAlgorithm());
             return digest.digest(data);
         } catch (NoSuchAlgorithmException e) {
+            log.error("SCRAM {} hash computation failed for algorithm '{}'.", getMechanismName(), getDigestAlgorithm(), e);
             throw new SaslException("Hash failed: " + getDigestAlgorithm(), e);
         }
     }
@@ -404,6 +419,8 @@ public abstract class ScramMechanism implements SaslMechanism {
      */
     private byte[] xor(byte[] a, byte[] b) throws SaslException {
         if (a.length != b.length) {
+            log.error("SCRAM {} XOR operand length mismatch (a={}, b={}).",
+                    getMechanismName(), a.length, b.length);
             throw new SaslException("SCRAM XOR operands must have the same length");
         }
         byte[] result = new byte[a.length];
@@ -426,6 +443,7 @@ public abstract class ScramMechanism implements SaslMechanism {
             if (part.length() >= ATTRIBUTE_MIN_LENGTH && part.charAt(ATTRIBUTE_SEPARATOR_INDEX) == '=') {
                 char attributeName = part.charAt(0);
                 if (attributes.containsKey(attributeName)) {
+                    log.warn("SCRAM {} duplicate attribute '{}' in server message.", getMechanismName(), attributeName);
                     throw new SaslException("Duplicate SCRAM attribute: " + attributeName);
                 }
                 attributes.put(attributeName, part.substring(ATTRIBUTE_VALUE_INDEX));
