@@ -6,7 +6,7 @@ import com.example.xmpp.exception.XmppException;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * XMPP 客户端示例入口。
+ * XMPP 客户端入口。
  *
  * @since 2026-02-09
  */
@@ -38,7 +38,7 @@ public class Main {
     }
 
     /**
-     * 运行示例客户端。
+     * 运行客户端。
      *
      * @param domain XMPP 服务域名
      * @param username 用户名

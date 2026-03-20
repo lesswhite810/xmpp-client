@@ -17,9 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * 状态上下文（状态模式）。
- *
- * <p>持有处理器状态和共享数据，为各状态实现提供状态切换、报文发送和错误关闭等公共能力。</p>
+ * 状态上下文。
  *
  * @since 2026-02-20
  */
@@ -41,9 +39,9 @@ public class StateContext {
     /**
      * 创建状态上下文。
      *
-     * @param config     客户端配置
+     * @param config 客户端配置
      * @param connection 连接引用
-     * @param ctx        Netty 通道上下文
+     * @param ctx Netty 通道上下文
      */
     public StateContext(XmppClientConfig config, XmppTcpConnection connection, ChannelHandlerContext ctx) {
         this.config = config;
@@ -54,9 +52,7 @@ public class StateContext {
     /**
      * 检查是否已认证。
      *
-     * <p>使用同步块保护，确保线程安全。</p>
-     *
-     * @return 如果已认证返回 true
+     * @return 是否已认证
      */
     public boolean isAuthenticated() {
         synchronized (stateLock) {
@@ -70,7 +66,7 @@ public class StateContext {
      * 转换到新状态。
      *
      * @param newState 新状态
-     * @param ctx      通道上下文
+     * @param ctx 通道上下文
      * @throws IllegalStateException 如果状态转换不合法
      */
     public void transitionTo(XmppHandlerState newState, ChannelHandlerContext ctx) {
@@ -119,8 +115,6 @@ public class StateContext {
 
     /**
      * 清除状态上下文。
-     *
-     * <p>清除后会忽略后续状态切换与入站消息，避免旧连接上的异步回调继续推进状态机。</p>
      */
     public void invalidate() {
         this.saslNegotiator = null;
@@ -130,8 +124,9 @@ public class StateContext {
     /**
      * 发送 Stanza 到服务器。
      *
-     * @param ctx    通道上下文
-     * @param packet 要发送的对象；仅支持实现了 {@link XmlSerializable} 的协议对象
+     * @param ctx 通道上下文
+     * @param packet 要发送的对象
+     * @return 写出 future，或 null
      */
     public ChannelFuture sendStanza(ChannelHandlerContext ctx, Object packet) {
         if (packet instanceof XmlSerializable serializable) {
@@ -148,7 +143,7 @@ public class StateContext {
     /**
      * 关闭连接并记录错误。
      *
-     * @param ctx   通道上下文
+     * @param ctx 通道上下文
      * @param exception XMPP 异常
      */
     public void closeConnectionOnError(ChannelHandlerContext ctx, XmppException exception) {
@@ -161,8 +156,8 @@ public class StateContext {
     /**
      * 使用固定错误文案关闭连接。
      *
-     * @param ctx     通道上下文
-     * @param message 安全的固定错误文案
+     * @param ctx 通道上下文
+     * @param message 错误文案
      */
     public void closeConnectionOnError(ChannelHandlerContext ctx, String message) {
         closeConnectionOnError(ctx, new XmppException(message));
@@ -171,9 +166,8 @@ public class StateContext {
     /**
      * 打开 XMPP 流。
      *
-     * <p>该方法会发送初始或重开后的 stream 头，用于进入功能协商阶段。</p>
-     *
      * @param ctx 通道上下文
+     * @return 写出 future
      */
     public ChannelFuture openStream(ChannelHandlerContext ctx) {
         StreamHeader streamHeader = StreamHeader.builder()

@@ -5,10 +5,7 @@ import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmlStringBuilder;
 
 /**
- * SASL 响应元素，用于 XMPP SASL 握手流程。
- * <p>
- * 客户端通过发送 Response 元素响应服务端的 Challenge。
- * 该元素包含认证过程中所需的响应数据，通常为 Base64 编码。
+ * SASL 响应元素。
  *
  * @since 2026-02-09
  */

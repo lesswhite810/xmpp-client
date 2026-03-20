@@ -20,27 +20,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * SASL SCRAM 机制的基础抽象实现。
- *
- * <p>实现 RFC 5802 定义的 SCRAM（Salted Challenge Response Authentication Mechanism）。
- * 支持 SCRAM-SHA-1、SCRAM-SHA-256、SCRAM-SHA-512 变体。</p>
- *
- * <p>认证流程：</p>
- * <ol>
- *   <li>发送 Client First Message（n,,n=user,r=clientNonce）</li>
- *   <li>接收 Server First Message（r=nonce,s=salt,i=iterations）</li>
- *   <li>计算 SaltedPassword、ClientKey、StoredKey、ClientSignature、ClientProof</li>
- *   <li>发送 Client Final Message（c=biws,r=nonce,p=clientProof）</li>
- *   <li>验证 Server Final Message（v=serverSignature）</li>
- * </ol>
- *
- * <h2>安全配置</h2>
- * <p>迭代次数安全性说明：</p>
- * <ul>
- *   <li>OWASP 2023 建议 PBKDF2-SHA256 至少 600,000 次迭代</li>
- *   <li>RFC 7677 建议至少 4,096 次迭代</li>
- *   <li>本实现使用 4,096 作为最小值以保持兼容性，但会对低于 OWASP 建议的情况发出警告</li>
- * </ul>
+ * SCRAM 机制基础实现。
  *
  * @since 2026-02-09
  */
@@ -62,59 +42,45 @@ public abstract class ScramMechanism implements SaslMechanism {
     private static final int ATTRIBUTE_VALUE_INDEX = 2;
 
     /**
-     * SCRAM nonce 字节数（推荐至少与哈希输出长度相同）
+     * SCRAM nonce 字节数。
      */
     private static final int NONCE_SIZE_BYTES = 32;
 
     /**
-     * 最小迭代次数（RFC 7677 建议）。
-     *
-     * <p>设置为 4,096 以保持与大多数 XMPP 服务器的兼容性。如果服务器返回的迭代次数低于此值，认证将失败。</p>
-     *
-     * <p>注意：OWASP 2023 建议至少 600,000 次迭代。可通过系统属性 xmpp.scram.minIterations=600000 提高安全性。</p>
+     * 最小迭代次数。
      */
     private static final int MIN_ITERATIONS = 4_096;
 
     /**
-     * OWASP 2023 推荐的最小迭代次数（PBKDF2-SHA256）。
-     *
-     * <p>如果服务器返回的迭代次数低于此值，将发出警告日志。</p>
+     * OWASP 推荐的最小迭代次数。
      */
     private static final int OWASP_RECOMMENDED_ITERATIONS = 600_000;
 
     /**
-     * 实际使用的最小迭代次数，可通过系统属性配置。
-     *
-     * <p>系统属性：xmpp.scram.minIterations</p>
-     * <p>默认值：4096（RFC 7677，兼容大多数服务器）</p>
-     * <p>安全建议：600000（OWASP 2023 推荐）</p>
+     * 实际最小迭代次数。
      */
     private static final int EFFECTIVE_MIN_ITERATIONS = Integer.getInteger(
             "xmpp.scram.minIterations", MIN_ITERATIONS);
 
     /**
-     * 线程安全的 SecureRandom 实例，用于生成 SCRAM nonce。
-     *
-     * <p>SecureRandom 实例创建成本较高（涉及熵源初始化），复用实例可显著提升性能。SecureRandom 本身是线程安全的，可在多线程环境下并发调用。</p>
-     *
-     * <p>注意：虽然 SecureRandom 实例可复用，但在安全性要求极高的场景，可考虑使用阻塞模式（SecureRandom.getInstanceStrong()）。此处使用默认实现以平衡性能与安全性。</p>
+     * SecureRandom 实例。
      */
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     /**
-     * SCRAM 认证状态枚举
+     * SCRAM 认证状态。
      */
     protected enum State {
         /**
-         * 初始状态
+         * 初始状态。
          */
         INITIAL,
         /**
-         * 已接收挑战
+         * 已接收挑战。
          */
         CHALLENGE_RECEIVED,
         /**
-         * 最终成功
+         * 最终成功。
          */
         FINAL_SUCCESS
     }
@@ -133,7 +99,7 @@ public abstract class ScramMechanism implements SaslMechanism {
      * 构造 SCRAM 认证机制实例。
      *
      * @param username 用户名
-     * @param password 密码（char[]）
+     * @param password 密码
      */
     protected ScramMechanism(String username, char[] password) {
         this.username = Objects.requireNonNull(username, "username cannot be null");
@@ -142,11 +108,9 @@ public abstract class ScramMechanism implements SaslMechanism {
     }
 
     /**
-     * 使用密码学安全的随机数生成器生成 nonce。
+     * 生成 nonce。
      *
-     * <p>复用类级别的 SecureRandom 实例，避免重复初始化开销。SecureRandom 的线程安全性保证并发调用无冲突。</p>
-     *
-     * @return Base64 URL 安全编码的 nonce 字符串
+     * @return nonce
      */
     private static String generateSecureNonce() {
         byte[] nonceBytes = new byte[NONCE_SIZE_BYTES];
@@ -157,44 +121,37 @@ public abstract class ScramMechanism implements SaslMechanism {
     /**
      * 获取 HMAC 算法名称。
      *
-     * @return HMAC 算法名称（如 "HmacSHA256"）
+     * @return HMAC 算法名称
      */
     protected abstract String getHmacAlgorithm();
 
     /**
      * 获取摘要算法名称。
      *
-     * @return 摘要算法名称（如 "SHA-256"）
+     * @return 摘要算法名称
      */
     protected abstract String getDigestAlgorithm();
 
     /**
      * 获取 PBKDF2 算法名称。
      *
-     * @return PBKDF2 算法名称（如 "PBKDF2WithHmacSHA256"）
+     * @return PBKDF2 算法名称
      */
     protected abstract String getPBKDF2Algorithm();
 
     /**
-     * 获取哈希值大小（字节）。
+     * 获取哈希值大小。
      *
      * @return 哈希值大小
      */
     protected abstract int hashSize();
 
     /**
-     * 处理服务器挑战并生成响应。
+     * 处理服务器挑战。
      *
-     * <p>SCRAM 认证流程包含三个阶段：</p>
-     * <ol>
-     *   <li>初始阶段：生成并发送 Client First Message</li>
-     *   <li>挑战阶段：处理 Server First Message，生成 Client Final Message</li>
-     *   <li>验证阶段：验证 Server Final Message</li>
-     * </ol>
-     *
-     * @param challenge 服务器发送的挑战数据
-     * @return 响应数据；认证最终完成后返回空字节数组
-     * @throws SaslException 如果处理失败，包括：挑战数据格式无效、nonce 验证失败、迭代次数过低、服务器签名验证失败
+     * @param challenge 服务器挑战数据
+     * @return 响应数据
+     * @throws SaslException 认证失败
      */
     @Override
     public byte[] processChallenge(byte[] challenge) throws SaslException {
@@ -228,9 +185,9 @@ public abstract class ScramMechanism implements SaslMechanism {
     }
 
     /**
-     * 创建客户端初始消息（Client First Message）。
+     * 创建客户端初始消息。
      *
-     * @return 客户端初始消息字节数组
+     * @return 初始消息字节数组
      */
     private byte[] createClientFirstMessage() {
         clientFirstMessageBare = CLIENT_FIRST_PREFIX + username + NONCE_PREFIX + clientNonce;
@@ -238,11 +195,11 @@ public abstract class ScramMechanism implements SaslMechanism {
     }
 
     /**
-     * 创建客户端最终消息（Client Final Message）。
+     * 创建客户端最终消息。
      *
      * @param serverFirstMessage 服务器首次消息
-     * @return 客户端最终消息字节数组
-     * @throws SaslException 如果创建失败
+     * @return 最终消息字节数组
+     * @throws SaslException 创建失败
      */
     private byte[] createClientFinalMessage(String serverFirstMessage) throws SaslException {
         Map<Character, String> attributes = parseAttributes(serverFirstMessage);
@@ -308,10 +265,10 @@ public abstract class ScramMechanism implements SaslMechanism {
     }
 
     /**
-     * 验证服务器最终消息（Server Final Message）。
+     * 验证服务器最终消息。
      *
      * @param serverFinalMessage 服务器最终消息
-     * @throws SaslException 如果验证失败
+     * @throws SaslException 验证失败
      */
     private void verifyServerFinalMessage(String serverFinalMessage) throws SaslException {
         Map<Character, String> attributes = parseAttributes(serverFinalMessage);
@@ -347,7 +304,7 @@ public abstract class ScramMechanism implements SaslMechanism {
     /**
      * 检查认证是否完成。
      *
-     * @return 如果认证完成返回 true
+     * @return 是否完成
      */
     @Override
     public boolean isComplete() {
@@ -355,13 +312,13 @@ public abstract class ScramMechanism implements SaslMechanism {
     }
 
     /**
-     * PBKDF2 密钥派生函数（HI 函数）。
+     * 生成 PBKDF2 密钥。
      *
      * @param password 密码
      * @param salt 盐值
      * @param iterations 迭代次数
-     * @return 派生的密钥
-     * @throws SaslException 如果派生失败
+     * @return 派生密钥
+     * @throws SaslException 生成失败
      */
     private byte[] hi(char[] password, byte[] salt, int iterations) throws SaslException {
         try {
@@ -375,12 +332,12 @@ public abstract class ScramMechanism implements SaslMechanism {
     }
 
     /**
-     * HMAC 计算函数。
+     * 计算 HMAC。
      *
      * @param key 密钥
      * @param data 数据
      * @return HMAC 值
-     * @throws SaslException 如果计算失败
+     * @throws SaslException 计算失败
      */
     private byte[] hmac(byte[] key, byte[] data) throws SaslException {
         try {
@@ -394,11 +351,11 @@ public abstract class ScramMechanism implements SaslMechanism {
     }
 
     /**
-     * 哈希计算函数。
+     * 计算哈希。
      *
      * @param data 数据
      * @return 哈希值
-     * @throws SaslException 如果计算失败
+     * @throws SaslException 计算失败
      */
     private byte[] hash(byte[] data) throws SaslException {
         try {
@@ -416,6 +373,7 @@ public abstract class ScramMechanism implements SaslMechanism {
      * @param a 第一个字节数组
      * @param b 第二个字节数组
      * @return XOR 结果
+     * @throws SaslException 长度不一致时抛出
      */
     private byte[] xor(byte[] a, byte[] b) throws SaslException {
         if (a.length != b.length) {
@@ -435,6 +393,7 @@ public abstract class ScramMechanism implements SaslMechanism {
      *
      * @param message SCRAM 消息
      * @return 属性映射表
+     * @throws SaslException 属性非法时抛出
      */
     private Map<Character, String> parseAttributes(String message) throws SaslException {
         Map<Character, String> attributes = new HashMap<>();

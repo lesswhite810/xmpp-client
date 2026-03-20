@@ -3,9 +3,7 @@ package com.example.xmpp.util;
 import java.util.UUID;
 
 /**
- * XMPP 协议和网络相关的常量定义。
- *
- * <p>集中存放所有魔法数字（Magic Numbers），提高代码可读性和可维护性。</p>
+ * XMPP 协议和网络常量。
  *
  * @since 2026-02-09
  */
@@ -19,8 +17,6 @@ public final class XmppConstants {
 
     /**
      * 生成唯一的 Stanza ID。
-     *
-     * <p>使用 UUID v4 确保全局唯一性，不可预测。</p>
      *
      * @return 唯一的 Stanza ID 字符串，格式为 "xmpp-{UUID}"
      */

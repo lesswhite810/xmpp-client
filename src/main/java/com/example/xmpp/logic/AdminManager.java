@@ -76,7 +76,7 @@ public class AdminManager {
      * @param connection XMPP 连接
      * @param adminUsername 管理员用户名
      * @param serviceDomain XMPP 服务域名
-     * @param timeoutMs 命令超时时间（毫秒）
+     * @param timeoutMs 命令超时时间，单位为毫秒
      */
     public AdminManager(XmppConnection connection, String adminUsername, String serviceDomain, long timeoutMs) {
         this.connection = connection;
@@ -89,7 +89,7 @@ public class AdminManager {
      * 发送管理命令并等待响应。
      *
      * @param iq 要发送的 IQ
-     * @return 响应 CompletableFuture
+     * @return 响应 future
      */
     private CompletableFuture<XmppStanza> sendAdminCommand(Iq iq) {
         log.debug("Sent admin command: id={}, to={}", iq.getId(), iq.getTo());
@@ -100,7 +100,7 @@ public class AdminManager {
      * 构建管理命令 IQ 请求。
      *
      * @param childElement 命令载荷
-     * @return 发送到服务域名的管理命令 IQ
+     * @return 管理命令 IQ
      */
     private Iq buildAdminIq(ExtensionElement childElement) {
         return new Iq.Builder(Iq.Type.SET)
@@ -114,7 +114,7 @@ public class AdminManager {
      * 解析 IQ 响应中的会话 ID。
      *
      * @param response 响应节
-     * @return 会话 ID；如果不存在则返回 {@link Optional#empty()}
+     * @return 会话 ID，或空
      */
     private Optional<String> extractSessionId(XmppStanza response) {
         if (!(response instanceof Iq iq)) {
@@ -143,7 +143,7 @@ public class AdminManager {
      * 从 XML 字符串中解析 sessionid 属性。
      *
      * @param xml XML 字符串
-     * @return 会话 ID；如果不存在则返回 {@link Optional#empty()}
+     * @return 会话 ID，或空
      */
     private Optional<String> extractSessionIdFromXml(String xml) {
         int sessionidIndex = xml.indexOf(ATTR_SESSION_ID + "=");
@@ -184,7 +184,7 @@ public class AdminManager {
     }
 
     /**
-     * 检查响应是否已直接完成（status=completed）。
+     * 检查响应是否已直接完成。
      *
      * @param response 响应节
      * @return 是否已完成
@@ -322,7 +322,7 @@ public class AdminManager {
      *
      * @param username 用户名
      * @param password 密码
-     * @param email 邮箱（可选）
+     * @param email 邮箱
      * @return 服务端响应
      */
     public CompletableFuture<XmppStanza> addUser(String username, String password, String email) {

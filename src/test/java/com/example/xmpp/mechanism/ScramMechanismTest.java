@@ -26,14 +26,6 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * SCRAM 机制单元测试。
  *
- * <p>测试 SCRAM 认证流程的各个阶段：</p>
- * <ul>
- *   <li>客户端首次消息生成</li>
- *   <li>挑战响应处理</li>
- *   <li>服务器签名验证</li>
- *   <li>错误处理</li>
- * </ul>
- *
  * @since 2026-02-15
  */
 class ScramMechanismTest {

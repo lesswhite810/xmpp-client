@@ -5,10 +5,7 @@ import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmlStringBuilder;
 
 /**
- * SASL 成功元素，表示 SASL 认证流程成功完成。
- * <p>
- * 服务端发送 Success 元素表示客户端提供的认证凭证有效，认证成功。
- * 可能包含可选的额外响应数据 (Base64 编码)。
+ * SASL 成功元素。
  *
  * @since 2026-02-09
  */
@@ -27,7 +24,7 @@ public record SaslSuccess(String content) implements ExtensionElement {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 success
+     * @return 元素名称
      */
     @Override
     public String getElementName() {

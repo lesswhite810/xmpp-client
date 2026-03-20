@@ -16,16 +16,6 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Provider 注册中心。
  *
- * <p>单例模式，集中管理所有 XML 元素的 Provider。</p>
- *
- * <p>Provider 类型：</p>
- * <ul>
- *   <li>{@link ExtensionElementProvider}：解析 IQ/Message/Presence 的子元素</li>
- *   <li>{@link IqProvider}：解析完整的 IQ 节</li>
- * </ul>
- *
- * <p>键格式：有命名空间时为 elementName:namespace，无命名空间时为 elementName。</p>
- *
  * @since 2026-02-09
  * @see Provider
  * @see ExtensionElementProvider
@@ -47,7 +37,7 @@ public final class ProviderRegistry {
     /**
      * 获取 ProviderRegistry 单例实例。
      *
-     * @return ProviderRegistry 单例实例
+     * @return 单例实例
      */
     public static ProviderRegistry getInstance() {
         return INSTANCE;
@@ -56,7 +46,7 @@ public final class ProviderRegistry {
     /**
      * 注册 Provider。
      *
-     * @param provider Provider 实例，不能为 null
+     * @param provider Provider 实例
      * @throws NullPointerException 如果 provider 为 null
      */
     public void registerProvider(Provider<?> provider) {
@@ -79,7 +69,7 @@ public final class ProviderRegistry {
      *
      * @param elementName 元素名称
      * @param namespace 命名空间
-     * @return 扩展元素 Provider 的可选对象
+     * @return Provider
      */
     public Optional<ExtensionElementProvider<?>> getExtensionProvider(String elementName, String namespace) {
         return getProvider(elementName, namespace)
@@ -92,7 +82,7 @@ public final class ProviderRegistry {
      *
      * @param elementName 元素名称
      * @param namespace 命名空间
-     * @return IQ Provider 的可选对象
+     * @return Provider
      */
     public Optional<IqProvider> getIqProvider(String elementName, String namespace) {
         return getProvider(elementName, namespace)
@@ -105,7 +95,7 @@ public final class ProviderRegistry {
      *
      * @param elementName 元素名称
      * @param namespace 命名空间
-     * @return Provider 的可选对象
+     * @return Provider
      */
     public Optional<Provider<?>> getProvider(String elementName, String namespace) {
         String key = createKey(elementName, namespace);
@@ -124,7 +114,7 @@ public final class ProviderRegistry {
      *
      * @param elementName 元素名称
      * @param namespace 命名空间
-     * @return 被移除的 Provider 的可选对象
+     * @return 被移除的 Provider
      */
     public Optional<Provider<?>> removeProvider(String elementName, String namespace) {
         String key = createKey(elementName, namespace);
@@ -148,7 +138,7 @@ public final class ProviderRegistry {
     /**
      * 获取所有已注册的键。
      *
-     * @return 注册键的集合
+     * @return 注册键集合
      */
     public Set<String> getRegisteredKeys() {
         return Set.copyOf(providers.keySet());
@@ -159,7 +149,7 @@ public final class ProviderRegistry {
      *
      * @param elementName 元素名称
      * @param namespace 命名空间
-     * @return 如果存在返回 true，否则返回 false
+     * @return 是否存在
      */
     public boolean hasProvider(String elementName, String namespace) {
         return providers.containsKey(createKey(elementName, namespace));
@@ -168,7 +158,7 @@ public final class ProviderRegistry {
     /**
      * 获取 Provider 数量。
      *
-     * @return Provider 数量
+     * @return 数量
      */
     public int size() {
         return providers.size();

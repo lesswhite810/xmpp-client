@@ -8,10 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.Map;
 
 /**
- * SASL 认证元素，用于 XMPP SASL 握手流程。
- * <p>
- * 客户端通过发送 Auth 元素发起 SASL 认证，包含要使用的 SASL 机制名称
- * (如 PLAIN, SCRAM-SHA-1, SCRAM-SHA-256) 以及可选的初始认证响应数据。
+ * SASL 认证元素。
  *
  * @since 2026-02-09
  */

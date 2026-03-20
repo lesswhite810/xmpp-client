@@ -6,10 +6,7 @@ import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * TR-069 连接请求扩展元素，用于 CPE (Customer Premises Equipment) 管理。
- * <p>
- * 实现 Broadband Forum 规范的 CWMP (CPE WAN Management Protocol) XMPP 扩展，
- * 允许 ACS (Auto-Configuration Server) 通过 XMPP 通道向 CPE 发起连接请求。
+ * TR-069 连接请求扩展元素。
  *
  * @since 2026-02-09
  */
@@ -36,10 +33,10 @@ public class ConnectionRequest implements ExtensionElement {
     private final String password;
 
     /**
-     * 构造 ConnectionRequest 实例。
+     * 构造 ConnectionRequest。
      *
-     * @param username CPE 用户名，用于身份验证
-     * @param password CPE 密码，用于身份验证
+     * @param username 用户名
+     * @param password 密码
      */
     @lombok.Builder
     public ConnectionRequest(String username, String password) {
@@ -56,7 +53,7 @@ public class ConnectionRequest implements ExtensionElement {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 connectionRequest
+     * @return 元素名称
      */
     @Override
     public String getElementName() {
@@ -66,7 +63,7 @@ public class ConnectionRequest implements ExtensionElement {
     /**
      * 获取命名空间。
      *
-     * @return Broadband Forum 连接请求命名空间
+     * @return 命名空间
      */
     @Override
     public String getNamespace() {
@@ -74,9 +71,9 @@ public class ConnectionRequest implements ExtensionElement {
     }
 
     /**
-     * 序列化为 XML 字符串。
+     * 序列化为 XML。
      *
-     * @return 扩展元素 XML 字符串
+     * @return XML 字符串
      */
     @Override
     public String toXml() {

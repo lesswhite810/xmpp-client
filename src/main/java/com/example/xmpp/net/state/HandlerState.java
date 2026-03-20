@@ -20,8 +20,8 @@ public interface HandlerState {
      * 处理接收到的消息。
      *
      * @param context 状态上下文
-     * @param ctx     Netty 通道上下文
-     * @param msg     接收到的消息
+     * @param ctx Netty 通道上下文
+     * @param msg 接收到的消息
      */
     default void handleMessage(StateContext context, ChannelHandlerContext ctx, Object msg) {
     }
@@ -30,7 +30,7 @@ public interface HandlerState {
      * 进入此状态时调用。
      *
      * @param context 状态上下文
-     * @param ctx     Netty 通道上下文
+     * @param ctx Netty 通道上下文
      */
     default void onEnter(StateContext context, ChannelHandlerContext ctx) {
     }
@@ -39,7 +39,7 @@ public interface HandlerState {
      * 离开此状态时调用。
      *
      * @param context 状态上下文
-     * @param ctx     Netty 通道上下文
+     * @param ctx Netty 通道上下文
      */
     default void onExit(StateContext context, ChannelHandlerContext ctx) {
     }
@@ -47,7 +47,7 @@ public interface HandlerState {
     /**
      * 是否为会话激活状态。
      *
-     * @return 如果是 SESSION_ACTIVE 状态返回 true
+     * @return 是否激活
      */
     default boolean isSessionActive() {
         return false;

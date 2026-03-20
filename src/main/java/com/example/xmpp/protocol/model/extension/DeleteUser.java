@@ -8,10 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.Map;
 
 /**
- * XEP-0133: Service Administration - 删除用户命令。
- *
- * <p>用于从 XMPP 服务中删除用户账户。
- * 使用 Ad-Hoc Commands (XEP-0050) 和 Data Forms (XEP-0004) 格式。</p>
+ * XEP-0133 删除用户命令。
  *
  * @since 2026-02-09
  */

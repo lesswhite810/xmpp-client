@@ -17,17 +17,6 @@ import java.util.HashMap;
 /**
  * XML 解析器工具类。
  *
- * <p>提供 XML 解析器配置和辅助方法。</p>
- *
- * <h2>安全配置</h2>
- * <p>本类实现了完整的 XXE（XML External Entity）防护：</p>
- * <ul>
- *   <li>禁用外部实体解析（IS_SUPPORTING_EXTERNAL_ENTITIES）</li>
- *   <li>禁用 DTD 处理（SUPPORT_DTD）</li>
- *   <li>禁用验证（IS_VALIDATING）</li>
- *   <li>设置安全解析器拒绝所有外部引用</li>
- * </ul>
- *
  * @since 2026-02-09
  */
 @Slf4j
@@ -40,7 +29,7 @@ public class XmlParserUtils {
     private static final XMLInputFactory SHARED_INPUT_FACTORY = createInputFactoryInternal();
 
     /**
-     * 安全的 XML 解析器，拒绝所有外部实体引用。
+     * 安全的 XML 解析器。
      *
      * @return null，表示拒绝解析外部实体
      */

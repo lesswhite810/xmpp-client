@@ -8,7 +8,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 标记需要真实服务器环境的测试。
+ * 标记真实服务器测试。
+ *
+ * @since 2026-03-20
  */
 @Tag("real-server")
 @Target({ElementType.TYPE, ElementType.METHOD})

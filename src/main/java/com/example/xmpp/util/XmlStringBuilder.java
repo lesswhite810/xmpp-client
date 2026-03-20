@@ -9,8 +9,6 @@ import java.util.function.Consumer;
 /**
  * XML 字符串构建器。
  *
- * <p>提供流式 API 构建 XML 文档，自动处理 XML 特殊字符转义。支持链式调用。</p>
- *
  * @since 2026-02-09
  */
 public class XmlStringBuilder {
@@ -27,7 +25,7 @@ public class XmlStringBuilder {
     /**
      * 构造带初始容量的 XmlStringBuilder。
      *
-     * @param capacity 初始容量，用于优化大型 XML 文档的内存分配
+     * @param capacity 初始容量
      */
     public XmlStringBuilder(int capacity) {
         this.sb = new StringBuilder(capacity);
@@ -36,8 +34,8 @@ public class XmlStringBuilder {
     /**
      * 添加字符串。
      *
-     * @param str 要添加的字符串，null 值将被忽略
-     * @return 当前 XmlStringBuilder 实例，用于链式调用
+     * @param str 字符串
+     * @return 当前实例
      */
     public XmlStringBuilder append(String str) {
         if (str != null) {
@@ -49,11 +47,9 @@ public class XmlStringBuilder {
     /**
      * 包装元素内容。
      *
-     * <p>生成形如 <name>content</name> 的完整元素。字符串内容会自动转义。</p>
-     *
-     * @param name    元素名称
-     * @param content 元素内容，null 将按空内容处理
-     * @return 当前 XmlStringBuilder 实例，用于链式调用
+     * @param name 元素名称
+     * @param content 元素内容
+     * @return 当前实例
      */
     public XmlStringBuilder wrapElement(String name, String content) {
         return wrapElement(name, null, null, content);
@@ -62,39 +58,33 @@ public class XmlStringBuilder {
     /**
      * 包装带命名空间的元素内容。
      *
-     * <p>生成形如 <name xmlns="namespace">content</name> 的完整元素。字符串内容会自动转义。</p>
-     *
-     * @param name      元素名称
-     * @param namespace 命名空间 URI，null 值将不添加 xmlns 属性
-     * @param content   元素内容，null 将按空内容处理
-     * @return 当前 XmlStringBuilder 实例，用于链式调用
+     * @param name 元素名称
+     * @param namespace 命名空间
+     * @param content 元素内容
+     * @return 当前实例
      */
     public XmlStringBuilder wrapElement(String name, String namespace, String content) {
         return wrapElement(name, namespace, null, content);
     }
 
     /**
-     * 包装元素内容（使用 Consumer 构建子元素）。
+     * 包装元素内容。
      *
-     * <p>生成形如 <name>content</name> 的完整元素。使用 Consumer 可以链式添加多个子元素。</p>
-     *
-     * @param name    元素名称
-     * @param content Consumer 用于构建元素内容
-     * @return 当前 XmlStringBuilder 实例，用于链式调用
+     * @param name 元素名称
+     * @param content 内容构建器
+     * @return 当前实例
      */
     public XmlStringBuilder wrapElement(String name, Consumer<XmlStringBuilder> content) {
         return wrapElement(name, null, null, content);
     }
 
     /**
-     * 包装带命名空间的元素内容（使用 Consumer 构建子元素）。
+     * 包装带命名空间的元素内容。
      *
-     * <p>生成形如 <name xmlns="namespace">content</name> 的完整元素。使用 Consumer 可以链式添加多个子元素。</p>
-     *
-     * @param name      元素名称
-     * @param namespace 命名空间 URI，null 值将不添加 xmlns 属性
-     * @param content   Consumer 用于构建元素内容
-     * @return 当前 XmlStringBuilder 实例，用于链式调用
+     * @param name 元素名称
+     * @param namespace 命名空间
+     * @param content 内容构建器
+     * @return 当前实例
      */
     public XmlStringBuilder wrapElement(String name, String namespace, Consumer<XmlStringBuilder> content) {
         return wrapElement(name, namespace, null, content);
@@ -103,10 +93,10 @@ public class XmlStringBuilder {
     /**
      * 包装带属性的元素内容。
      *
-     * @param name       元素名称
+     * @param name 元素名称
      * @param attributes 元素属性
-     * @param content    子元素构建器
-     * @return 当前 XmlStringBuilder 实例
+     * @param content 内容构建器
+     * @return 当前实例
      */
     public XmlStringBuilder wrapElement(String name, Map<String, ?> attributes, Consumer<XmlStringBuilder> content) {
         return wrapElement(name, null, attributes, content);
@@ -115,11 +105,11 @@ public class XmlStringBuilder {
     /**
      * 包装带属性的元素内容。
      *
-     * @param name       元素名称
-     * @param namespace  命名空间 URI
+     * @param name 元素名称
+     * @param namespace 命名空间
      * @param attributes 元素属性
-     * @param content    原始内容
-     * @return 当前 XmlStringBuilder 实例
+     * @param content 元素内容
+     * @return 当前实例
      */
     public XmlStringBuilder wrapElement(String name, String namespace, Map<String, ?> attributes, String content) {
         return wrapElement(name, namespace, attributes, content, true);
@@ -152,11 +142,11 @@ public class XmlStringBuilder {
     /**
      * 包装带属性的元素内容。
      *
-     * @param name       元素名称
-     * @param namespace  命名空间 URI
+     * @param name 元素名称
+     * @param namespace 命名空间
      * @param attributes 元素属性
-     * @param content    子元素构建器
-     * @return 当前 XmlStringBuilder 实例
+     * @param content 内容构建器
+     * @return 当前实例
      */
     public XmlStringBuilder wrapElement(String name,
                                         String namespace,
@@ -170,12 +160,12 @@ public class XmlStringBuilder {
     }
 
     /**
-     * 添加完整的开标签（带属性）。
+     * 添加开标签。
      *
-     * @param name       元素名称
-     * @param namespace  命名空间 URI
+     * @param name 元素名称
+     * @param namespace 命名空间
      * @param attributes 属性映射
-     * @return 当前 XmlStringBuilder 实例
+     * @return 当前实例
      */
     public XmlStringBuilder openElement(String name, String namespace, Map<String, ?> attributes) {
         sb.append('<').append(name);
@@ -188,13 +178,13 @@ public class XmlStringBuilder {
     }
 
     /**
-     * 添加带前缀的完整开标签。
+     * 添加带前缀的开标签。
      *
-     * @param prefix     命名空间前缀
-     * @param name       元素名称
-     * @param namespace  命名空间 URI
+     * @param prefix 命名空间前缀
+     * @param name 元素名称
+     * @param namespace 命名空间
      * @param attributes 属性映射
-     * @return 当前 XmlStringBuilder 实例
+     * @return 当前实例
      */
     public XmlStringBuilder openElement(String prefix,
                                         String name,
@@ -210,9 +200,9 @@ public class XmlStringBuilder {
     }
 
     /**
-     * 将构建的 XML 内容转换为字符串。
+     * 转为字符串。
      *
-     * @return 生成的 XML 字符串
+     * @return XML 字符串
      */
     @Override
     public String toString() {
@@ -220,12 +210,10 @@ public class XmlStringBuilder {
     }
 
     /**
-     * 转义 XML 特殊字符并追加到构建器。
+     * 转义 XML 内容并追加。
      *
-     * <p>委托给 {@link SecurityUtils#escapeXmlAttribute(String)} 进行转义处理。</p>
-     *
-     * @param content 要转义并追加的内容
-     * @return 当前 XmlStringBuilder 实例
+     * @param content 内容
+     * @return 当前实例
      */
     public XmlStringBuilder escapeXml(String content) {
         if (content != null) {

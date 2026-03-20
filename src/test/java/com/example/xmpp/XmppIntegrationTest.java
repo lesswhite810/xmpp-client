@@ -18,25 +18,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * XMPP 集成测试套件。
+ * XMPP 集成测试。
  *
- * <p>测试场景包括：</p>
- * <ul>
- *   <li>所有 SASL 认证算法（PLAIN, SCRAM-SHA-1, SCRAM-SHA-256, SCRAM-SHA-512）</li>
- *   <li>服务器断连后自动重连</li>
- *   <li>TLS 连接</li>
- *   <li>消息收发</li>
- *   <li>Ping/Pong</li>
- * </ul>
- *
- * <p>OpenFire 配置：</p>
- * <ul>
- *   <li>服务器地址: localhost</li>
- *   <li>管理控制台: http://127.0.0.1:9090/</li>
- *   <li>XMPP 域名: lesswhite</li>
- *   <li>用户名: acs / 密码: acs</li>
- *   <li>管理员: admin / 密码: admin</li>
- * </ul>
+ * @since 2026-02-09
  */
 public class XmppIntegrationTest extends AbstractRealServerTest {
 
@@ -139,8 +123,6 @@ public class XmppIntegrationTest extends AbstractRealServerTest {
 
     /**
      * Direct TLS 连接测试（端口 5223）。
-     *
-     * <p>Direct TLS 模式直接在 TCP 连接上建立 TLS 隧道，无需 STARTTLS 协商。</p>
      */
     private static String testDirectTlsConnection() {
         String testName = "[Direct TLS Connection]";

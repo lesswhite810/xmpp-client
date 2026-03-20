@@ -20,13 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * ProviderRegistry 单元测试。
  *
- * <p>测试覆盖：</p>
- * <ul>
- *   <li>Provider 注册和查找</li>
- *   <li>Provider 覆盖</li>
- *   <li>Provider 移除</li>
- *   <li>默认 Provider</li>
- * </ul>
+ * @since 2026-03-10
  */
 class ProviderRegistryTest {
 

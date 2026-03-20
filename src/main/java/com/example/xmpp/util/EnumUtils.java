@@ -9,8 +9,6 @@ import java.util.Optional;
 /**
  * 枚举工具类。
  *
- * <p>提供枚举类型的通用解析方法。</p>
- *
  * @since 2026-02-28
  */
 @Slf4j

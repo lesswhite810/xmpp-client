@@ -6,12 +6,7 @@ import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * XEP-0133: Service Administration - 修改用户密码命令。
- *
- * <p>用于修改 XMPP 服务上指定用户的密码。
- * 使用 Ad-Hoc Commands (XEP-0050) 和 Data Forms (XEP-0004) 格式。</p>
- *
- * <p>节点: http://jabber.org/protocol/admin#change-user-password</p>
+ * XEP-0133 修改用户密码命令。
  *
  * @since 2026-03-08
  */

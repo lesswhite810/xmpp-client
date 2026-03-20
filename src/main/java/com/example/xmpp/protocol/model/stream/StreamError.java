@@ -6,11 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * XMPP 流错误元素，实现 RFC 6120 §4.9 Stream Errors。
- * <p>
- * 当 XMPP 流发生错误时，服务端发送 stream:error 元素报告错误。
- * 包含预定义的条件代码 (如 bad-format、not-authorized、policy-violation 等)
- * 以及可选的错误描述文本和涉及的主机信息。
+ * XMPP 流错误元素。
  *
  * @since 2026-02-09
  */
@@ -42,7 +38,7 @@ public class StreamError implements ExtensionElement {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 error
+     * @return 元素名称
      */
     @Override
     public String getElementName() {
@@ -52,7 +48,7 @@ public class StreamError implements ExtensionElement {
     /**
      * 获取命名空间。
      *
-     * @return 流错误命名空间
+     * @return 命名空间
      */
     @Override
     public String getNamespace() {
@@ -62,7 +58,7 @@ public class StreamError implements ExtensionElement {
     /**
      * 序列化为 XML 字符串。
      *
-     * @return 流错误元素 XML 字符串
+     * @return XML 字符串
      */
     @Override
     public String toXml() {

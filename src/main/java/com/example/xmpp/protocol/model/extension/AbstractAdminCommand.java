@@ -10,9 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * XEP-0133: Service Administration - 管理命令抽象基类。
- *
- * <p>提供 Ad-Hoc Commands 和 Data Forms 的公共 XML 构建逻辑。</p>
+ * XEP-0133 管理命令抽象基类。
  *
  * @since 2026-03-17
  */
@@ -58,7 +56,7 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 command
+     * @return 元素名称
      */
     @Override
     public String getElementName() {
@@ -68,7 +66,7 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
     /**
      * 获取命名空间。
      *
-     * @return Ad-Hoc Commands 命名空间
+     * @return 命名空间
      */
     @Override
     public String getNamespace() {
@@ -76,14 +74,14 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
     }
 
     /**
-     * 获取命令节点名称（子类实现）。
+     * 获取命令节点名称。
      *
-     * @return 命令节点 URL
+     * @return 命令节点
      */
     protected abstract String getCommandNode();
 
     /**
-     * 获取要添加的表单字段（子类实现）。
+     * 获取要添加的表单字段。
      *
      * @param xml XML 构建器
      */
@@ -121,8 +119,8 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
     /**
      * 添加隐藏字段。
      *
-     * @param xml   XML 构建器
-     * @param var   字段名，不能为空或空白
+     * @param xml XML 构建器
+     * @param var 字段名
      * @param value 字段值
      * @throws IllegalArgumentException 如果 var 为 null 或空白
      */
@@ -137,8 +135,8 @@ public abstract class AbstractAdminCommand implements ExtensionElement {
     /**
      * 添加普通文本字段。
      *
-     * @param xml   XML 构建器
-     * @param var   字段名
+     * @param xml XML 构建器
+     * @param var 字段名
      * @param value 字段值
      */
     protected void appendField(XmlStringBuilder xml, String var, String value) {

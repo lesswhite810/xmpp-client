@@ -20,8 +20,6 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * XMPP Ping 管理器。
  *
- * <p>负责客户端保活 Ping。</p>
- *
  * @since 2026-02-09
  */
 @Slf4j
@@ -84,9 +82,7 @@ public final class PingManager {
     /**
      * 设置 Ping 间隔时间。
      *
-     * <p>如果当前有任务在运行，会先停止旧任务再启动新任务。</p>
-     *
-     * @param seconds 间隔时间（秒），必须为正数
+     * @param seconds 间隔时间，单位为秒
      * @throws IllegalArgumentException 如果 seconds 不为正数
      */
     public void setPingInterval(int seconds) {
@@ -142,7 +138,7 @@ public final class PingManager {
     }
 
     /**
-     * 内部停止保活任务（调用者需持有锁）。
+     * 内部停止保活任务。
      */
     private void stopKeepAliveInternal() {
         ScheduledFuture<?> task = keepAliveTask;

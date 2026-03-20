@@ -13,8 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 连接辅助工具类。
  *
- * <p>封装同步建连流程。</p>
- *
  * @since 2026-02-09
  */
 @Slf4j

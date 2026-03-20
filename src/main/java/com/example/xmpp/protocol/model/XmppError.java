@@ -10,8 +10,6 @@ import java.util.Map;
 /**
  * XMPP 错误节元素。
  *
- * <p>表示 XMPP 错误条件，包括错误类型、条件、可选的文本描述和可选的应用特定扩展。</p>
- *
  * @since 2026-02-09
  */
 @Getter
@@ -36,7 +34,7 @@ public class XmppError implements XmppExtension {
     /**
      * 获取元素名称。
      *
-     * @return "error"
+     * @return 元素名称
      */
     @Override
     public String getElementName() {
@@ -46,7 +44,7 @@ public class XmppError implements XmppExtension {
     /**
      * 获取命名空间。
      *
-     * @return XMPP 节命名空间
+     * @return 命名空间
      */
     @Override
     public String getNamespace() {
@@ -78,8 +76,7 @@ public class XmppError implements XmppExtension {
     }
 
     /**
-     * 构建器，用于构造 XmppError 实例。
-     *
+     * 构建器。
      */
     public static class Builder {
         private Condition condition;
@@ -140,9 +137,7 @@ public class XmppError implements XmppExtension {
     }
 
     /**
-     * 错误条件枚举，定义了 XMPP 协议中常用的错误条件。
-     * 枚举常量使用大写字母加下划线命名。
-     *
+     * 错误条件枚举。
      */
     @Getter
     public enum Condition {
@@ -181,7 +176,7 @@ public class XmppError implements XmppExtension {
          * 从字符串解析错误条件。
          *
          * @param name 条件名称
-         * @return 错误条件枚举值
+         * @return 错误条件
          */
         public static Condition fromString(String name) {
             if (name == null) {
@@ -197,8 +192,7 @@ public class XmppError implements XmppExtension {
     }
 
     /**
-     * 错误类型枚举，表示错误的状态和性质。
-     *
+     * 错误类型枚举。
      */
     public enum Type {
         AUTH,

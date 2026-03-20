@@ -11,9 +11,6 @@ import java.util.Optional;
 /**
  * Message 节。
  *
- * Message 节用于在 XMPP 实体之间交换消息，是 XMPP 中三种基本节类型之一。
- * 支持的类型：chat（单对单聊天）、groupchat（多用户聊天室）、headline（头条/通知）、normal（普通消息）、error（错误消息）。
- *
  * @since 2026-02-09
  */
 @Getter
@@ -21,19 +18,19 @@ public final class Message extends Stanza {
     public static final String ELEMENT = "message";
 
     /**
-     * Message 类型
+     * Message 类型。
      */
     private final Type type;
     /**
-     * 消息主体
+     * 消息主体。
      */
     private final String body;
     /**
-     * 消息主题
+     * 消息主题。
      */
     private final String subject;
     /**
-     * 会话线程标识
+     * 会话线程标识。
      */
     private final String thread;
 
@@ -48,7 +45,7 @@ public final class Message extends Stanza {
     /**
      * 判断是否为聊天类型。
      *
-     * @return 当 Message 类型为 CHAT 时返回 true，否则返回 false
+     * @return 是否为聊天类型
      */
     public boolean isChat() {
         return type == Type.CHAT;
@@ -57,7 +54,7 @@ public final class Message extends Stanza {
     /**
      * 判断是否为群聊类型。
      *
-     * @return 当 Message 类型为 GROUPCHAT 时返回 true，否则返回 false
+     * @return 是否为群聊类型
      */
     public boolean isGroupchat() {
         return type == Type.GROUPCHAT;
@@ -66,7 +63,7 @@ public final class Message extends Stanza {
     /**
      * 判断是否为头条类型。
      *
-     * @return 当 Message 类型为 HEADLINE 时返回 true，否则返回 false
+     * @return 是否为头条类型
      */
     public boolean isHeadline() {
         return type == Type.HEADLINE;
@@ -75,7 +72,7 @@ public final class Message extends Stanza {
     /**
      * 判断是否为普通类型。
      *
-     * @return 当 Message 类型为 NORMAL 时返回 true，否则返回 false
+     * @return 是否为普通类型
      */
     public boolean isNormal() {
         return type == Type.NORMAL;
@@ -84,7 +81,7 @@ public final class Message extends Stanza {
     /**
      * 判断是否为错误类型。
      *
-     * @return 当 Message 类型为 ERROR 时返回 true，否则返回 false
+     * @return 是否为错误类型
      */
     public boolean isError() {
         return type == Type.ERROR;
@@ -93,7 +90,7 @@ public final class Message extends Stanza {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 "message"
+     * @return 元素名称
      */
     @Override
     public String getElementName() {
@@ -112,7 +109,6 @@ public final class Message extends Stanza {
      * 追加扩展元素到 XML 构建器。
      *
      * @param xml XML 构建器
-     * @throws NullPointerException 当 xml 参数为 null 时
      */
     @Override
     protected void appendExtensions(XmlStringBuilder xml) {
@@ -130,23 +126,22 @@ public final class Message extends Stanza {
 
     /**
      * Message Builder。
-     *
      */
     public static class Builder extends Stanza.Builder<Builder, Message> {
         /**
-         * Message 类型
+         * Message 类型。
          */
         private Type type;
         /**
-         * 消息主体
+         * 消息主体。
          */
         private String body;
         /**
-         * 消息主题
+         * 消息主题。
          */
         private String subject;
         /**
-         * 会话线程标识
+         * 会话线程标识。
          */
         private String thread;
 
@@ -248,7 +243,6 @@ public final class Message extends Stanza {
 
     /**
      * Message 类型枚举。
-     *
      */
     public enum Type {
         /**

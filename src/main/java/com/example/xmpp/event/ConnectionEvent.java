@@ -5,9 +5,6 @@ import com.example.xmpp.XmppConnection;
 /**
  * XMPP 连接事件。
  *
- * <p>表示 XMPP 连接生命周期中发生的各种事件。
- * 使用 {@link ConnectionEventType} 枚举区分事件类型。</p>
- *
  * @since 2026-03-03
  */
 public record ConnectionEvent(XmppConnection connection, ConnectionEventType eventType, Exception error) {
@@ -25,7 +22,7 @@ public record ConnectionEvent(XmppConnection connection, ConnectionEventType eve
     /**
      * 获取错误信息。
      *
-     * @return 错误异常，ERROR 与异常关闭场景下的 CLOSED 事件可用
+     * @return 错误异常
      */
     public Exception error() {
         return error;

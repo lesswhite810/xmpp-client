@@ -6,9 +6,7 @@ import com.example.xmpp.protocol.model.extension.Ping;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Ping IQ 请求处理器（XEP-0199）。
- *
- * <p>处理 XMPP 服务器发来的 Ping 请求，自动响应 Pong。</p>
+ * Ping IQ 请求处理器。
  *
  * @since 2026-02-26
  */
@@ -23,11 +21,10 @@ public class PingIqRequestHandler extends AbstractIqRequestHandler {
     }
 
     /**
-     * 处理 Ping 请求并返回 Pong 响应。
+     * 处理 Ping 请求并返回响应。
      *
-     * @param iqRequest Ping 请求节
-     *
-     * @return Pong 响应节
+     * @param iqRequest Ping 请求
+     * @return 响应 IQ
      */
     @Override
     public Iq handleIqRequest(Iq iqRequest) {

@@ -38,7 +38,7 @@ public final class ConnectionRequestProvider extends AbstractProvider<Connection
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 connectionRequest
+     * @return 元素名称
      */
     @Override
     public String getElementName() {
@@ -48,7 +48,7 @@ public final class ConnectionRequestProvider extends AbstractProvider<Connection
     /**
      * 获取命名空间。
      *
-     * @return ConnectionRequest 命名空间
+     * @return 命名空间
      */
     @Override
     public String getNamespace() {
@@ -58,9 +58,9 @@ public final class ConnectionRequestProvider extends AbstractProvider<Connection
     /**
      * 解析 ConnectionRequest 元素。
      *
-     * @param reader XMLEventReader，用于读取 XML 事件流
-     * @return 解析后的 ConnectionRequest 实例
-     * @throws XMLStreamException 如果解析过程中发生 XML 错误
+     * @param reader XML 读取器
+     * @return ConnectionRequest
+     * @throws XMLStreamException XML 解析异常
      */
     @Override
     protected ConnectionRequest parseInstance(XMLEventReader reader) throws XMLStreamException {
@@ -101,10 +101,10 @@ public final class ConnectionRequestProvider extends AbstractProvider<Connection
     }
 
     /**
-     * 序列化 ConnectionRequest 对象为 XML。
+     * 序列化 ConnectionRequest。
      *
-     * @param connectionRequest ConnectionRequest 对象
-     * @param xml XmlStringBuilder，用于构建 XML 输出
+     * @param connectionRequest ConnectionRequest
+     * @param xml XML 构建器
      */
     @Override
     protected void serializeInstance(ConnectionRequest connectionRequest, XmlStringBuilder xml) {

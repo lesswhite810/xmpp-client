@@ -31,7 +31,7 @@ class StreamModelTest {
         assertEquals("stream-123", header.getId());
         assertEquals("1.0", header.getVersion());
         assertEquals("en", header.getLang());
-        // 注意：实际实现可能使用默认 namespace
+        // 实际实现可能使用默认 namespace
         assertNotNull(header.getNamespace());
     }
 

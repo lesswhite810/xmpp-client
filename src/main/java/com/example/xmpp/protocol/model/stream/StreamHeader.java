@@ -10,18 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * XMPP 流头元素，实现 RFC 6120 §4.7 Stream Start。
- * <p>
- * 表示 XMPP 流的起始元素，包含连接的初始化参数：
- * <ul>
- *     <li>from - 发送方域名</li>
- *     <li>to - 接收方域名</li>
- *     <li>id - 服务端分配的唯一流标识</li>
- *     <li>version - XMPP 版本号</li>
- *     <li>xml:lang - 首选语言</li>
- *     <li>xmlns - 默认命名空间</li>
- * </ul>
- * 该元素在建立 XMPP 连接时由客户端首次发送，服务端响应包含自身的 stream 元素。
+ * XMPP 流头元素。
  *
  * @since 2026-02-09
  */
@@ -63,7 +52,7 @@ public class StreamHeader implements ExtensionElement {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 stream
+     * @return 元素名称
      */
     @Override
     public String getElementName() {
@@ -73,7 +62,7 @@ public class StreamHeader implements ExtensionElement {
     /**
      * 获取命名空间。
      *
-     * @return 流命名空间
+     * @return 命名空间
      */
     @Override
     public String getNamespace() {

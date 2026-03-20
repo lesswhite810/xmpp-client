@@ -32,7 +32,7 @@ public final class BindProvider extends AbstractProvider<Bind> {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 bind
+     * @return 元素名称
      */
     @Override
     public String getElementName() {
@@ -42,7 +42,7 @@ public final class BindProvider extends AbstractProvider<Bind> {
     /**
      * 获取命名空间。
      *
-     * @return 绑定命名空间
+     * @return 命名空间
      */
     @Override
     public String getNamespace() {
@@ -50,11 +50,11 @@ public final class BindProvider extends AbstractProvider<Bind> {
     }
 
     /**
-     * 解析 Bind 元素，提取 jid 和 resource 子元素内容。
+     * 解析 Bind 元素。
      *
-     * @param reader XMLEventReader，用于读取 XML 事件流
-     * @return 解析后的 Bind 对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 错误
+     * @param reader XML 事件读取器
+     * @return Bind 对象
+     * @throws XMLStreamException XML 解析失败
      */
     @Override
     protected Bind parseInstance(XMLEventReader reader) throws XMLStreamException {
@@ -92,8 +92,8 @@ public final class BindProvider extends AbstractProvider<Bind> {
     /**
      * 序列化 Bind 对象为 XML。
      *
-     * @param bind Bind 对象，要序列化的绑定信息
-     * @param xml XmlStringBuilder，用于构建 XML 输出
+     * @param bind Bind 对象
+     * @param xml XML 构建器
      */
     @Override
     protected void serializeInstance(Bind bind, XmlStringBuilder xml) {

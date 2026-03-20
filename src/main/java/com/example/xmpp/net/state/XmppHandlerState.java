@@ -37,8 +37,6 @@ import java.util.Set;
 /**
  * XMPP 处理器状态枚举。
  *
- * <p>定义连接建立、TLS 协商、SASL 认证、资源绑定以及会话激活等阶段的状态行为与转换规则。</p>
- *
  * @since 2026-02-23
  */
 @Slf4j
@@ -429,7 +427,7 @@ public enum XmppHandlerState implements HandlerState {
      * 判断当前状态是否可以切换到目标状态。
      *
      * @param target 目标状态
-     * @return 如果允许切换则返回 true
+     * @return 是否允许切换
      */
     public abstract boolean canTransitionTo(XmppHandlerState target);
 

@@ -13,10 +13,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 
 /**
- * 扩展元素 Provider 抽象基类，使用模板方法模式提供 XML 解析和序列化的公共逻辑。
- *
- * <p>所有扩展元素 Provider 应继承此类，只需实现 {@link #parseInstance(XMLEventReader)}
- * 和 {@link #serializeInstance(ExtensionElement, XmlStringBuilder)} 方法。</p>
+ * 扩展元素 Provider 抽象基类。
  *
  * @param <T> 此 Provider 处理的扩展元素类型
  * @since 2026-02-14
@@ -28,9 +25,9 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     /**
      * 解析 XML 元素。
      *
-     * @param reader XMLEventReader，用于读取 XML 事件流
+     * @param reader XML 事件读取器
      * @return 解析后的扩展元素对象
-     * @throws XmppParseException 如果解析失败，如 XML 格式错误或命名空间不匹配
+     * @throws XmppParseException 解析失败
      */
     @Override
     public final T parse(XMLEventReader reader) throws XmppParseException {
@@ -59,8 +56,8 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     /**
      * 序列化对象为 XML。
      *
-     * @param object 要序列化的扩展元素对象，不能为 null
-     * @param xml XmlStringBuilder，用于构建 XML 输出，不能为 null
+     * @param object 要序列化的扩展元素对象
+     * @param xml XML 构建器
      */
     @Override
     public final void serialize(T object, XmlStringBuilder xml) {
@@ -82,19 +79,19 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     }
 
     /**
-     * 执行具体的解析逻辑，子类在此方法中实现元素特定的解析逻辑。
+     * 执行具体的解析逻辑。
      *
-     * @param reader XMLEventReader，用于读取 XML 事件流
+     * @param reader XML 事件读取器
      * @return 解析后的扩展元素对象
-     * @throws XMLStreamException 如果解析过程中发生 XML 错误，如读取超时或格式错误
+     * @throws XMLStreamException XML 解析失败
      */
     protected abstract T parseInstance(XMLEventReader reader) throws XMLStreamException;
 
     /**
-     * 执行具体的序列化逻辑，子类在此方法中将对象内容写入 XmlStringBuilder。
+     * 执行具体的序列化逻辑。
      *
-     * @param object 要序列化的扩展元素对象（非 null）
-     * @param xml XmlStringBuilder，用于构建 XML 输出（非 null）
+     * @param object 要序列化的扩展元素对象
+     * @param xml XML 构建器
      */
     protected abstract void serializeInstance(T object, XmlStringBuilder xml);
 
@@ -102,7 +99,7 @@ public abstract class AbstractProvider<T extends ExtensionElement>
      * 检查事件是否为当前 Provider 处理的元素的结束标签。
      *
      * @param event XMLEvent
-     * @return 如果是当前元素的结束标签则返回 true
+     * @return 是否为结束标签
      */
     protected final boolean isElementEnd(XMLEvent event) {
         if (!event.isEndElement()) {
@@ -126,9 +123,9 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     /**
      * 安全地获取元素文本内容。
      *
-     * @param reader XMLEventReader，用于读取 XML 事件流
-     * @return 元素文本内容，可能为 null
-     * @throws XMLStreamException 如果读取过程中发生 XML 错误
+     * @param reader XML 事件读取器
+     * @return 元素文本内容
+     * @throws XMLStreamException XML 解析失败
      */
     protected final String getElementText(XMLEventReader reader) throws XMLStreamException {
         return XmlParserUtils.getElementText(reader);
@@ -137,9 +134,9 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     /**
      * 创建 Provider 解析异常。
      *
-     * @param message 错误消息，描述解析失败的原因
-     * @param cause   原因异常，可为 null
-     * @return XmppParseException 新创建的解析异常实例
+     * @param message 错误消息
+     * @param cause 原因异常
+     * @return 解析异常
      */
     protected final XmppParseException createParseException(String message, Throwable cause) {
         return new XmppParseException(message, cause);
@@ -148,8 +145,8 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     /**
      * 创建 Provider 解析异常（无原因）。
      *
-     * @param message 错误消息，描述解析失败的原因
-     * @return XmppParseException 新创建的解析异常实例
+     * @param message 错误消息
+     * @return 解析异常
      */
     protected final XmppParseException createParseException(String message) {
         return new XmppParseException(message);
@@ -158,7 +155,7 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     /**
      * 获取日志记录器。
      *
-     * @return Logger 实例，用于记录此类相关的日志
+     * @return Logger 实例
      */
     protected final org.slf4j.Logger log() {
         return log;

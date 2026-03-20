@@ -20,10 +20,6 @@ import java.util.Base64;
 /**
  * SASL 认证协商器。
  *
- * <p>负责驱动 SASL 认证过程，包括发送初始 auth、处理服务端
- * challenge、校验最终 success，并将认证阶段的报文发送逻辑
- * 从连接状态机中解耦出来。</p>
- *
  * @since 2026-02-09
  */
 @Slf4j
@@ -45,12 +41,10 @@ public class SaslNegotiator {
     private final ChannelHandlerContext ctx;
 
     /**
-     * 启动 SASL 认证流程。
+     * 启动 SASL 认证。
      *
-     * <p>如果当前机制支持初始响应，会在发送 {@link Auth} 前先生成并进行 Base64 编码。
-     * 对于 PLAIN 机制，还会在启动前强制校验 TLS 是否已经启用。</p>
-     *
-     * @throws XmppAuthException 如果认证启动失败
+     * @return 发送结果
+     * @throws XmppAuthException 认证失败
      */
     public ChannelFuture start() throws XmppAuthException {
         String mechanismName = resolveMechanismName();
@@ -73,10 +67,10 @@ public class SaslNegotiator {
     }
 
     /**
-     * 处理服务端返回的 SASL 挑战数据。
+     * 处理服务端挑战。
      *
      * @param contentB64 Base64 编码的挑战内容
-     * @throws XmppAuthException 如果挑战处理失败
+     * @throws XmppAuthException 认证失败
      */
     public void handleChallenge(String contentB64) throws XmppAuthException {
         byte[] cContent;
@@ -100,11 +94,11 @@ public class SaslNegotiator {
     }
 
     /**
-     * 处理服务端返回的 SASL 成功结果。
+     * 处理服务端成功结果。
      *
-     * @param contentB64 Base64 编码的成功附加数据，可能为空
-     * @return 如果认证已经完成则返回 true
-     * @throws XmppAuthException 如果成功结果校验失败
+     * @param contentB64 Base64 编码的附加数据
+     * @return 是否完成
+     * @throws XmppAuthException 认证失败
      */
     public boolean handleSuccess(String contentB64) throws XmppAuthException {
         if (StringUtils.isNotEmpty(contentB64)) {
@@ -124,10 +118,11 @@ public class SaslNegotiator {
     }
 
     /**
-     * 发送 SASL 阶段使用的扩展元素。
+     * 发送 SASL 扩展元素。
      *
      * @param packet 待发送的协议元素
-     * @throws XmppAuthException 如果发送失败
+     * @return 发送结果
+     * @throws XmppAuthException 发送失败
      */
     private ChannelFuture sendStanza(Object packet) throws XmppAuthException {
         if (packet instanceof ExtensionElement element) {
@@ -167,9 +162,9 @@ public class SaslNegotiator {
     }
 
     /**
-     * 检查当前通道是否已经完成 TLS 加密握手。
+     * 检查当前通道是否已加密。
      *
-     * @return 如果当前通道已加密则返回 true
+     * @return 是否已加密
      */
     private boolean isTlsEncrypted() {
         SslHandler sslHandler = ctx.pipeline().get(SslHandler.class);

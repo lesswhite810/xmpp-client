@@ -27,9 +27,6 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * 真实服务器并发压力测试。
  *
- * <p>用于验证高并发请求、多连接同时认证以及批量建删用户时，
- * collector 与连接状态是否存在竞争问题。</p>
- *
  * @since 2026-03-13
  */
 @Slf4j

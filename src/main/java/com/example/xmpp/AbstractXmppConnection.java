@@ -27,8 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * XMPP 连接抽象基类。
  *
- * <p>提供 IQ 处理、collector 和事件分发的公共逻辑。</p>
- *
  * @since 2026-02-09
  */
 @Slf4j

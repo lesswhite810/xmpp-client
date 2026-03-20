@@ -26,9 +26,6 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * 真实服务器边界与异常场景测试。
  *
- * <p>这些测试直接连接本地 Openfire 服务器，验证认证失败、重复创建、删除不存在用户、
- * 以及未实现管理命令等异常路径。</p>
- *
  * @since 2026-03-13
  */
 class XmppRealServerEdgeCaseTest extends AbstractRealServerTest {

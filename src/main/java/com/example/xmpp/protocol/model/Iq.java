@@ -10,19 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * IQ (Info/Query) 节。
- *
- * <p>IQ 节是 XMPP 中用于请求/响应交互的 stanza 类型。
- * 与 Message 和 Presence 不同，IQ 節必须得到响应。</p>
- *
- * <p>IQ 类型：
- * <ul>
- *   <li>{@link Type#GET} - 请求数据</li>
- *   <li>{@link Type#SET} - 设置数据</li>
- *   <li>{@link Type#RESULT} - 响应成功</li>
- *   <li>{@link Type#ERROR} - 响应错误</li>
- * </ul>
- * </p>
+ * IQ 节。
  *
  * @since 2026-02-09
  */
@@ -31,15 +19,15 @@ public final class Iq extends Stanza {
     public static final String ELEMENT = "iq";
 
     /**
-     * IQ 类型
+     * IQ 类型。
      */
     private final Type type;
     /**
-     * IQ 子元素
+     * IQ 子元素。
      */
     private final ExtensionElement childElement;
     /**
-     * 错误元素
+     * 错误元素。
      */
     private final XmppError error;
 
@@ -54,7 +42,7 @@ public final class Iq extends Stanza {
     }
 
     /**
-     * 合并子元素、错误和扩展为单一列表。
+     * 合并子元素、错误和扩展。
      *
      * @param childElement 子元素
      * @param error 错误元素
@@ -79,10 +67,8 @@ public final class Iq extends Stanza {
     /**
      * 创建错误响应。
      *
-     * <p>根据请求 IQ 创建对应的错误响应节。</p>
-     *
-     * @param request 请求 IQ，不能为 null
-     * @param error 错误信息，不能为 null
+     * @param request 请求 IQ
+     * @param error 错误信息
      * @return 错误响应 IQ
      * @throws NullPointerException 如果 request 或 error 为 null
      */
@@ -99,10 +85,8 @@ public final class Iq extends Stanza {
     /**
      * 创建结果响应。
      *
-     * <p>根据请求 IQ 创建对应的结果响应节。</p>
-     *
-     * @param request 请求 IQ，不能为 null
-     * @param childElement 子元素（可选）
+     * @param request 请求 IQ
+     * @param childElement 子元素
      * @return 结果响应 IQ
      * @throws NullPointerException 如果 request 为 null
      */
@@ -118,7 +102,7 @@ public final class Iq extends Stanza {
     /**
      * 判断是否为错误类型。
      *
-     * @return 是错误类型返回 true
+     * @return 是否为错误类型
      */
     public boolean isError() {
         return type == Type.ERROR;
@@ -127,7 +111,7 @@ public final class Iq extends Stanza {
     /**
      * 判断是否为结果类型。
      *
-     * @return 是结果类型返回 true
+     * @return 是否为结果类型
      */
     public boolean isResult() {
         return type == Type.RESULT;
@@ -136,7 +120,7 @@ public final class Iq extends Stanza {
     /**
      * 判断是否为获取类型。
      *
-     * @return 是获取类型返回 true
+     * @return 是否为获取类型
      */
     public boolean isGet() {
         return type == Type.GET;
@@ -145,7 +129,7 @@ public final class Iq extends Stanza {
     /**
      * 判断是否为设置类型。
      *
-     * @return 是设置类型返回 true
+     * @return 是否为设置类型
      */
     public boolean isSet() {
         return type == Type.SET;
@@ -154,7 +138,7 @@ public final class Iq extends Stanza {
     /**
      * 获取元素名称。
      *
-     * @return "iq"
+     * @return 元素名称
      */
     @Override
     public String getElementName() {
@@ -190,15 +174,15 @@ public final class Iq extends Stanza {
      */
     public static class Builder extends Stanza.Builder<Builder, Iq> {
         /**
-         * IQ 类型
+         * IQ 类型。
          */
         private Type type;
         /**
-         * IQ 子元素
+         * IQ 子元素。
          */
         private ExtensionElement childElement;
         /**
-         * 错误元素
+         * 错误元素。
          */
         private XmppError error;
 
@@ -285,7 +269,6 @@ public final class Iq extends Stanza {
 
     /**
      * IQ 类型枚举。
-     *
      */
     public enum Type {
         /**

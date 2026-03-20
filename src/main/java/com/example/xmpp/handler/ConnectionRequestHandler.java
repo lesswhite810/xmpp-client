@@ -20,7 +20,7 @@ public class ConnectionRequestHandler implements IqRequestHandler {
     /**
      * 创建连接请求处理器。
      *
-     * @param callback 收到 ConnectionRequest 后触发的回调，用于执行 CPE 回连逻辑
+     * @param callback 回调
      */
     public ConnectionRequestHandler(Consumer<ConnectionRequest> callback) {
         this.callback = Objects.requireNonNull(callback, "Callback cannot be null");
@@ -28,9 +28,6 @@ public class ConnectionRequestHandler implements IqRequestHandler {
 
     /**
      * 处理 IQ 请求。
-     *
-     * <p>从 IQ 请求中提取 ConnectionRequest 扩展，解析认证信息，
-     * 并触发回调通知上层应用。</p>
      *
      * @param iqRequest 收到的 IQ 请求
      * @return 结果响应 IQ
@@ -60,7 +57,7 @@ public class ConnectionRequestHandler implements IqRequestHandler {
      * 从 IQ 请求中提取 ConnectionRequest。
      *
      * @param iq IQ 请求
-     * @return ConnectionRequest，如果不存在则返回 null
+     * @return ConnectionRequest，或 null
      */
     private ConnectionRequest extractConnectionRequest(Iq iq) {
         if (iq.getChildElement() instanceof ConnectionRequest request) {
@@ -73,7 +70,7 @@ public class ConnectionRequestHandler implements IqRequestHandler {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 connectionRequest
+     * @return 元素名称
      */
     @Override
     public String getElement() {
@@ -83,7 +80,7 @@ public class ConnectionRequestHandler implements IqRequestHandler {
     /**
      * 获取命名空间。
      *
-     * @return ConnectionRequest 命名空间
+     * @return 命名空间
      */
     @Override
     public String getNamespace() {
@@ -93,7 +90,7 @@ public class ConnectionRequestHandler implements IqRequestHandler {
     /**
      * 获取 IQ 类型。
      *
-     * @return 固定返回 {@link Iq.Type#SET}
+     * @return IQ 类型
      */
     @Override
     public Iq.Type getIqType() {

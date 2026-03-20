@@ -4,9 +4,7 @@ import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.util.XmlStringBuilder;
 
 /**
- * XEP-0199: XMPP Ping IQ 帮助类。
- *
- * <p>提供创建 Ping 相关 IQ 节的工具方法。</p>
+ * XMPP Ping IQ 帮助类。
  *
  * @since 2026-02-09
  * @see <a href="https://xmpp.org/extensions/xep-0199.html">XEP-0199: XMPP Ping</a>
@@ -37,7 +35,7 @@ public class PingIq {
      * 创建 Ping 响应 IQ。
      *
      * @param request Ping 请求 IQ
-     * @return 空结果 IQ（按 XEP-0199）
+     * @return Ping 响应 IQ
      * @throws NullPointerException 如果 request 为 null
      */
     public static Iq createPingResponse(Iq request) {

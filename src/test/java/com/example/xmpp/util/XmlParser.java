@@ -14,9 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * XMPP 解析测试工具类。
- *
- * <p>提供从 XML 字符串解析 Stanza 的便捷方法，仅供测试使用。</p>
+ * XMPP 解析测试工具。
  *
  * @since 2026-02-27
  */

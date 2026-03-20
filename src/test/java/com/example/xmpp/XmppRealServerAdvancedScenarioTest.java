@@ -37,8 +37,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * 真实服务器高级场景测试。
  *
- * <p>覆盖改密、多 resource 登录、错误 IQ 后连接复用，以及更高强度并发与长循环场景。</p>
- *
  * @since 2026-03-13
  */
 class XmppRealServerAdvancedScenarioTest extends AbstractRealServerTest {

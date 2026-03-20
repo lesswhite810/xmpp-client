@@ -29,9 +29,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 /**
  * 真实服务器耐久循环测试。
  *
- * <p>用于验证连接在较长时间重复使用、反复建立与回收，以及用户生命周期重复执行时，
- * 是否会出现状态泄漏、响应错配或资源清理不完整的问题。</p>
- *
  * @since 2026-03-13
  */
 class XmppRealServerSoakTest extends AbstractRealServerTest {

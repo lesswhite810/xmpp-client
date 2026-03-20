@@ -21,12 +21,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * XEP-0133: Service Administration 集成测试
+ * XEP-0133 管理集成测试。
  *
- * 测试与 Openfire 服务器的用户管理功能。
- *
- * <p>注意：此测试需要 Openfire 服务器启用 Admin 组件。
- * 如果测试失败，请检查服务器配置。</p>
+ * @since 2026-03-11
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class AdminManagerIntegrationTest extends AbstractRealServerTest {

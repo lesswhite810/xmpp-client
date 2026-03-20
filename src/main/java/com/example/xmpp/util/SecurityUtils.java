@@ -20,13 +20,6 @@ import lombok.experimental.UtilityClass;
 /**
  * 安全工具类。
  *
- * <p>提供敏感数据处理的安全方法，包括：</p>
- * <ul>
- *   <li>字符数组与字节数组的安全转换</li>
- *   <li>敏感数据的内存清理</li>
- *   <li>日志输出的敏感信息过滤</li>
- * </ul>
- *
  * @since 2026-02-13
  */
 @UtilityClass
@@ -56,8 +49,6 @@ public class SecurityUtils {
 
     /**
      * 将字符数组转换为字节数组（UTF-8）。
-     *
-     * <p>避免创建中间 String 对象，提高安全性。</p>
      *
      * @param chars 字符数组
      * @return 字节数组；如果输入为 null，则返回空字节数组
@@ -156,16 +147,7 @@ public class SecurityUtils {
     }
 
     /**
-     * 转义 XML 属性值中的特殊字符，防止 XML 注入攻击。
-     *
-     * <p>转义以下字符：</p>
-     * <ul>
-     *   <li>&amp; -> &amp;amp;</li>
-     *   <li>&lt; -> &amp;lt;</li>
-     *   <li>&gt; -> &amp;gt;</li>
-     *   <li>&quot; -> &amp;quot;</li>
-     *   <li>&apos; -> &amp;apos;</li>
-     * </ul>
+     * 转义 XML 属性值中的特殊字符。
      *
      * @param input 原始字符串
      * @return 转义后的字符串；如果输入为 null 则返回 null

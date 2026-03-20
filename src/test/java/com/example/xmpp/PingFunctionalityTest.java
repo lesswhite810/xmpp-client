@@ -16,15 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * XMPP Ping 功能测试类。
- *
- * <p>测试 XEP-0199 XMPP Ping 协议的各种场景：</p>
- * <ul>
- *   <li>正常 PING 请求与响应</li>
- *   <li>响应超时场景</li>
- *   <li>连接断开场景</li>
- *   <li>响应格式验证</li>
- * </ul>
+ * XMPP Ping 功能测试。
  *
  * @since 2026-02-13
  */

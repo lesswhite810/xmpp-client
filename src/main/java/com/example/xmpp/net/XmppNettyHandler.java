@@ -29,9 +29,6 @@ import java.util.Optional;
 /**
  * XMPP Netty 入站处理器。
  *
- * <p>负责衔接 Netty 事件与 XMPP 状态机，包括连接激活、入站消息分发、SSL 握手结果处理、
- * 异常传播以及协议报文发送。</p>
- *
  * @since 2026-02-09
  */
 @Slf4j
@@ -57,8 +54,6 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
 
     /**
      * 清空当前处理器状态。
-     *
-     * <p>用于连接关闭后的状态回收，确保外部不会继续读取到旧会话状态。</p>
      */
     public void invalidateStateContext() {
         StateContext currentStateContext = stateContext;
@@ -71,7 +66,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     /**
      * 判断连接是否已经完成认证。
      *
-     * @return 如果已进入已认证状态则返回 true
+     * @return 是否已认证
      */
     public boolean isAuthenticated() {
         StateContext ctx = this.stateContext;
@@ -82,7 +77,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
      * 判断当前通道是否已经不属于当前连接生命周期。
      *
      * @param ctx Netty 通道上下文
-     * @return 如果通道已陈旧或连接正在关闭则返回 true
+     * @return 是否为陈旧通道
      */
     private boolean isStaleChannel(ChannelHandlerContext ctx) {
         return !connection.isCurrentChannel(ctx.channel());
@@ -276,6 +271,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
      *
      * @param ctx Netty 通道上下文
      * @param packet 待发送的数据包
+     * @return 写出 future，或 null
      */
     public ChannelFuture sendStanza(ChannelHandlerContext ctx, Object packet) {
         return Optional.ofNullable(packet)

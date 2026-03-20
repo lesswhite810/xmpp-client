@@ -12,10 +12,6 @@ import java.util.Optional;
 /**
  * Presence 节。
  *
- * Presence 节用于在 XMPP 实体之间交换状态信息，是 XMPP 中三种基本节类型之一。
- * 支持的类型：available（可用状态）、unavailable（不可用状态）、error（错误状态）、
- * subscribe（订阅请求）、subscribed（订阅确认）、unsubscribe（取消订阅请求）、unsubscribed（取消订阅确认）。
- *
  * @since 2026-02-09
  */
 @Getter
@@ -23,19 +19,19 @@ public final class Presence extends Stanza {
     public static final String ELEMENT = "presence";
 
     /**
-     * Presence 类型
+     * Presence 类型。
      */
     private final Type type;
     /**
-     * 状态显示
+     * 状态显示。
      */
     private final String show;
     /**
-     * 状态描述
+     * 状态描述。
      */
     private final String status;
     /**
-     * 优先级
+     * 优先级。
      */
     private final Integer priority;
 
@@ -50,8 +46,8 @@ public final class Presence extends Stanza {
     /**
      * 获取状态显示枚举值。
      *
-     * @return Show 枚举值的 Optional，若 show 属性为 null 或无法解析则返回 Optional.empty()
-     * @throws NullPointerException 当继承自 Stanza 的 getExtension 方法被调用且 namespace 参数为 null 时
+     * @return 状态显示
+     * @throws NullPointerException 如果 show 为 null
      */
     public Optional<Show> getPresenceShow() {
         return Show.fromString(show);
@@ -60,7 +56,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为可用状态。
      *
-     * @return 当 Presence 类型为 AVAILABLE 时返回 true，否则返回 false
+     * @return 是否为可用状态
      */
     public boolean isAvailable() {
         return type == Type.AVAILABLE;
@@ -69,7 +65,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为不可用状态。
      *
-     * @return 当 Presence 类型为 UNAVAILABLE 时返回 true，否则返回 false
+     * @return 是否为不可用状态
      */
     public boolean isUnavailable() {
         return type == Type.UNAVAILABLE;
@@ -78,7 +74,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为错误状态。
      *
-     * @return 当 Presence 类型为 ERROR 时返回 true，否则返回 false
+     * @return 是否为错误状态
      */
     public boolean isError() {
         return type == Type.ERROR;
@@ -87,7 +83,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为订阅请求。
      *
-     * @return 当 Presence 类型为 SUBSCRIBE 时返回 true，否则返回 false
+     * @return 是否为订阅请求
      */
     public boolean isSubscribe() {
         return type == Type.SUBSCRIBE;
@@ -96,7 +92,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为订阅确认。
      *
-     * @return 当 Presence 类型为 SUBSCRIBED 时返回 true，否则返回 false
+     * @return 是否为订阅确认
      */
     public boolean isSubscribed() {
         return type == Type.SUBSCRIBED;
@@ -105,7 +101,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为取消订阅请求。
      *
-     * @return 当 Presence 类型为 UNSUBSCRIBE 时返回 true，否则返回 false
+     * @return 是否为取消订阅请求
      */
     public boolean isUnsubscribe() {
         return type == Type.UNSUBSCRIBE;
@@ -114,7 +110,7 @@ public final class Presence extends Stanza {
     /**
      * 判断是否为取消订阅确认。
      *
-     * @return 当 Presence 类型为 UNSUBSCRIBED 时返回 true，否则返回 false
+     * @return 是否为取消订阅确认
      */
     public boolean isUnsubscribed() {
         return type == Type.UNSUBSCRIBED;
@@ -123,7 +119,7 @@ public final class Presence extends Stanza {
     /**
      * 获取元素名称。
      *
-     * @return 固定返回 "presence"
+     * @return 元素名称
      */
     @Override
     public String getElementName() {
@@ -144,7 +140,6 @@ public final class Presence extends Stanza {
      * 追加扩展元素到 XML 构建器。
      *
      * @param xml XML 构建器
-     * @throws NullPointerException 当 xml 参数为 null 时
      */
     @Override
     protected void appendExtensions(XmlStringBuilder xml) {
@@ -162,23 +157,22 @@ public final class Presence extends Stanza {
 
     /**
      * Presence Builder。
-     *
      */
     public static class Builder extends Stanza.Builder<Builder, Presence> {
         /**
-         * Presence 类型
+         * Presence 类型。
          */
         private Type type;
         /**
-         * 状态显示
+         * 状态显示。
          */
         private String show;
         /**
-         * 状态描述
+         * 状态描述。
          */
         private String status;
         /**
-         * 优先级
+         * 优先级。
          */
         private Integer priority;
 
@@ -286,7 +280,6 @@ public final class Presence extends Stanza {
 
     /**
      * Presence 类型枚举。
-     *
      */
     public enum Type {
         /**
@@ -336,7 +329,6 @@ public final class Presence extends Stanza {
 
     /**
      * Presence 显示状态枚举。
-     *
      */
     public enum Show {
         /**

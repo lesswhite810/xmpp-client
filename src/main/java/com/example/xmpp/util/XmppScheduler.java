@@ -12,8 +12,6 @@ import java.util.concurrent.TimeUnit;
 /**
  * XMPP 全局调度器。
  *
- * <p>提供全局共享的调度线程池。</p>
- *
  * @since 2026-02-26
  */
 @Slf4j

@@ -41,8 +41,6 @@ import java.util.concurrent.TimeoutException;
 /**
  * 基于 TCP 的 XMPP 连接实现。
  *
- * <p>负责建连、收发和连接收尾。</p>
- *
  * @since 2026-02-09
  */
 @Slf4j

@@ -12,10 +12,7 @@ import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
 /**
- * 通用扩展元素 Provider，用于解析未知的 XML 元素。
- *
- * <p>当 ProviderRegistry 中没有注册对应的 Provider 时，
- * 使用此 Provider 解析元素为 {@link GenericExtensionElement}，避免数据丢失。</p>
+ * 通用扩展元素 Provider。
  *
  * @since 2026-02-27
  */

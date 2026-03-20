@@ -21,18 +21,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
 
 /**
- * SASL 机制注册与工厂类。
- *
- * <p>管理支持的 SASL 机制，并根据服务器支持列表选择优先级最高的机制。</p>
- *
- * <p>功能特性：</p>
- * <ul>
- * <li>内置支持 SCRAM-SHA-512、SCRAM-SHA-256、SCRAM-SHA-1、PLAIN 机制</li>
- * <li>支持通过 Java SPI（ServiceLoader）自动发现扩展机制</li>
- * <li>按优先级排序，自动选择最安全的可用机制</li>
- * </ul>
- *
- * <p>线程安全：使用 ReentrantLock 保护注册操作，读操作利用原子引用替换实现无锁读取。</p>
+ * SASL 机制注册与工厂。
  *
  * @since 2026-02-09
  */
@@ -42,17 +31,17 @@ public class SaslMechanismFactory {
     private static final SaslMechanismFactory INSTANCE = new SaslMechanismFactory();
 
     /**
-     * 已注册的机制列表，使用 volatile 保证可见性，通过原子替换实现无锁读取
+     * 已注册的机制列表。
      */
     private volatile List<MechanismEntry> registeredMechanisms = Collections.emptyList();
 
     /**
-     * 注册锁，保护机制注册操作的原子性
+     * 注册锁。
      */
     private final Lock registrationLock = new ReentrantLock();
 
     /**
-     * 缓存的 ServiceLoader 实例，避免重复加载 SPI 提供者
+     * ServiceLoader 实例。
      */
     private final ServiceLoader<SaslMechanismProvider> providerLoader;
 
@@ -83,19 +72,9 @@ public class SaslMechanismFactory {
     /**
      * 注册 SASL 机制。
      *
-     * <p>注册流程：</p>
-     * <ol>
-     * <li>获取注册锁（排他性）</li>
-     * <li>创建当前机制列表的副本</li>
-     * <li>添加新机制到副本</li>
-     * <li>按优先级降序排序副本</li>
-     * <li>原子替换原列表</li>
-     * <li>释放锁</li>
-     * </ol>
-     *
-     * @param name 机制名称（如 "SCRAM-SHA-256"）
-     * @param priority 优先级（数值越大优先级越高）
-     * @param factory 机制工厂函数，接收用户名和密码（char[]），返回 SaslMechanism 实例
+     * @param name 机制名称
+     * @param priority 优先级
+     * @param factory 机制工厂
      */
     public void register(String name, int priority, BiFunction<String, char[], SaslMechanism> factory) {
         if (StringUtils.isBlank(name)) {
@@ -127,12 +106,12 @@ public class SaslMechanismFactory {
     }
 
     /**
-     * 根据服务器支持的机制列表创建最佳 SASL 机制实例。
+     * 创建最佳 SASL 机制。
      *
-     * @param serverMechanisms 服务器支持的机制名称列表
+     * @param serverMechanisms 服务器支持的机制列表
      * @param username 用户名
-     * @param password 密码（char[]）
-     * @return 创建的 SaslMechanism 实例，如果没有匹配的机制则返回 Optional.empty()
+     * @param password 密码
+     * @return SASL 机制
      */
     public Optional<SaslMechanism> createBestMechanism(List<String> serverMechanisms, String username,
             char[] password) {
@@ -140,13 +119,13 @@ public class SaslMechanismFactory {
     }
 
     /**
-     * 根据服务器支持的机制列表和客户端启用的机制列表创建最佳 SASL 机制实例。
+     * 创建最佳 SASL 机制。
      *
-     * @param serverMechanisms 服务器支持的机制名称列表
-     * @param enabledMechanisms 客户端启用的机制列表（null 或空表示不限制）
+     * @param serverMechanisms 服务器支持的机制列表
+     * @param enabledMechanisms 客户端启用的机制列表
      * @param username 用户名
-     * @param password 密码（char[]）
-     * @return 创建的 SaslMechanism 实例，如果没有匹配的机制则返回 Optional.empty()
+     * @param password 密码
+     * @return SASL 机制
      */
     public Optional<SaslMechanism> createBestMechanism(List<String> serverMechanisms, Set<String> enabledMechanisms,
             String username, char[] password) {
@@ -180,25 +159,24 @@ public class SaslMechanismFactory {
     }
 
     /**
-     * SASL 机制条目，存储机制的名称、优先级和工厂函数。
-     *
+     * SASL 机制条目。
      */
     @Getter
     @RequiredArgsConstructor
     private static class MechanismEntry {
 
         /**
-         * 机制名称，如 "SCRAM-SHA-256"
+         * 机制名称。
          */
         private final String name;
 
         /**
-         * 优先级，数值越大优先级越高
+         * 优先级。
          */
         private final int priority;
 
         /**
-         * 机制工厂函数，接收用户名和密码，返回 SaslMechanism 实例
+         * 机制工厂。
          */
         private final BiFunction<String, char[], SaslMechanism> factory;
     }

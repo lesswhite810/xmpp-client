@@ -30,8 +30,6 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * 真实服务器综合场景测试。
  *
- * <p>覆盖真实 Openfire 服务器上的正常流程、异常流程、边界处理和并发行为。</p>
- *
  * @since 2026-03-13
  */
 class XmppRealServerScenarioTest extends AbstractRealServerTest {

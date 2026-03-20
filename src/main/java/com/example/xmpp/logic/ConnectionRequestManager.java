@@ -48,7 +48,7 @@ public class ConnectionRequestManager {
     /**
      * 创建连接请求管理器。
      *
-     * @param connection XMPP 连接（ACS 端连接）
+     * @param connection XMPP 连接
      */
     public ConnectionRequestManager(XmppConnection connection) {
         this(connection, DEFAULT_TIMEOUT_MS, DEFAULT_RETRY_DELAY_MS);
@@ -58,7 +58,7 @@ public class ConnectionRequestManager {
      * 创建连接请求管理器。
      *
      * @param connection XMPP 连接
-     * @param timeoutMs 命令超时时间（毫秒）
+     * @param timeoutMs 命令超时时间，单位为毫秒
      */
     public ConnectionRequestManager(XmppConnection connection, long timeoutMs) {
         this(connection, timeoutMs, DEFAULT_RETRY_DELAY_MS);
@@ -68,8 +68,8 @@ public class ConnectionRequestManager {
      * 创建连接请求管理器。
      *
      * @param connection XMPP 连接
-     * @param timeoutMs 命令超时时间（毫秒）
-     * @param retryDelayMs 连接断开后等待重连的时间（毫秒）
+     * @param timeoutMs 命令超时时间，单位为毫秒
+     * @param retryDelayMs 重试等待时间，单位为毫秒
      */
     public ConnectionRequestManager(XmppConnection connection, long timeoutMs, long retryDelayMs) {
         this.connection = connection;
@@ -83,7 +83,7 @@ public class ConnectionRequestManager {
      * @param cpeJid CPE 的完整 JID
      * @param username CPE 用户名
      * @param password CPE 密码
-     * @return CompletableFuture，携带 CPE 的响应
+     * @return 响应 future
      */
     public CompletableFuture<XmppStanza> sendConnectionRequest(String cpeJid, String username, String password) {
         validateRequestArguments(cpeJid, username, password);
@@ -135,7 +135,7 @@ public class ConnectionRequestManager {
      * @param username CPE 用户名
      * @param password CPE 密码
      * @param maxRetries 最大重试次数
-     * @return CompletableFuture，携带最终的响应或异常
+     * @return 最终响应 future
      */
     public CompletableFuture<XmppStanza> sendConnectionRequestWithRetry(
             String cpeJid, String username, String password, int maxRetries) {

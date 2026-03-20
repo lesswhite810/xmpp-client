@@ -7,8 +7,6 @@ import org.apache.commons.lang3.StringUtils;
 /**
  * SASL 失败异常。
  *
- * <p>封装服务端返回的 SASL failure 元素，便于调用方按条件码进行处理。</p>
- *
  * @since 2026-03-11
  */
 public class XmppSaslFailureException extends XmppAuthException {

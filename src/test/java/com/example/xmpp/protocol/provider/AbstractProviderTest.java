@@ -16,12 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * AbstractProvider 单元测试。
  *
- * <p>测试覆盖：</p>
- * <ul>
- *   <li>模板方法模式</li>
- *   <li>异常处理</li>
- *   <li>空值处理</li>
- * </ul>
+ * @since 2026-03-10
  */
 class AbstractProviderTest {
 

@@ -7,8 +7,6 @@ import org.apache.commons.lang3.StringUtils;
 /**
  * XMPP stream error 异常。
  *
- * <p>封装服务端返回的 stream:error 元素，表示当前流已失效。</p>
- *
  * @since 2026-03-11
  */
 public class XmppStreamErrorException extends XmppProtocolException {

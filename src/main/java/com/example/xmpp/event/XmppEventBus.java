@@ -15,30 +15,28 @@ import java.util.function.Consumer;
 /**
  * XMPP 事件总线。
  *
- * <p>负责按连接和事件类型分发回调。</p>
- *
  * @since 2026-03-02
  */
 @Slf4j
 public final class XmppEventBus {
 
     /**
-     * 订阅记录，用于取消订阅
+     * 订阅记录。
      */
     private record Subscription(ConnectionEventType eventType, Consumer<ConnectionEvent> handler) {}
 
     /**
-     * 单例实例
+     * 单例实例。
      */
     private static final XmppEventBus INSTANCE = new XmppEventBus();
 
     /**
-     * 连接专属订阅者：connection -> (eventType -> handlers)
+     * 连接专属订阅者。
      */
     private final Map<XmppConnection, Map<ConnectionEventType, List<Consumer<ConnectionEvent>>>> listeners = new ConcurrentHashMap<>();
 
     /**
-     * 私有构造函数
+     * 私有构造函数。
      */
     private XmppEventBus() {
     }
@@ -56,8 +54,8 @@ public final class XmppEventBus {
      * 订阅特定连接的事件。
      *
      * @param connection 连接实例
-     * @param eventType  事件类型
-     * @param handler    事件处理器
+     * @param eventType 事件类型
+     * @param handler 事件处理器
      * @return 取消订阅的 Runnable
      */
     public Runnable subscribe(XmppConnection connection, ConnectionEventType eventType,

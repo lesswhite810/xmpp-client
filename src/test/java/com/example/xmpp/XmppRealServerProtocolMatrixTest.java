@@ -42,8 +42,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * 真实服务器协议矩阵测试。
  *
- * <p>覆盖 TLS、SASL、客户端间 IQ 交互、断开后的超时清理等补充场景。</p>
- *
  * @since 2026-03-13
  */
 class XmppRealServerProtocolMatrixTest extends AbstractRealServerTest {

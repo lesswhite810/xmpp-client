@@ -14,9 +14,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * 通用扩展元素，用于保存未知 XML 元素的数据。
- *
- * <p>当没有注册对应 Provider 时，使用此类保存元素数据，避免数据丢失。</p>
+ * 通用扩展元素。
  *
  * @since 2026-02-27
  */
@@ -67,7 +65,7 @@ public class GenericExtensionElement implements ExtensionElement {
      * 获取属性值。
      *
      * @param name 属性名
-     * @return 属性值；如果属性不存在则返回 null
+     * @return 属性值
      */
     public String getAttributeValue(String name) {
         return attributes.get(name);
@@ -104,7 +102,7 @@ public class GenericExtensionElement implements ExtensionElement {
      * 获取指定名称的第一个子元素。
      *
      * @param elementName 子元素名称
-     * @return 匹配的子元素；如果不存在则返回 {@link Optional#empty()}
+     * @return 匹配的子元素
      */
     public Optional<GenericExtensionElement> getFirstChild(String elementName) {
         for (GenericExtensionElement child : children) {
@@ -120,7 +118,7 @@ public class GenericExtensionElement implements ExtensionElement {
      *
      * @param elementName 元素名称
      * @param namespace 命名空间
-     * @return 匹配的子元素；如果不存在则返回 {@link Optional#empty()}
+     * @return 匹配的子元素
      */
     public Optional<GenericExtensionElement> getFirstChild(String elementName, String namespace) {
         for (GenericExtensionElement child : children) {
@@ -144,7 +142,7 @@ public class GenericExtensionElement implements ExtensionElement {
     /**
      * 获取当前元素的 QName。
      *
-     * @return QName 对象
+     * @return QName
      */
     public QName getQName() {
         return new QName(namespace, elementName);
@@ -175,7 +173,7 @@ public class GenericExtensionElement implements ExtensionElement {
     }
 
     /**
-     * 构建空元素的 XML（自闭合标签）。
+     * 构建空元素的 XML。
      *
      * @return XML 字符串
      */
@@ -256,9 +254,7 @@ public class GenericExtensionElement implements ExtensionElement {
     }
 
     /**
-     * Builder 类，用于构造 GenericExtensionElement 实例。
-     *
-     * <p>支持逐步添加属性、子元素和文本内容，最终构建不可变扩展元素对象。</p>
+     * Builder 类。
      */
     public static class Builder {
         private final String elementName;

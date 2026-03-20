@@ -22,8 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * 真实服务器失败模式测试。
  *
- * <p>覆盖更严重的配置错误、TLS 缺参和认证机制不可用等失败场景。</p>
- *
  * @since 2026-03-13
  */
 class XmppRealServerFailureModeTest extends AbstractRealServerTest {

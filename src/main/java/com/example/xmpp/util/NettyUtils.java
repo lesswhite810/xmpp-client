@@ -10,17 +10,7 @@ import org.apache.commons.lang3.Validate;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Netty ByteBuf 操作工具类。
- *
- * <p>提供常用的 Netty ByteBuf 操作封装，简化字符串写入等常见任务。</p>
- *
- * <h2>内存管理</h2>
- * <p>所有方法都遵循 Netty 的 ByteBuf 生命周期管理规则：</p>
- * <ul>
- *   <li>成功写入：ByteBuf 由 Netty 自动释放</li>
- *   <li>写入失败：通过 listener 确保释放</li>
- *   <li>异常情况：在 catch 块中显式释放</li>
- * </ul>
+ * Netty ByteBuf 工具类。
  *
  * @since 2026-02-09
  */
@@ -36,10 +26,7 @@ public class NettyUtils {
     /**
      * 将字符串写入 Channel 并刷新。
      *
-     * <p>自动分配 ByteBuf（预估容量），将字符串以 UTF-8 编码写入，然后立即刷新到通道。
-     * 写入成功后 ByteBuf 由 Netty 自动释放，失败时通过 listener 确保释放。</p>
-     *
-     * @param ctx     通道处理器上下文，不能为 null
+     * @param ctx 通道处理器上下文，不能为 null
      * @param content 要发送的字符串内容，不能为 null
      * @throws IllegalArgumentException 如果 ctx 或 content 为 null
      */
@@ -50,10 +37,7 @@ public class NettyUtils {
     /**
      * 将字符串写入 Channel 并返回对应的发送 Future。
      *
-     * <p>自动分配 ByteBuf（预估容量），将字符串以 UTF-8 编码写入，然后立即刷新到通道。
-     * 写入成功后 ByteBuf 由 Netty 自动释放，失败时通过 listener 确保释放。</p>
-     *
-     * @param ctx     通道处理器上下文，不能为 null
+     * @param ctx 通道处理器上下文，不能为 null
      * @param content 要发送的字符串内容，不能为 null
      * @return Netty 发送 Future
      * @throws IllegalArgumentException 如果 ctx 或 content 为 null

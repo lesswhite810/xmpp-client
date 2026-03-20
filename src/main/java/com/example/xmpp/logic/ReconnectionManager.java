@@ -20,8 +20,6 @@ import java.util.concurrent.TimeUnit;
 /**
  * 自动重连管理器。
  *
- * <p>负责异常断连后的重试调度。</p>
- *
  * @since 2026-02-09
  */
 @Slf4j

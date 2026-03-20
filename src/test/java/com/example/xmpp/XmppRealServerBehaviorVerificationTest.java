@@ -29,8 +29,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * 真实服务器行为校验测试。
  *
- * <p>重点验证服务端状态变化、资源路由和失败后的恢复能力，避免仅凭“测试用例未抛异常”误判为成功。</p>
- *
  * @since 2026-03-13
  */
 class XmppRealServerBehaviorVerificationTest extends AbstractRealServerTest {

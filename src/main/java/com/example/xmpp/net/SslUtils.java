@@ -19,8 +19,6 @@ import java.util.concurrent.TimeUnit;
 /**
  * SSL/TLS 工具类。
  *
- * <p>负责创建 {@link SslHandler}。</p>
- *
  * @since 2026-02-09
  */
 @Slf4j

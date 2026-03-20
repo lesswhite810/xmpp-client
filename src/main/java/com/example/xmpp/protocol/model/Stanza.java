@@ -12,18 +12,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * XMPP 节（Stanza）抽象基类。
- *
- * <p>所有 XMPP 节（IQ、Message、Presence）的公共基类。
- * 使用密封类（sealed class）限制仅允许特定子类继承。</p>
- *
- * <p>此类提供以下公共功能：
- * <ul>
- *   <li>管理节的基本属性（id、from、to）</li>
- *   <li>支持扩展元素（ExtensionElement）的添加和查询</li>
- *   <li>提供 XML 序列化功能</li>
- * </ul>
- * </p>
+ * XMPP 节抽象基类。
  *
  * @since 2026-02-09
  */
@@ -31,28 +20,28 @@ import java.util.Optional;
 public abstract sealed class Stanza implements XmppStanza, XmlSerializable permits Iq, Message, Presence {
 
     /**
-     * 唯一标识符
+     * 唯一标识符。
      */
     private final String id;
     /**
-     * 发送方 JID
+     * 发送方 JID。
      */
     private final String from;
     /**
-     * 接收方 JID
+     * 接收方 JID。
      */
     private final String to;
     /**
-     * 扩展元素列表
+     * 扩展元素列表。
      */
     private final List<ExtensionElement> extensions;
 
     /**
      * 构造器。
      *
-     * @param id         唯一标识符
-     * @param from       发送方 JID
-     * @param to         接收方 JID
+     * @param id 唯一标识符
+     * @param from 发送方 JID
+     * @param to 接收方 JID
      * @param extensions 扩展元素列表
      */
     protected Stanza(String id, String from, String to, List<ExtensionElement> extensions) {
@@ -67,7 +56,7 @@ public abstract sealed class Stanza implements XmppStanza, XmlSerializable permi
      *
      * @param <E> 扩展元素类型
      * @param extensionClass 扩展元素类
-     * @return 扩展元素的 Optional，不存在则返回 Optional.empty()
+     * @return 扩展元素
      */
     public <E extends ExtensionElement> Optional<E> getExtension(Class<E> extensionClass) {
         for (ExtensionElement extension : extensions) {
@@ -82,8 +71,8 @@ public abstract sealed class Stanza implements XmppStanza, XmlSerializable permi
      * 获取指定命名空间的扩展元素。
      *
      * @param namespace 扩展元素命名空间
-     * @return 扩展元素的 Optional，不存在则返回 Optional.empty()
-     * @throws NullPointerException if namespace is null
+     * @return 扩展元素
+     * @throws NullPointerException 如果 namespace 为 null
      */
     public Optional<ExtensionElement> getExtension(String namespace) {
         Objects.requireNonNull(namespace, "namespace must not be null");
@@ -100,8 +89,8 @@ public abstract sealed class Stanza implements XmppStanza, XmlSerializable permi
      *
      * @param elementName 扩展元素名称
      * @param namespace 扩展元素命名空间
-     * @return 扩展元素的 Optional，不存在则返回 Optional.empty()
-     * @throws NullPointerException if elementName or namespace is null
+     * @return 扩展元素
+     * @throws NullPointerException 如果 elementName 或 namespace 为 null
      */
     public Optional<ExtensionElement> getExtension(String elementName, String namespace) {
         Objects.requireNonNull(elementName, "elementName must not be null");
@@ -118,7 +107,7 @@ public abstract sealed class Stanza implements XmppStanza, XmlSerializable permi
      * 检查是否包含指定类型的扩展元素。
      *
      * @param extensionClass 扩展元素类
-     * @return 包含则返回 true
+     * @return 是否包含
      */
     public boolean hasExtension(Class<? extends ExtensionElement> extensionClass) {
         return getExtension(extensionClass).isPresent();
@@ -128,7 +117,7 @@ public abstract sealed class Stanza implements XmppStanza, XmlSerializable permi
      * 检查是否包含指定命名空间的扩展元素。
      *
      * @param namespace 扩展元素命名空间
-     * @return 包含则返回 true
+     * @return 是否包含
      */
     public boolean hasExtension(String namespace) {
         return getExtension(namespace).isPresent();
@@ -139,14 +128,14 @@ public abstract sealed class Stanza implements XmppStanza, XmlSerializable permi
      *
      * @param elementName 扩展元素名称
      * @param namespace 扩展元素命名空间
-     * @return 包含则返回 true
+     * @return 是否包含
      */
     public boolean hasExtension(String elementName, String namespace) {
         return getExtension(elementName, namespace).isPresent();
     }
 
     /**
-     * 获取节名称（iq、message、presence）。
+     * 获取节名称。
      *
      * @return 节元素名称
      */
@@ -198,19 +187,19 @@ public abstract sealed class Stanza implements XmppStanza, XmlSerializable permi
      */
     protected abstract static class Builder<B extends Builder<B, S>, S extends Stanza> {
         /**
-         * 唯一标识符
+         * 唯一标识符。
          */
         private String id;
         /**
-         * 发送方 JID
+         * 发送方 JID。
          */
         private String from;
         /**
-         * 接收方 JID
+         * 接收方 JID。
          */
         private String to;
         /**
-         * 扩展元素列表
+         * 扩展元素列表。
          */
         private List<ExtensionElement> extensions;
 

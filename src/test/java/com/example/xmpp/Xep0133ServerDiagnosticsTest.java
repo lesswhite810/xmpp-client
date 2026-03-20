@@ -22,8 +22,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 /**
  * 本地真实服务器 XEP-0133 诊断测试。
  *
- * <p>用于捕获服务器返回的管理命令错误细节，帮助确认命令是否被服务器支持。</p>
- *
  * @since 2026-03-13
  */
 class Xep0133ServerDiagnosticsTest extends AbstractRealServerTest {

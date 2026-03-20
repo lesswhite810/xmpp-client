@@ -6,11 +6,6 @@ import javax.xml.stream.XMLEventReader;
 /**
  * IQ Provider 接口。
  *
- * <p>用于解析完整的 IQ 节，返回带有子元素的 Iq 对象。</p>
- *
- * <p>IQ 的通用属性（type, id, from, to）由解码器解析，
- * Provider 只需解析 IQ 的子元素并构建完整的 Iq 对象。</p>
- *
  * @since 2026-02-27
  * @see Provider
  */
@@ -19,10 +14,10 @@ public interface IqProvider extends Provider<Iq> {
     /**
      * 解析 IQ 子元素并构建完整的 Iq 对象。
      *
-     * @param reader  XML 事件读取器，已定位到子元素的开始标签，不能为 null
-     * @param builder Iq 构建器，已设置 type, id, from, to 属性，不能为 null
-     * @return 完整的 Iq 对象
-     * @throws Exception 如果 XML 解析失败、IO 错误或元素验证失败
+     * @param reader XML 事件读取器
+     * @param builder Iq 构建器
+     * @return Iq 对象
+     * @throws Exception 解析失败
      */
     Iq parse(XMLEventReader reader, Iq.Builder builder) throws Exception;
 }

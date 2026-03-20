@@ -6,10 +6,7 @@ import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * XEP-0133: Service Administration - 添加用户命令。
- *
- * <p>用于在 XMPP 服务上创建新用户账户。
- * 使用 Ad-Hoc Commands (XEP-0050) 和 Data Forms (XEP-0004) 格式。</p>
+ * XEP-0133 添加用户命令。
  *
  * @since 2026-02-09
  */

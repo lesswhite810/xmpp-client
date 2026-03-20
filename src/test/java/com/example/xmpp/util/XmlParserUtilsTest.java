@@ -16,13 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * XmlParserUtils 单元测试。
  *
- * <p>测试覆盖：</p>
- * <ul>
- *   <li>工厂实例获取</li>
- *   <li>XXE 防护验证</li>
- *   <li>命名空间支持</li>
- *   <li>安全属性设置</li>
- * </ul>
+ * @since 2026-03-09
  */
 class XmlParserUtilsTest {
 

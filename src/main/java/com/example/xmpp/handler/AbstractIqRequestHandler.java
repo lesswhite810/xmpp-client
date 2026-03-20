@@ -5,9 +5,6 @@ import com.example.xmpp.protocol.model.Iq;
 /**
  * IQ 请求处理器抽象基类。
  *
- * <p>提供 IqRequestHandler 的便捷实现，子类只需实现
- * {@link #handleIqRequest(Iq)} 方法即可。</p>
- *
  * @since 2026-02-26
  */
 public abstract class AbstractIqRequestHandler implements IqRequestHandler {
@@ -38,9 +35,9 @@ public abstract class AbstractIqRequestHandler implements IqRequestHandler {
     /**
      * 构造同步模式的 IQ 请求处理器。
      *
-     * @param element   元素名称
+     * @param element 元素名称
      * @param namespace 命名空间
-     * @param iqType    IQ 类型
+     * @param iqType IQ 类型
      */
     protected AbstractIqRequestHandler(String element, String namespace, Iq.Type iqType) {
         this(element, namespace, iqType, Mode.SYNC);

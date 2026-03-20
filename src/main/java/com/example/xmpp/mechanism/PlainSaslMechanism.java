@@ -13,11 +13,6 @@ import java.util.Objects;
 /**
  * SASL PLAIN 机制实现。
  *
- * <p>实现 RFC 4616 定义的 PLAIN 认证机制。
- * 格式：[authzid] \0 [authcid] \0 [passwd]</p>
- *
- * <p>注意：PLAIN 机制以明文传输凭据，必须在 TLS 加密通道中使用。</p>
- *
  * @since 2026-02-09
  */
 @Slf4j
@@ -34,7 +29,7 @@ public class PlainSaslMechanism implements SaslMechanism {
      * 构造 PLAIN SASL 认证机制实例。
      *
      * @param username 用户名
-     * @param password 密码（char[]）
+     * @param password 密码
      */
     public PlainSaslMechanism(String username, char[] password) {
         this.username = Objects.requireNonNull(username, "username cannot be null");
@@ -44,7 +39,7 @@ public class PlainSaslMechanism implements SaslMechanism {
     /**
      * 获取机制名称。
      *
-     * @return 机制名称 "PLAIN"
+     * @return 机制名称
      */
     @Override
     public String getMechanismName() {
@@ -54,11 +49,9 @@ public class PlainSaslMechanism implements SaslMechanism {
     /**
      * 处理 SASL 挑战并生成响应。
      *
-     * <p>PLAIN 机制在初始响应中发送凭据，忽略后续挑战。</p>
-     *
-     * @param challenge 服务器挑战（PLAIN 机制不使用）
-     * @return PLAIN 认证消息
-     * @throws SaslException 如果认证已完成
+     * @param challenge 服务器挑战
+     * @return 认证消息
+     * @throws SaslException 认证已完成时抛出
      */
     @Override
     public byte[] processChallenge(byte[] challenge) throws SaslException {
@@ -94,7 +87,7 @@ public class PlainSaslMechanism implements SaslMechanism {
     /**
      * 检查认证是否完成。
      *
-     * @return 如果认证完成返回 true
+     * @return 是否完成
      */
     @Override
     public boolean isComplete() {
