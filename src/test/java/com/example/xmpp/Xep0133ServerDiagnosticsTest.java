@@ -26,8 +26,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  *
  * @since 2026-03-13
  */
-@RealServerTest
-class Xep0133ServerDiagnosticsTest {
+class Xep0133ServerDiagnosticsTest extends AbstractRealServerTest {
 
     private static final Logger log = LoggerFactory.getLogger(Xep0133ServerDiagnosticsTest.class);
 

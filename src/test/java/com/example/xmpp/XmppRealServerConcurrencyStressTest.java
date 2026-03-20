@@ -33,8 +33,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * @since 2026-03-13
  */
 @Slf4j
-@RealServerTest
-class XmppRealServerConcurrencyStressTest {
+class XmppRealServerConcurrencyStressTest extends AbstractRealServerTest {
 
     private static final String XMPP_DOMAIN = "lesswhite";
     private static final String HOST = "localhost";

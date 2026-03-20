@@ -26,8 +26,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 /**
  * XEP-0133 Service Administration 综合测试
  */
-@RealServerTest
-public class Xep0133ComprehensiveTest {
+public class Xep0133ComprehensiveTest extends AbstractRealServerTest {
 
     private static final Logger log = LoggerFactory.getLogger(Xep0133ComprehensiveTest.class);
 

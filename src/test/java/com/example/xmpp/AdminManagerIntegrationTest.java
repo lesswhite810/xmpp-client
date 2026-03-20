@@ -29,8 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 如果测试失败，请检查服务器配置。</p>
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@RealServerTest
-public class AdminManagerIntegrationTest {
+public class AdminManagerIntegrationTest extends AbstractRealServerTest {
 
     private static final Logger log = LoggerFactory.getLogger(AdminManagerIntegrationTest.class);
 

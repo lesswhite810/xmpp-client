@@ -32,8 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 5. 验证用户删除成功
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@RealServerTest
-public class Xep0133FullTest {
+public class Xep0133FullTest extends AbstractRealServerTest {
 
     private static final Logger log = LoggerFactory.getLogger(Xep0133FullTest.class);
 

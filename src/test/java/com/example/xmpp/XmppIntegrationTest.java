@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li>管理员: admin / 密码: admin</li>
  * </ul>
  */
-public class XmppIntegrationTest {
+public class XmppIntegrationTest extends AbstractRealServerTest {
 
     private static final Logger log = LoggerFactory.getLogger(XmppIntegrationTest.class);
 

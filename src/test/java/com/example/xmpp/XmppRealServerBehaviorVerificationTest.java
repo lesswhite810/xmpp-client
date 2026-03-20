@@ -33,8 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * @since 2026-03-13
  */
-@RealServerTest
-class XmppRealServerBehaviorVerificationTest {
+class XmppRealServerBehaviorVerificationTest extends AbstractRealServerTest {
 
     private static final String XMPP_DOMAIN = "lesswhite";
     private static final String HOST = "localhost";

@@ -22,8 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Openfire 服务器连接测试。
  */
-@RealServerTest
-class OpenfireConnectionTest {
+class OpenfireConnectionTest extends AbstractRealServerTest {
 
     private static final Logger log = LoggerFactory.getLogger(OpenfireConnectionTest.class);
 

@@ -102,6 +102,36 @@ class ConnectionRequestProviderTest {
     }
 
     @Test
+    @DisplayName("parse 在 username 为空白时应抛出异常")
+    void testParseFailsWhenUsernameBlank() throws Exception {
+        XMLEventReader reader = createReader("""
+                <connectionRequest xmlns="urn:broadband-forum-org:cwmp:xmppConnReq-1-0">
+                    <username>   </username>
+                    <password>acs-pass</password>
+                </connectionRequest>
+                """);
+
+        XmppParseException exception = assertThrows(XmppParseException.class, () -> provider.parse(reader));
+
+        assertTrue(exception.getMessage().contains("connectionRequest"));
+    }
+
+    @Test
+    @DisplayName("parse 在 password 为空白时应抛出异常")
+    void testParseFailsWhenPasswordBlank() throws Exception {
+        XMLEventReader reader = createReader("""
+                <connectionRequest xmlns="urn:broadband-forum-org:cwmp:xmppConnReq-1-0">
+                    <username>acs-user</username>
+                    <password>   </password>
+                </connectionRequest>
+                """);
+
+        XmppParseException exception = assertThrows(XmppParseException.class, () -> provider.parse(reader));
+
+        assertTrue(exception.getMessage().contains("connectionRequest"));
+    }
+
+    @Test
     @DisplayName("serialize 应输出 ConnectionRequest XML")
     void testSerialize() {
         XmlStringBuilder xml = new XmlStringBuilder();

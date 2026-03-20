@@ -31,8 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * @since 2026-03-13
  */
-@RealServerTest
-class XmppRealServerEdgeCaseTest {
+class XmppRealServerEdgeCaseTest extends AbstractRealServerTest {
 
     private static final Logger log = LoggerFactory.getLogger(XmppRealServerEdgeCaseTest.class);
 

@@ -27,8 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * 测试与主流 XMPP 服务器的兼容性，包括连接、认证、IQ、Message、Presence 等功能。
  */
-@RealServerTest
-public class XmppServerIntegrationTest {
+public class XmppServerIntegrationTest extends AbstractRealServerTest {
 
     private static final Logger log = LoggerFactory.getLogger(XmppServerIntegrationTest.class);
 

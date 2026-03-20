@@ -157,6 +157,27 @@ class XmppClientConfigTest {
     }
 
     @Test
+    @DisplayName("显式端口应优先于 DirectTLS 默认端口")
+    void testExplicitPortOverridesDirectTlsDefaultPort() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .usingDirectTLS(true)
+                .port(6123)
+                .build();
+
+        assertEquals(6123, config.getPort());
+    }
+
+    @Test
+    @DisplayName("显式握手超时应优先于默认值")
+    void testExplicitHandshakeTimeoutOverridesDefault() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .handshakeTimeoutMs(4321)
+                .build();
+
+        assertEquals(4321, config.getHandshakeTimeoutMs());
+    }
+
+    @Test
     @DisplayName("TLS 认证模式默认应为单向认证")
     void testDefaultTlsAuthenticationMode() {
         XmppClientConfig config = XmppClientConfig.builder().build();

@@ -16,8 +16,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @since 2026-02-25
  */
-@RealServerTest
-public class NoTlsConnectionTest {
+public class NoTlsConnectionTest extends AbstractRealServerTest {
 
     private static final Logger log = LoggerFactory.getLogger(NoTlsConnectionTest.class);
 

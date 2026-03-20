@@ -1,0 +1,24 @@
+修复任务：
+
+**问题 5 修复：SASL 机制重复注册添加 WARN 日志**
+
+修改 src/main/java/com/example/xmpp/mechanism/SaslMechanismFactory.java 的 register() 方法：
+
+当前 register() 方法中有这行代码：
+```java
+updated.removeIf(entry -> entry.name.equals(name));
+```
+
+在这行之前添加判断：如果已存在同名机制，打印 WARN 日志，包含：机制名、旧优先级、新优先级。
+
+示例日志：
+```java
+if (existing != null) {
+    log.warn("SASL mechanism '{}' already registered with priority {}, replacing with priority {}",
+            name, existing.priority, priority);
+}
+```
+
+注意：需要先查找是否存在同名机制（遍历 registeredMechanisms），获取旧条目后再执行 removeIf + add。
+
+请直接修改文件并汇报结果。
