@@ -13,6 +13,10 @@ import lombok.Getter;
  */
 public class XmppStanzaErrorException extends XmppException {
 
+    /**
+     * 服务端返回的错误 IQ，可能为 null。
+     */
+    @Getter
     private final Iq errorIq;
 
     @Getter

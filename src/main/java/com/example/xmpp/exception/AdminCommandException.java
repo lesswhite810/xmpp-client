@@ -14,6 +14,7 @@ public class AdminCommandException extends XmppException {
     /**
      * 服务器返回的错误 IQ 响应，可能为 null（如缺少 session ID 场景）
      */
+    @Getter
     private final Iq errorResponse;
 
     /**

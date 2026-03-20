@@ -13,6 +13,10 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class XmppSaslFailureException extends XmppAuthException {
 
+    /**
+     * 服务端返回的 SASL failure，可能为 null（如服务端未返回 failure 元素）。
+     */
+    @Getter
     private final SaslFailure saslFailure;
 
     /**

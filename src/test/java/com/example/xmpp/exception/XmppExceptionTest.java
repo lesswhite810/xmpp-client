@@ -107,6 +107,7 @@ class XmppExceptionTest {
         XmppSaslFailureException ex = new XmppSaslFailureException(saslFailure);
 
         assertEquals("SASL authentication failed: not-authorized", ex.getMessage());
+        assertSame(saslFailure, ex.getSaslFailure());
     }
 
     @Test
@@ -115,6 +116,7 @@ class XmppExceptionTest {
         XmppSaslFailureException ex = new XmppSaslFailureException(null);
 
         assertEquals("SASL authentication failed: no failure element received", ex.getMessage());
+        assertNull(ex.getSaslFailure());
     }
 
     @Test
@@ -124,6 +126,7 @@ class XmppExceptionTest {
         XmppSaslFailureException ex = new XmppSaslFailureException(saslFailure);
 
         assertEquals("SASL authentication failed", ex.getMessage());
+        assertSame(saslFailure, ex.getSaslFailure());
     }
 
     @Test
@@ -137,6 +140,7 @@ class XmppExceptionTest {
         XmppStanzaErrorException ex = new XmppStanzaErrorException("Stanza error", errorIq);
 
         assertEquals("Stanza error", ex.getMessage());
+        assertSame(errorIq, ex.getErrorIq());
         assertSame(error, ex.getXmppError());
     }
 
@@ -150,6 +154,7 @@ class XmppExceptionTest {
         XmppStreamErrorException ex = new XmppStreamErrorException(streamError);
 
         assertEquals("Received stream error: not-authorized (Authentication required)", ex.getMessage());
+        assertSame(streamError, ex.getStreamError());
     }
 
     @Test
@@ -158,6 +163,7 @@ class XmppExceptionTest {
         XmppStreamErrorException ex = new XmppStreamErrorException(null);
 
         assertEquals("Received stream error", ex.getMessage());
+        assertNull(ex.getStreamError());
     }
 
     @Test
@@ -167,6 +173,7 @@ class XmppExceptionTest {
         XmppStreamErrorException ex = new XmppStreamErrorException(streamError);
 
         assertEquals("Received stream error", ex.getMessage());
+        assertSame(streamError, ex.getStreamError());
     }
 
     // AdminCommandException 测试
@@ -190,8 +197,10 @@ class XmppExceptionTest {
                 .build();
         AdminCommandException exception = new AdminCommandException("delete-user", "Admin command error", errorResponse);
 
+        assertEquals("delete-user", exception.getCommandName());
         assertEquals("Admin command error", exception.getMessage());
         assertTrue(exception.hasErrorResponse());
+        assertSame(errorResponse, exception.getErrorResponse());
     }
 
     @Test
@@ -199,6 +208,8 @@ class XmppExceptionTest {
     void testAdminCommandExceptionWithoutErrorResponse() {
         AdminCommandException exception = new AdminCommandException("delete-user", "Admin command error");
 
+        assertEquals("delete-user", exception.getCommandName());
         assertFalse(exception.hasErrorResponse());
+        assertNull(exception.getErrorResponse());
     }
 }

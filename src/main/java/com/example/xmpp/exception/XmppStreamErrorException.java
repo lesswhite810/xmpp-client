@@ -13,6 +13,10 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class XmppStreamErrorException extends XmppProtocolException {
 
+    /**
+     * 服务端返回的流错误，可能为 null（如解析失败时）。
+     */
+    @Getter
     private final StreamError streamError;
 
     /**

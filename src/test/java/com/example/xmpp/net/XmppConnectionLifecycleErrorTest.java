@@ -96,7 +96,9 @@ class XmppConnectionLifecycleErrorTest {
 
         CompletionException exception = assertThrows(CompletionException.class,
                 () -> connection.getConnectionReadyFuture().join());
-        assertInstanceOf(XmppSaslFailureException.class, exception.getCause());
+        XmppSaslFailureException cause = assertInstanceOf(XmppSaslFailureException.class, exception.getCause());
+        assertEquals("not-authorized", cause.getSaslFailure().condition());
+        assertEquals("Invalid credentials", cause.getSaslFailure().text());
     }
 
     @Test
@@ -119,7 +121,9 @@ class XmppConnectionLifecycleErrorTest {
 
         CompletionException exception = assertThrows(CompletionException.class,
                 () -> connection.getConnectionReadyFuture().join());
-        assertInstanceOf(XmppStreamErrorException.class, exception.getCause());
+        XmppStreamErrorException cause = assertInstanceOf(XmppStreamErrorException.class, exception.getCause());
+        assertEquals(StreamError.Condition.NOT_AUTHORIZED, cause.getStreamError().getCondition());
+        assertEquals("Authentication required", cause.getStreamError().getText());
     }
 
     @Test
