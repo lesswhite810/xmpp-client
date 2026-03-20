@@ -112,7 +112,7 @@ public class SecurityUtils {
 
     private static String summarizeStanza(Iq iq) {
         StringBuilder summary = new StringBuilder(iq.getElementName());
-        appendField(iq.getType(), summary, "type");
+        appendField(iq.getType().toString(), summary, "type");
         appendField(iq.getId(), summary, "id");
         appendField(iq.getFrom(), summary, "from");
         appendField(iq.getTo(), summary, "to");
@@ -126,13 +126,13 @@ public class SecurityUtils {
 
     private static String summarizeBasicStanza(Message message) {
         return summarizeBasicStanza(message.getElementName(),
-                typeToString(message.getType()), message.getId(),
+                message.getType().toString(), message.getId(),
                 message.getFrom(), message.getTo());
     }
 
     private static String summarizeBasicStanza(Presence presence) {
         return summarizeBasicStanza(presence.getElementName(),
-                typeToString(presence.getType()), presence.getId(),
+                presence.getType().toString(), presence.getId(),
                 presence.getFrom(), presence.getTo());
     }
 
@@ -149,10 +149,6 @@ public class SecurityUtils {
         if (value != null) {
             summary.append(' ').append(name).append('=').append(value);
         }
-    }
-
-    private static String typeToString(Enum<?> type) {
-        return type.toString();
     }
 
     private static String emptyToNull(String value) {
