@@ -84,9 +84,9 @@ public class SecurityUtils {
         }
 
         StringBuilder summary = new StringBuilder(element.getElementName());
-        appendSummaryField(summary, "xmlns", emptyToNull(element.getNamespace()));
+        appendField(emptyToNull(element.getNamespace()), summary, "xmlns");
         if (element instanceof Auth auth) {
-            appendSummaryField(summary, "mechanism", auth.mechanism());
+            appendField(auth.mechanism(), summary, "mechanism");
         }
         return summary.toString();
     }
@@ -102,43 +102,57 @@ public class SecurityUtils {
             return null;
         }
 
-        StringBuilder summary = new StringBuilder();
-        if (stanza instanceof Iq iq) {
-            summary.append(iq.getElementName());
-            appendSummaryField(summary, "type", iq.getType() != null ? iq.getType().toString() : null);
-            appendSummaryField(summary, "id", iq.getId());
-            appendSummaryField(summary, "from", iq.getFrom());
-            appendSummaryField(summary, "to", iq.getTo());
-            if (iq.getChildElement() != null) {
-                appendSummaryField(summary, "child", iq.getChildElement().getElementName());
-                appendSummaryField(summary, "childNs", emptyToNull(iq.getChildElement().getNamespace()));
-            }
-            return summary.toString();
-        }
-        if (stanza instanceof Message message) {
-            summary.append(message.getElementName());
-            appendSummaryField(summary, "type", message.getType() != null ? message.getType().toString() : null);
-            appendSummaryField(summary, "id", message.getId());
-            appendSummaryField(summary, "from", message.getFrom());
-            appendSummaryField(summary, "to", message.getTo());
-            return summary.toString();
-        }
-        if (stanza instanceof Presence presence) {
-            summary.append(presence.getElementName());
-            appendSummaryField(summary, "type", presence.getType() != null ? presence.getType().toString() : null);
-            appendSummaryField(summary, "id", presence.getId());
-            appendSummaryField(summary, "from", presence.getFrom());
-            appendSummaryField(summary, "to", presence.getTo());
-            return summary.toString();
-        }
-        return stanza.getClass().getSimpleName();
+        return switch (stanza) {
+            case Iq iq -> summarizeStanza(iq);
+            case Message message -> summarizeBasicStanza(message);
+            case Presence presence -> summarizeBasicStanza(presence);
+            default -> stanza.getClass().getSimpleName();
+        };
     }
 
-    private static void appendSummaryField(StringBuilder summary, String name, String value) {
-        if (StringUtils.isEmpty(value)) {
-            return;
+    private static String summarizeStanza(Iq iq) {
+        StringBuilder summary = new StringBuilder(iq.getElementName());
+        appendField(iq.getType(), summary, "type");
+        appendField(iq.getId(), summary, "id");
+        appendField(iq.getFrom(), summary, "from");
+        appendField(iq.getTo(), summary, "to");
+        var child = iq.getChildElement();
+        if (child != null) {
+            appendField(child.getElementName(), summary, "child");
+            appendField(emptyToNull(child.getNamespace()), summary, "childNs");
         }
-        summary.append(' ').append(name).append('=').append(value);
+        return summary.toString();
+    }
+
+    private static String summarizeBasicStanza(Message message) {
+        return summarizeBasicStanza(message.getElementName(),
+                typeToString(message.getType()), message.getId(),
+                message.getFrom(), message.getTo());
+    }
+
+    private static String summarizeBasicStanza(Presence presence) {
+        return summarizeBasicStanza(presence.getElementName(),
+                typeToString(presence.getType()), presence.getId(),
+                presence.getFrom(), presence.getTo());
+    }
+
+    private static String summarizeBasicStanza(String elementName, String type, String id, String from, String to) {
+        StringBuilder summary = new StringBuilder(elementName);
+        appendField(type, summary, "type");
+        appendField(id, summary, "id");
+        appendField(from, summary, "from");
+        appendField(to, summary, "to");
+        return summary.toString();
+    }
+
+    private static <T> void appendField(T value, StringBuilder summary, String name) {
+        if (value != null) {
+            summary.append(' ').append(name).append('=').append(value);
+        }
+    }
+
+    private static String typeToString(Enum<?> type) {
+        return type != null ? type.toString() : null;
     }
 
     private static String emptyToNull(String value) {
