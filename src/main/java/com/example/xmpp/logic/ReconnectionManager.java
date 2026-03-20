@@ -79,11 +79,11 @@ public final class ReconnectionManager {
             return;
         }
         if (isNonRecoverableError(disconnectError)) {
-            log.info("Connection closed after non-recoverable error. Skipping reconnection: {}",
+            log.warn("Connection closed after non-recoverable error. Skipping reconnection: {}",
                     disconnectError.getClass().getSimpleName());
             return;
         }
-        log.info("Connection closed after error. Starting reconnection.");
+        log.warn("Connection closed after error. Starting reconnection.");
         scheduleReconnect(0);
     }
 

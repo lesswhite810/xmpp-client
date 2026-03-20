@@ -102,7 +102,7 @@ public class ConnectionRequestManager {
                 .whenComplete((response, throwable) -> {
                     if (throwable != null) {
                         Throwable cause = unwrap(throwable);
-                        log.error("Failed to send ConnectionRequest to {}: {}", cpeJid, cause.getClass().getSimpleName());
+                        log.error("Failed to send ConnectionRequest to {}: {}", cpeJid, cause.getMessage(), cause);
                     }
                 });
     }
@@ -150,7 +150,7 @@ public class ConnectionRequestManager {
                     Throwable cause = unwrap(throwable);
 
                     if (!isRetryableError(cause)) {
-                        log.error("Non-retryable error, giving up: {}", cause.getMessage());
+                        log.error("Non-retryable error, giving up: {}", cause.getMessage(), cause);
                         return CompletableFuture.failedFuture(throwable);
                     }
 

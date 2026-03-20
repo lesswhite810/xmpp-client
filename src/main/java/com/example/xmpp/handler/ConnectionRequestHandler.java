@@ -47,7 +47,7 @@ public class ConnectionRequestHandler implements IqRequestHandler {
                 callback.accept(connectionRequest);
                 log.debug("ConnectionRequest callback executed successfully");
             } catch (Exception e) {
-                log.error("Error executing ConnectionRequest callback: {}", e.getMessage(), e);
+                log.warn("Error executing ConnectionRequest callback: {}", e.getMessage(), e);
             }
         } else {
             log.warn("No ConnectionRequest found in IQ: {}", iqRequest.getId());
