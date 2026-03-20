@@ -50,16 +50,6 @@ public class PlainSaslMechanism implements SaslMechanism {
     }
 
     /**
-     * 检查是否具有初始响应。
-     *
-     * @return PLAIN 机制始终返回 true
-     */
-    @Override
-    public boolean hasInitialResponse() {
-        return true;
-    }
-
-    /**
      * 处理 SASL 挑战并生成响应。
      *
      * <p>PLAIN 机制在初始响应中发送凭据，忽略后续挑战。</p>

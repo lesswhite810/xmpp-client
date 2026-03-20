@@ -19,7 +19,6 @@ class PlainSaslMechanismTest {
         PlainSaslMechanism mechanism = new PlainSaslMechanism("testuser", "password".toCharArray());
 
         assertEquals("PLAIN", mechanism.getMechanismName());
-        assertTrue(mechanism.hasInitialResponse());
         assertFalse(mechanism.isComplete());
     }
 

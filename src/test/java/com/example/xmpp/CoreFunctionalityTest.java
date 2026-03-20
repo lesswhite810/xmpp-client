@@ -100,7 +100,6 @@ class CoreFunctionalityTest {
     void testPlainSaslMechanism() throws Exception {
         PlainSaslMechanism plain = new PlainSaslMechanism("testuser", "testpass".toCharArray());
         assertEquals("PLAIN", plain.getMechanismName());
-        assertTrue(plain.hasInitialResponse());
 
         byte[] response = plain.processChallenge(null);
         assertNotNull(response);

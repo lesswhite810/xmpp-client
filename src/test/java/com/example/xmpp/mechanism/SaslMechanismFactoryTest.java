@@ -65,11 +65,6 @@ class SaslMechanismFactoryTest {
             }
 
             @Override
-            public boolean hasInitialResponse() {
-                return false;
-            }
-
-            @Override
             public byte[] processChallenge(byte[] challenge) throws SaslException {
                 return new byte[0];
             }

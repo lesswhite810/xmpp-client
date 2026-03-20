@@ -59,13 +59,11 @@ public class SaslNegotiator {
         }
 
         log.info("Authenticating with {}", mechanismName);
-        String content = "";
-        if (mechanism.hasInitialResponse()) {
-            try {
-                content = encodeSaslContent(mechanism.processChallenge(null));
-            } catch (SaslException e) {
-                throw new XmppAuthException("Failed to generate initial response", e);
-            }
+        String content;
+        try {
+            content = encodeSaslContent(mechanism.processChallenge(null));
+        } catch (SaslException e) {
+            throw new XmppAuthException("Failed to generate initial response", e);
         }
         try {
             return sendStanza(new Auth(mechanismName, content));

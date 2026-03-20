@@ -25,7 +25,6 @@ class ScramMechanismVariantTest {
         assertEquals("SHA-1", mechanism.getDigestAlgorithm());
         assertEquals("PBKDF2WithHmacSHA1", mechanism.getPBKDF2Algorithm());
         assertEquals(XmppConstants.SHA1_HASH_SIZE_BYTES, mechanism.hashSize());
-        assertTrue(mechanism.hasInitialResponse());
         assertFalse(mechanism.isComplete());
     }
 
@@ -39,7 +38,6 @@ class ScramMechanismVariantTest {
         assertEquals("SHA-512", mechanism.getDigestAlgorithm());
         assertEquals("PBKDF2WithHmacSHA512", mechanism.getPBKDF2Algorithm());
         assertEquals(XmppConstants.SHA512_HASH_SIZE_BYTES, mechanism.hashSize());
-        assertTrue(mechanism.hasInitialResponse());
         assertFalse(mechanism.isComplete());
     }
 }

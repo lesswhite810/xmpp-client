@@ -183,16 +183,6 @@ public abstract class ScramMechanism implements SaslMechanism {
     protected abstract int hashSize();
 
     /**
-     * 检查是否具有初始响应。
-     *
-     * @return SCRAM 机制始终返回 true
-     */
-    @Override
-    public boolean hasInitialResponse() {
-        return true;
-    }
-
-    /**
      * 处理服务器挑战并生成响应。
      *
      * <p>SCRAM 认证流程包含三个阶段：</p>

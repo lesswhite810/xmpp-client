@@ -20,15 +20,6 @@ public interface SaslMechanism {
     String getMechanismName();
 
     /**
-     * 检查是否具有初始响应数据。
-     *
-     * <p>对于 PLAIN 和 SCRAM 机制，由于需要发送 Client First Message，通常返回 true。</p>
-     *
-     * @return 如果有初始响应则返回 true
-     */
-    boolean hasInitialResponse();
-
-    /**
      * 处理服务器的挑战数据并生成响应。
      *
      * <p>同时也用于生成初始响应（如果 challenge 为 null 或空）。</p>

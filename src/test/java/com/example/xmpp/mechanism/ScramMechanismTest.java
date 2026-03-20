@@ -55,12 +55,6 @@ class ScramMechanismTest {
     }
 
     @Test
-    @DisplayName("测试 SCRAM 机制有初始响应")
-    void testHasInitialResponse() {
-        assertTrue(mechanism.hasInitialResponse());
-    }
-
-    @Test
     @DisplayName("测试初始状态未完成")
     void testInitialNotComplete() {
         assertFalse(mechanism.isComplete());

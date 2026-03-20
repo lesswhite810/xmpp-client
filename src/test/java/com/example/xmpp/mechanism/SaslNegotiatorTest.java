@@ -73,7 +73,6 @@ class SaslNegotiatorTest {
     @DisplayName("start 在有初始响应时应发送认证节")
     void testStartWithInitialResponseSendsAuthStanza() throws Exception {
         when(mechanism.getMechanismName()).thenReturn("SCRAM-SHA-256");
-        when(mechanism.hasInitialResponse()).thenReturn(true);
         when(mechanism.processChallenge(null)).thenReturn(new byte[] {1, 2, 3});
         when(context.alloc()).thenReturn(allocator);
         when(allocator.buffer(anyInt())).thenReturn(Unpooled.buffer());
@@ -159,24 +158,6 @@ class SaslNegotiatorTest {
         SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
 
         assertThrows(XmppAuthException.class, negotiator::start);
-    }
-
-    @Test
-    @DisplayName("start 在没有初始响应时应直接发送认证节")
-    void testStartWithoutInitialResponse() throws Exception {
-        when(mechanism.getMechanismName()).thenReturn("SCRAM-SHA-256");
-        when(mechanism.hasInitialResponse()).thenReturn(false);
-        when(context.alloc()).thenReturn(allocator);
-        when(allocator.buffer(anyInt())).thenReturn(Unpooled.buffer());
-        when(allocator.buffer(anyInt(), anyInt())).thenReturn(Unpooled.buffer());
-        when(context.writeAndFlush(any())).thenReturn(channelFuture);
-        when(channelFuture.addListener(any())).thenReturn(channelFuture);
-
-        SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
-
-        assertSame(channelFuture, negotiator.start());
-        verify(mechanism, never()).processChallenge(null);
-        verify(context).writeAndFlush(any());
     }
 
     @Test
