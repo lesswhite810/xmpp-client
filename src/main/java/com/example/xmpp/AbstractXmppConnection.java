@@ -281,9 +281,6 @@ public abstract class AbstractXmppConnection implements XmppConnection {
                 .thenCompose(this::mapIqErrorResponse)
                 .whenComplete((result, ex) -> {
                     collectors.remove(collector);
-                    if (ex != null) {
-                        collector.getFuture().cancel(true);
-                    }
                 });
     }
 
@@ -340,11 +337,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     }
 
     private boolean cleanupCollectorIfDone(AsyncStanzaCollector collector) {
-        if (!collector.getFuture().isDone()) {
-            return false;
-        }
-        collector.getFuture().cancel(true);
-        return true;
+        return collector.getFuture().isDone();
     }
 
     /**
