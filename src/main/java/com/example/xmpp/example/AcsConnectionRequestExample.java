@@ -81,7 +81,7 @@ public class AcsConnectionRequestExample {
         } else if (error instanceof ConnectException) {
             log.warn("无法连接到 XMPP 服务器，请检查服务器地址和端口");
         } else {
-            log.warn("连接因错误关闭，ReconnectionManager 将尝试重连");
+            log.warn("连接因错误关闭；如需自动重连，请由调用方显式创建 ReconnectionManager");
         }
     }
 

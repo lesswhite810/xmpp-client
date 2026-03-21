@@ -4,6 +4,7 @@ import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
+import com.example.xmpp.logic.ReconnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -219,10 +220,10 @@ public class XmppIntegrationTest extends AbstractRealServerTest {
                 .username(USERNAME)
                 .password(PASSWORD.toCharArray())
                 .securityMode(XmppClientConfig.SecurityMode.DISABLED)
-                .reconnectionEnabled(true)
                 .build();
 
         XmppTcpConnection connection = new XmppTcpConnection(config);
+        ReconnectionManager reconnectionManager = new ReconnectionManager(connection);
         CountDownLatch authLatch = new CountDownLatch(1);
         AtomicInteger reconnectCount = new AtomicInteger(0);
         AtomicBoolean reconnected = new AtomicBoolean(false);
@@ -259,17 +260,17 @@ public class XmppIntegrationTest extends AbstractRealServerTest {
 
             if (reconnected.get()) {
                 log.info("{} PASS - Reconnection successful ({} times)", testName, reconnectCount.get());
-                connection.disconnect();
                 return testName + " PASS (reconnected " + reconnectCount.get() + " times)";
             } else {
                 log.warn("{} SKIP - No reconnection detected (manual disconnect not performed?)", testName);
-                connection.disconnect();
                 return testName + " SKIP (no disconnect detected)";
             }
         } catch (Exception e) {
             log.error("{} FAIL - {}", testName, e.getMessage(), e);
-            connection.disconnect();
             return testName + " FAIL (" + e.getMessage() + ")";
+        } finally {
+            reconnectionManager.shutdown();
+            connection.disconnect();
         }
     }
 

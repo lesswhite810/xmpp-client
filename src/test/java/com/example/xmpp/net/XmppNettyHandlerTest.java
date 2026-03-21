@@ -95,7 +95,29 @@ class XmppNettyHandlerTest {
     }
 
     @Test
-    void testBindSuccessPublishesAuthenticatedEventOnce() {
+    void testChannelActiveDoesNotPublishConnectedEventBeforeSessionReady() {
+        clearEventBusListeners();
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        AtomicInteger connectedCount = new AtomicInteger();
+
+        XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.CONNECTED,
+                event -> connectedCount.incrementAndGet());
+
+        EmbeddedChannel channel = new EmbeddedChannel(new XmppNettyHandler(config, connection));
+
+        assertEquals(0, connectedCount.get());
+
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void testBindSuccessPublishesConnectedAndAuthenticatedEventsOnce() {
         clearEventBusListeners();
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
@@ -106,8 +128,11 @@ class XmppNettyHandlerTest {
         XmppTcpConnection connection = new XmppTcpConnection(config);
         XmppNettyHandler handler = new XmppNettyHandler(config, connection);
         EmbeddedChannel channel = newBoundChannel(connection, handler);
+        AtomicInteger connectedCount = new AtomicInteger();
         AtomicInteger authenticatedCount = new AtomicInteger();
 
+        XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.CONNECTED,
+                event -> connectedCount.incrementAndGet());
         XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.AUTHENTICATED,
                 event -> authenticatedCount.incrementAndGet());
 
@@ -119,6 +144,7 @@ class XmppNettyHandlerTest {
                 .childElement(Bind.builder().jid("user@example.com/resource").build())
                 .build());
 
+        assertEquals(1, connectedCount.get());
         assertEquals(1, authenticatedCount.get());
         assertTrue(connection.getConnectionReadyFuture().isDone());
 

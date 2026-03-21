@@ -248,7 +248,7 @@ class XmppConnectionLifecycleErrorTest {
     }
 
     @Test
-    void testConnectPublishesConnectedEventOnce() throws Exception {
+    void testConnectDoesNotPublishConnectedEventBeforeSessionReady() throws Exception {
         try (ServerSocket serverSocket = new ServerSocket(0);
              ExecutorService executor = Executors.newSingleThreadExecutor()) {
             CountDownLatch acceptedLatch = new CountDownLatch(1);
@@ -272,9 +272,8 @@ class XmppConnectionLifecycleErrorTest {
             CompletableFuture<Void> future = startConnect(connection);
             assertTrue(acceptedLatch.await(TEST_LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS));
 
-            waitFor(() -> connectedCount.get() == 1, TEST_SETTLE_TIMEOUT_MS, "连接成功后应发布已连接事件");
-
-            assertEquals(1, connectedCount.get());
+            Thread.sleep(TEST_SETTLE_TIMEOUT_MS);
+            assertEquals(0, connectedCount.get());
 
             connection.disconnect();
             assertThrows(CompletionException.class, future::join);
@@ -981,7 +980,7 @@ class XmppConnectionLifecycleErrorTest {
     }
 
     @Test
-    void testUnexpectedRemoteCloseTriggersReconnectAttemptWhenEnabled() throws Exception {
+    void testUnexpectedRemoteCloseTriggersReconnectAttemptWithExternalReconnectionManager() throws Exception {
         try (ServerSocket serverSocket = new ServerSocket(0)) {
             ExecutorService executor = Executors.newSingleThreadExecutor();
             CountDownLatch firstAcceptedLatch = new CountDownLatch(1);
@@ -1001,19 +1000,22 @@ class XmppConnectionLifecycleErrorTest {
                         .securityMode(XmppClientConfig.SecurityMode.DISABLED)
                         .readTimeout(TEST_READ_TIMEOUT_MS)
                         .connectTimeout(500)
-                        .reconnectionEnabled(true)
-                        .pingEnabled(false)
                         .build();
                 XmppTcpConnection connection = new XmppTcpConnection(config);
+                ReconnectionManager reconnectionManager = new ReconnectionManager(connection);
 
-                CompletableFuture<Void> firstFuture = connection.connectAsync();
-                assertTrue(firstAcceptedLatch.await(TEST_LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS));
-                assertThrows(CompletionException.class, firstFuture::join);
+                try {
+                    CompletableFuture<Void> firstFuture = connection.connectAsync();
+                    assertTrue(firstAcceptedLatch.await(TEST_LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+                    assertThrows(CompletionException.class, firstFuture::join);
 
-                assertTrue(secondAcceptedLatch.await(TEST_RECONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS),
-                        "意外断链后应触发至少一次自动重连");
+                    assertTrue(secondAcceptedLatch.await(TEST_RECONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS),
+                            "显式创建 ReconnectionManager 后，意外断链应触发至少一次自动重连");
 
-                connection.disconnect();
+                    connection.disconnect();
+                } finally {
+                    reconnectionManager.shutdown();
+                }
             } finally {
                 serverSocket.close();
                 executor.shutdownNow();
@@ -1024,7 +1026,7 @@ class XmppConnectionLifecycleErrorTest {
     }
 
     @Test
-    void testManualDisconnectDoesNotTriggerReconnectWhenEnabled() throws Exception {
+    void testManualDisconnectDoesNotTriggerReconnectWithExternalReconnectionManager() throws Exception {
         try (ServerSocket serverSocket = new ServerSocket(0);
              ExecutorService executor = Executors.newSingleThreadExecutor()) {
             CountDownLatch firstAcceptedLatch = new CountDownLatch(1);
@@ -1040,20 +1042,23 @@ class XmppConnectionLifecycleErrorTest {
                     .securityMode(XmppClientConfig.SecurityMode.DISABLED)
                     .readTimeout(TEST_READ_TIMEOUT_MS)
                     .connectTimeout(500)
-                    .reconnectionEnabled(true)
-                    .pingEnabled(false)
                     .build();
             XmppTcpConnection connection = new XmppTcpConnection(config);
+            ReconnectionManager reconnectionManager = new ReconnectionManager(connection);
 
-            CompletableFuture<Void> firstFuture = startConnect(connection);
-            assertTrue(firstAcceptedLatch.await(TEST_LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+            try {
+                CompletableFuture<Void> firstFuture = startConnect(connection);
+                assertTrue(firstAcceptedLatch.await(TEST_LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS));
 
-            connection.disconnect();
-            assertThrows(CompletionException.class, firstFuture::join);
+                connection.disconnect();
+                assertThrows(CompletionException.class, firstFuture::join);
 
-            waitFor(() -> getReconnectTask(connection) == null, TEST_SETTLE_TIMEOUT_MS,
-                    "手动断开后不应保留自动重连任务");
-            assertEquals(1L, secondAcceptedLatch.getCount(), "手动断开后不应触发自动重连");
+                waitFor(() -> getReconnectTask(reconnectionManager) == null, TEST_SETTLE_TIMEOUT_MS,
+                        "手动断开后不应保留外部重连任务");
+                assertEquals(1L, secondAcceptedLatch.getCount(), "手动断开后不应触发自动重连");
+            } finally {
+                reconnectionManager.shutdown();
+            }
         }
     }
 
@@ -1091,13 +1096,15 @@ class XmppConnectionLifecycleErrorTest {
 
             CompletableFuture<Void> secondFuture = startConnect(connection);
             assertTrue(secondAcceptedLatch.await(TEST_LATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+            connection.markConnectionReady();
+            secondFuture.join();
 
-            waitFor(() -> connectedCount.get() == 2, TEST_SETTLE_TIMEOUT_MS, "重连成功后应再次发布连接事件");
+            waitFor(() -> connectedCount.get() == 2, TEST_SETTLE_TIMEOUT_MS, "重连后会话 ready 应再次发布 CONNECTED 事件");
 
             assertEquals(2, connectedCount.get());
 
             connection.disconnect();
-            assertThrows(CompletionException.class, secondFuture::join);
+            waitUntilDisconnected(connection);
         }
     }
 
@@ -1283,14 +1290,8 @@ class XmppConnectionLifecycleErrorTest {
         throw new AssertionError("连接未在预期时间内进入断开状态");
     }
 
-    private ScheduledFuture<?> getReconnectTask(XmppTcpConnection connection) {
+    private ScheduledFuture<?> getReconnectTask(ReconnectionManager manager) {
         try {
-            Field managerField = XmppTcpConnection.class.getDeclaredField("reconnectionManager");
-            managerField.setAccessible(true);
-            ReconnectionManager manager = (ReconnectionManager) managerField.get(connection);
-            if (manager == null) {
-                return null;
-            }
             Field taskField = ReconnectionManager.class.getDeclaredField("currentTask");
             taskField.setAccessible(true);
             return (ScheduledFuture<?>) taskField.get(manager);

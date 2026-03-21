@@ -5,8 +5,6 @@ import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.exception.XmppProtocolException;
 import com.example.xmpp.handler.PingIqRequestHandler;
-import com.example.xmpp.logic.PingManager;
-import com.example.xmpp.logic.ReconnectionManager;
 import com.example.xmpp.net.SslUtils;
 import com.example.xmpp.net.XmppNettyHandler;
 import com.example.xmpp.net.XmppStreamDecoder;
@@ -61,10 +59,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     private XmppNettyHandler nettyHandler;
 
-    private PingManager pingManager;
-
-    private ReconnectionManager reconnectionManager;
-
     private volatile CompletableFuture<Void> connectionReadyFuture = new CompletableFuture<>();
 
     private TerminalEventState terminalEventState = TerminalEventState.NONE;
@@ -118,7 +112,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         if (targets.isEmpty()) {
             XmppNetworkException exception = new XmppNetworkException("No connection targets available");
             connectionReadyFuture.completeExceptionally(exception);
-            shutdownLifecycleManagers();
             shutdownWorkerGroup();
             throw exception;
         }
@@ -155,7 +148,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     private void resetForNewConnectionAttempt() {
-        shutdownLifecycleManagers();
         Channel previousChannel = channel;
         channel = null;
         clearHandlerState();
@@ -169,36 +161,12 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     private void failConnectionAttempt(Exception exception) {
         connectionReadyFuture.completeExceptionally(exception);
-        shutdownLifecycleManagers();
         shutdownWorkerGroup();
     }
 
     private void initializeConnectionInfrastructure() {
         workerGroup = new NioEventLoopGroup();
         nettyHandler = new XmppNettyHandler(config, this);
-        initializeLifecycleManagersIfNeeded();
-    }
-
-    private void initializeLifecycleManagersIfNeeded() {
-        if (config.isPingEnabled() && pingManager == null) {
-            pingManager = new PingManager(this);
-        }
-        if (config.isReconnectionEnabled() && reconnectionManager == null) {
-            reconnectionManager = new ReconnectionManager(this);
-        }
-    }
-
-    private void shutdownLifecycleManagers() {
-        PingManager currentPingManager = pingManager;
-        pingManager = null;
-        if (currentPingManager != null) {
-            currentPingManager.shutdown();
-        }
-        ReconnectionManager currentReconnectionManager = reconnectionManager;
-        reconnectionManager = null;
-        if (currentReconnectionManager != null) {
-            currentReconnectionManager.shutdown();
-        }
     }
 
     private record ConnectionTarget(String host, InetAddress address, int port) {
@@ -297,8 +265,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     public synchronized void markConnectionReady() {
         CompletableFuture<Void> future = connectionReadyFuture;
-        if (future != null && !future.isDone()) {
-            future.complete(null);
+        if (future != null && !future.isDone() && future.complete(null)) {
+            notifyConnected();
         }
     }
 
@@ -402,8 +370,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
      */
     @Override
     public synchronized void disconnect() {
-        shutdownLifecycleManagers();
-
         failPendingCollectors(new XmppNetworkException("Connection closed"));
         cleanupCollectors();
         failReadyFuture(new XmppNetworkException("Connection closed before session became ready"));

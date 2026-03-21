@@ -124,7 +124,6 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
         }
         log.info("Channel active - Remote: {}", ctx.channel().remoteAddress());
         initStateContext(ctx);
-        connection.notifyConnected();
     }
 
     @Override

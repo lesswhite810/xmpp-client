@@ -3,15 +3,15 @@ package com.example.xmpp.logic;
 import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
-import com.example.xmpp.handler.PingIqRequestHandler;
 import com.example.xmpp.XmppConnection;
-import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmppScheduler;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.PingIq;
+import com.example.xmpp.util.XmppConstants;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -56,13 +56,13 @@ public final class PingManager {
      * @param connection XMPP 连接实例
      */
     public PingManager(XmppConnection connection) {
-        this.connection = connection;
+        this.connection = Objects.requireNonNull(connection, "XmppConnection must not be null");
 
         XmppEventBus eventBus = XmppEventBus.getInstance();
 
         unsubscribe = eventBus.subscribeAll(connection, Map.of(
-                ConnectionEventType.AUTHENTICATED, event -> startKeepAlive(),
-                ConnectionEventType.CLOSED, event -> stopKeepAlive(),
+                ConnectionEventType.CONNECTED, event -> startKeepAlive(),
+                ConnectionEventType.CLOSED, event -> shutdown(),
                 ConnectionEventType.ERROR, event -> stopKeepAlive()
         ));
     }
@@ -73,9 +73,17 @@ public final class PingManager {
      * @param event 连接事件
      */
     public void onEvent(ConnectionEvent event) {
-        switch (event.eventType()) {
-            case AUTHENTICATED -> startKeepAlive();
-            case CLOSED, ERROR -> stopKeepAlive();
+        ConnectionEventType eventType = event.eventType();
+        if (eventType == ConnectionEventType.CONNECTED) {
+            startKeepAlive();
+            return;
+        }
+        switch (eventType) {
+            case CLOSED -> shutdown();
+            case ERROR -> stopKeepAlive();
+            default -> {
+                // Ignore unrelated events.
+            }
         }
     }
 

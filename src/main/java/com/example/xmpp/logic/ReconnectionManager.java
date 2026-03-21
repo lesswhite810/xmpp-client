@@ -14,6 +14,7 @@ import com.example.xmpp.util.XmppScheduler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -39,16 +40,12 @@ public final class ReconnectionManager {
      * @param connection XMPP 连接实例
      */
     public ReconnectionManager(XmppConnection connection) {
-        this.connection = connection;
+        this.connection = Objects.requireNonNull(connection, "XmppConnection must not be null");
 
         XmppEventBus eventBus = XmppEventBus.getInstance();
 
         unsubscribe = eventBus.subscribeAll(connection, Map.of(
-                ConnectionEventType.CONNECTED, event -> {
-                    stopReconnectTask();
-                    log.debug("TCP connection established, waiting for authenticated session before resetting reconnection cycle");
-                },
-                ConnectionEventType.AUTHENTICATED, event -> stopReconnectTask(),
+                ConnectionEventType.CONNECTED, event -> onConnected(),
                 ConnectionEventType.CLOSED, this::onConnectionClosed
         ));
     }
@@ -70,12 +67,13 @@ public final class ReconnectionManager {
             log.debug("Reconnection manager already shutdown, ignoring close event");
             return;
         }
-        stopReconnectTask();
         Exception disconnectError = event.error();
         if (disconnectError == null) {
-            log.debug("Connection closed normally");
+            log.debug("Connection closed normally, shutting down reconnection manager");
+            shutdown();
             return;
         }
+        stopReconnectTask();
         if (isNonRecoverableError(disconnectError)) {
             log.warn("Connection closed after non-recoverable error. Skipping reconnection: {}",
                     disconnectError.getClass().getSimpleName());
@@ -83,6 +81,11 @@ public final class ReconnectionManager {
         }
         log.warn("Connection closed after error. Starting reconnection.");
         scheduleReconnect(0);
+    }
+
+    private void onConnected() {
+        stopReconnectTask();
+        log.debug("XMPP session established, reconnection cycle reset");
     }
 
     private boolean isNonRecoverableError(Exception error) {

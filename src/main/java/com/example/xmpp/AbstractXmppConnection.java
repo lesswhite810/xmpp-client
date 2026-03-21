@@ -180,7 +180,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     }
 
     /**
-     * 发布连接建立事件。
+     * 发布会话就绪事件。
      */
     public void notifyConnected() {
         fireEvent(ConnectionEventType.CONNECTED);

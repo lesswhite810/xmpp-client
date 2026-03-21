@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -57,17 +58,29 @@ class ReconnectionManagerTest {
         if (reconnectionManager != null) {
             reconnectionManager.shutdown();
         }
+        XmppEventBus.getInstance().unsubscribeAll(connection);
         if (mocks != null) {
             mocks.close();
         }
     }
 
     @Test
-    @DisplayName("CLOSED 且无错误时不应调度重连")
+    @DisplayName("不应再暴露指定回连完成事件的构造函数")
+    void testConstructorDoesNotSupportCustomReconnectReadyEvent() {
+        assertThrows(NoSuchMethodException.class,
+                () -> ReconnectionManager.class.getDeclaredConstructor(XmppConnection.class, ConnectionEventType.class));
+    }
+
+    @Test
+    @DisplayName("CLOSED 且无错误时应销毁管理器且不调度重连")
     void testClosedWithoutErrorDoesNotScheduleReconnect() throws Exception {
         publish(ConnectionEventType.CLOSED, null);
 
         verify(connection, never()).connect();
+        assertNull(getCurrentTask());
+        assertNull(getUnsubscribe());
+
+        emitClosedWithError(new Exception("boom"));
         assertNull(getCurrentTask());
     }
 
@@ -223,13 +236,13 @@ class ReconnectionManagerTest {
     }
 
     @Test
-    @DisplayName("排队中的重连任务在连接已完成认证后不应再次执行")
-    void testAuthenticatedEventCancelsQueuedReconnectAttempt() throws Exception {
+    @DisplayName("AUTHENTICATED 事件不应取消排队中的重连任务")
+    void testAuthenticatedEventDoesNotCancelQueuedReconnectAttempt() throws Exception {
         emitClosedWithError(new Exception("boom"));
         publish(ConnectionEventType.AUTHENTICATED);
 
         verify(connection, never()).connect();
-        assertNull(getCurrentTask());
+        assertNotNull(getCurrentTask());
     }
 
     @Test
@@ -294,6 +307,12 @@ class ReconnectionManagerTest {
         Field field = ReconnectionManager.class.getDeclaredField("currentTask");
         field.setAccessible(true);
         return field.get(reconnectionManager);
+    }
+
+    private Runnable getUnsubscribe() throws Exception {
+        Field field = ReconnectionManager.class.getDeclaredField("unsubscribe");
+        field.setAccessible(true);
+        return (Runnable) field.get(reconnectionManager);
     }
 
     private void invokeRunReconnectAttempt(int retryIndex) throws Exception {

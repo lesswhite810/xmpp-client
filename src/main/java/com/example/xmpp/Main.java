@@ -2,6 +2,8 @@ package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
+import com.example.xmpp.logic.PingManager;
+import com.example.xmpp.logic.ReconnectionManager;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -60,15 +62,24 @@ public class Main {
         log.info("Using Direct TLS: {}", config.isUsingDirectTLS());
 
         XmppTcpConnection connection = new XmppTcpConnection(config);
-
-        connection.connect();
-
-        log.info("Connected to XMPP server: {}", domain);
-
+        PingManager pingManager = null;
+        if (config.isPingEnabled()) {
+            pingManager = new PingManager(connection);
+            pingManager.setPingInterval(config.getPingInterval());
+        }
+        if (config.isReconnectionEnabled()) {
+            new ReconnectionManager(connection);
+        }
         try {
+            connection.connect();
+            log.info("Connected to XMPP server: {}", domain);
+
             Thread.sleep(Long.MAX_VALUE);
         } catch (InterruptedException e) {
             log.info("Application interrupted");
+            Thread.currentThread().interrupt();
+        } finally {
+            connection.disconnect();
         }
     }
 }

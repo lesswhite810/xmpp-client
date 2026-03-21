@@ -8,7 +8,7 @@ package com.example.xmpp.event;
 public enum ConnectionEventType {
 
     /**
-     * 连接已建立。
+     * 会话已就绪，可发送 IQ 消息。
      */
     CONNECTED,
 

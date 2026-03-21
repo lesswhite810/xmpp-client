@@ -4,6 +4,7 @@ import com.example.xmpp.XmppConnection;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.event.ConnectionEventType;
+import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.extension.Ping;
 import org.junit.jupiter.api.AfterEach;
@@ -54,16 +55,24 @@ class PingManagerTest {
         if (pingManager != null) {
             pingManager.shutdown();
         }
+        XmppEventBus.getInstance().unsubscribeAll(connection);
         if (mocks != null) {
             mocks.close();
         }
     }
 
     @Test
+    @DisplayName("不应再暴露指定启动事件的构造函数")
+    void testConstructorDoesNotSupportCustomStartEvent() {
+        assertThrows(NoSuchMethodException.class,
+                () -> PingManager.class.getDeclaredConstructor(XmppConnection.class, ConnectionEventType.class));
+    }
+
+    @Test
     @DisplayName("setPingInterval 应重调度已运行的保活任务")
     void testSetPingIntervalReschedulesActiveTask() throws Exception {
         pingManager.setPingInterval(1);
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
         ScheduledFuture<?> firstTask = getKeepAliveTask();
 
         pingManager.setPingInterval(2);
@@ -88,35 +97,49 @@ class PingManagerTest {
     }
 
     @Test
-    @DisplayName("onEvent(AUTHENTICATED) 应启动保活任务")
-    void testAuthenticatedEventStartsKeepAlive() throws Exception {
+    @DisplayName("onEvent(CONNECTED) 应启动保活任务")
+    void testConnectedEventStartsKeepAlive() throws Exception {
         pingManager.setPingInterval(1);
 
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
 
         assertNotNull(getKeepAliveTask());
     }
 
     @Test
-    @DisplayName("onEvent(CLOSED) 应取消已启动的保活任务")
-    void testConnectionClosedEventShutsDown() throws Exception {
+    @DisplayName("onEvent(AUTHENTICATED) 不应启动保活任务")
+    void testAuthenticatedEventDoesNotStartKeepAlive() throws Exception {
         pingManager.setPingInterval(1);
+
         pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+
+        assertNull(getKeepAliveTask());
+    }
+
+    @Test
+    @DisplayName("收到 CLOSED 事件后应关闭并销毁 PingManager")
+    void testClosedEventShutsDownManager() throws Exception {
+        pingManager.setPingInterval(1);
+        XmppEventBus.getInstance().publish(connection, ConnectionEventType.CONNECTED);
 
         ScheduledFuture<?> keepAliveTask = getKeepAliveTask();
         assertNotNull(keepAliveTask);
 
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CLOSED));
+        XmppEventBus.getInstance().publish(connection, ConnectionEventType.CLOSED);
 
         assertNull(getKeepAliveTask());
         assertTrue(keepAliveTask.isCancelled());
+        assertNull(getUnsubscribe());
+
+        XmppEventBus.getInstance().publish(connection, ConnectionEventType.CONNECTED);
+        assertNull(getKeepAliveTask());
     }
 
     @Test
     @DisplayName("onEvent(ERROR) 应取消已启动的保活任务")
     void testConnectionErrorEventShutsDown() throws Exception {
         pingManager.setPingInterval(1);
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
 
         ScheduledFuture<?> keepAliveTask = getKeepAliveTask();
         assertNotNull(keepAliveTask);
@@ -128,11 +151,11 @@ class PingManagerTest {
     }
 
     @Test
-    @DisplayName("shutdown 后不应被 AUTHENTICATED 事件重新启动")
-    void testShutdownPreventsRestartOnAuthenticatedEvent() throws Exception {
+    @DisplayName("shutdown 后不应被 CONNECTED 事件重新启动")
+    void testShutdownPreventsRestartOnConnectedEvent() throws Exception {
         pingManager.setPingInterval(1);
         pingManager.shutdown();
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
 
         verify(connection, never()).sendIqPacketAsync(any());
         assertNull(getKeepAliveTask());
@@ -150,8 +173,8 @@ class PingManagerTest {
     }
 
     @Test
-    @DisplayName("未启动保活任务时修改间隔不应提前调度")
-    void testSetPingIntervalDoesNotScheduleTaskBeforeAuthentication() throws Exception {
+    @DisplayName("未收到 CONNECTED 事件前修改间隔不应提前调度")
+    void testSetPingIntervalDoesNotScheduleTaskBeforeConnected() throws Exception {
         pingManager.setPingInterval(3);
 
         assertNull(getKeepAliveTask());
@@ -159,14 +182,14 @@ class PingManagerTest {
     }
 
     @Test
-    @DisplayName("重复认证事件应替换旧保活任务而不是叠加多个任务")
-    void testRepeatedAuthenticatedEventReplacesPreviousKeepAliveTask() throws Exception {
+    @DisplayName("重复 CONNECTED 事件应替换旧保活任务而不是叠加多个任务")
+    void testRepeatedConnectedEventReplacesPreviousKeepAliveTask() throws Exception {
         pingManager.setPingInterval(30);
 
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
         ScheduledFuture<?> firstTask = getKeepAliveTask();
 
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
         ScheduledFuture<?> secondTask = getKeepAliveTask();
 
         assertNotNull(firstTask);
@@ -273,5 +296,11 @@ class PingManagerTest {
         Field field = PingManager.class.getDeclaredField("keepAliveTask");
         field.setAccessible(true);
         return (ScheduledFuture<?>) field.get(pingManager);
+    }
+
+    private Runnable getUnsubscribe() throws Exception {
+        Field field = PingManager.class.getDeclaredField("unsubscribe");
+        field.setAccessible(true);
+        return (Runnable) field.get(pingManager);
     }
 }
