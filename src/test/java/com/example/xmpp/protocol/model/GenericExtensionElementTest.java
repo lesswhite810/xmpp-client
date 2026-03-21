@@ -69,6 +69,40 @@ class GenericExtensionElementTest {
     }
 
     @Test
+    @DisplayName("应保留不同命名空间下的同名属性")
+    void testNamespacedAttributesDoNotOverwriteEachOther() {
+        GenericExtensionElement element = GenericExtensionElement.builder("x", "urn:test")
+                .addAttribute("id", "root")
+                .addAttribute(new QName("urn:test:a", "id", "a"), "first")
+                .addAttribute(new QName("urn:test:b", "id", "b"), "second")
+                .build();
+
+        assertEquals("root", element.getAttributeValue("id"));
+        assertEquals("first", element.getAttributeValue("urn:test:a", "id"));
+        assertEquals("second", element.getAttributeValue("urn:test:b", "id"));
+        assertEquals(3, element.getAttributes().size());
+    }
+
+    @Test
+    @DisplayName("toXml 应输出 namespaced attribute")
+    void testToXmlWithNamespacedAttributes() {
+        GenericExtensionElement element = GenericExtensionElement.builder("x", "urn:test")
+                .addAttribute("id", "root")
+                .addAttribute(new QName("urn:test:a", "id", "a"), "first")
+                .addAttribute(new QName("urn:test:b", "id", "b"), "second")
+                .build();
+
+        String xml = element.toXml();
+
+        assertTrue(xml.startsWith("<x xmlns=\"urn:test\""));
+        assertTrue(xml.contains(" id=\"root\""));
+        assertTrue(xml.contains(" xmlns:a=\"urn:test:a\""));
+        assertTrue(xml.contains(" a:id=\"first\""));
+        assertTrue(xml.contains(" xmlns:b=\"urn:test:b\""));
+        assertTrue(xml.contains(" b:id=\"second\""));
+    }
+
+    @Test
     @DisplayName("带文本和子元素时应输出完整 XML")
     void testToXmlWithTextAndChildren() {
         GenericExtensionElement child = GenericExtensionElement.builder("item", "urn:test:child")
@@ -133,7 +167,7 @@ class GenericExtensionElementTest {
         assertTrue(element.getAttributes().isEmpty());
         assertEquals(1, element.getChildren().size());
         assertThrows(UnsupportedOperationException.class,
-                () -> element.getAttributes().put("k", "v"));
+                () -> element.getAttributes().put(new QName("k"), "v"));
         assertThrows(UnsupportedOperationException.class,
                 () -> element.getChildren().add(child));
     }

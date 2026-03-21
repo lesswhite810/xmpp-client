@@ -121,7 +121,11 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     }
 
     /**
-     * 安全地获取元素文本内容。
+     * 安全地获取当前开始元素的文本内容。
+     *
+     * <p>调用前，reader 可以位于子元素的 {@code START_ELEMENT}，也可以位于它之前且可通过
+     * {@code peek()} 看到该开始标签。返回时，该子元素的匹配结束标签已被消费，reader 会推进到
+     * 该子元素之后的下一个事件。</p>
      *
      * @param reader XML 事件读取器
      * @return 元素文本内容

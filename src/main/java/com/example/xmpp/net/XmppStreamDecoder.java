@@ -33,7 +33,9 @@ import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -67,6 +69,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     private static final XMLInputFactory INPUT_FACTORY = XMLInputFactory.newFactory();
     private static final int MAX_BUFFER_SIZE = 1024 * 1024;
+    private static final int MAX_XML_NESTING_DEPTH = 256;
     private static final String STREAMS_NAMESPACE = "http://etherx.jabber.org/streams";
     private static final String TLS_NAMESPACE = "urn:ietf:params:xml:ns:xmpp-tls";
     private static final String SASL_NAMESPACE = "urn:ietf:params:xml:ns:xmpp-sasl";
@@ -87,8 +90,13 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
      */
     private record StanzaAttrs(String type, String id, String from, String to) {
         static StanzaAttrs from(StartElement element) {
-            Map<String, String> attrs = XmlParserUtils.getAttributes(element);
-            return new StanzaAttrs(attrs.get("type"), attrs.get("id"), attrs.get("from"), attrs.get("to"));
+            return new StanzaAttrs(getAttribute(element, "type"), getAttribute(element, "id"),
+                    getAttribute(element, "from"), getAttribute(element, "to"));
+        }
+
+        private static String getAttribute(StartElement element, String name) {
+            var attr = element.getAttributeByName(new QName(name));
+            return attr != null ? attr.getValue() : null;
         }
 
         Iq.Builder iqBuilder() {
@@ -296,7 +304,8 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     private Optional<FrameBoundary> searchFrameEnd(ByteBuf in, int startIndex,
                                                    int openingTagEndIndex, String tagName) {
-        int depth = 1;
+        Deque<String> tagStack = new ArrayDeque<>();
+        tagStack.addLast(tagName);
         int index = openingTagEndIndex;
 
         while (index < in.writerIndex()) {
@@ -340,14 +349,24 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             int tagEndIndex = tagEnd.orElseThrow();
 
             if (matches(in, nextTagStart, CLOSING_TAG_START)) {
-                depth--;
-                if (depth < 0) {
-                    log.trace("Mismatched closing tag at {}, depth would be {}, returning empty", nextTagStart, depth);
-                    return Optional.empty();
+                String closingTagName = readTagName(in, nextTagStart + CLOSING_TAG_PREFIX_LENGTH, tagEndIndex)
+                        .orElse("");
+                if (StringUtils.isBlank(closingTagName) || tagStack.isEmpty()) {
+                    return malformedFrameBoundary(startIndex, tagEndIndex, "invalid-closing-tag", nextTagStart);
                 }
-                log.trace("Closing tag at {}, depth {} -> {}, tagName={}", nextTagStart, depth + 1, depth, tagName);
+
+                String expectedTagName = tagStack.peekLast();
+                if (!closingTagName.equals(expectedTagName)) {
+                    log.trace("Mismatched closing tag at {}, expected={}, actual={}",
+                            nextTagStart, expectedTagName, closingTagName);
+                    return malformedFrameBoundary(startIndex, tagEndIndex, closingTagName, nextTagStart);
+                }
+
+                tagStack.removeLast();
+                log.trace("Closing tag at {}, remainingDepth={}, tagName={}",
+                        nextTagStart, tagStack.size(), closingTagName);
                 index = tagEndIndex;
-                if (depth == 0) {
+                if (tagStack.isEmpty()) {
                     log.trace("Frame complete: tagName={}, length={}", tagName, tagEndIndex - startIndex);
                     return Optional.of(new FrameBoundary(FrameType.ELEMENT, tagEndIndex - startIndex));
                 }
@@ -355,11 +374,33 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             }
 
             if (!isSelfClosingTag(in, tagEndIndex)) {
-                depth++;
+                String nestedTagName = readTagName(in, nextTagStart + OPENING_TAG_PREFIX_LENGTH, tagEndIndex)
+                        .orElse("");
+                if (StringUtils.isBlank(nestedTagName)) {
+                    return malformedFrameBoundary(startIndex, tagEndIndex, "invalid-opening-tag", nextTagStart);
+                }
+                if (tagStack.size() >= MAX_XML_NESTING_DEPTH) {
+                    return depthExceededFrameBoundary(startIndex, tagEndIndex,
+                            nestedTagName, nextTagStart, tagStack.size() + 1);
+                }
+                tagStack.addLast(nestedTagName);
             }
             index = tagEndIndex;
         }
         return Optional.empty();
+    }
+
+    private Optional<FrameBoundary> depthExceededFrameBoundary(int startIndex, int tagEndIndex,
+                                                               String tagName, int tagStartIndex, int depth) {
+        log.warn("Dropping frame because XML nesting depth {} exceeds max {}, tagName={}, startIndex={}",
+                depth, MAX_XML_NESTING_DEPTH, tagName, tagStartIndex);
+        return Optional.of(new FrameBoundary(FrameType.SKIP, tagEndIndex - startIndex));
+    }
+
+    private Optional<FrameBoundary> malformedFrameBoundary(int startIndex, int tagEndIndex,
+                                                           String tagName, int tagStartIndex) {
+        log.trace("Dropping malformed frame from {} to {}, tagName={}", startIndex, tagStartIndex, tagName);
+        return Optional.of(new FrameBoundary(FrameType.SKIP, tagEndIndex - startIndex));
     }
 
     private int findNextTagStart(ByteBuf in, int startIndex) {
@@ -645,7 +686,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     private XmppError parseError(XMLEventReader reader, StartElement element) throws XMLStreamException {
         String typeStr = getAttributeValue(element, "type");
-        Optional<XmppError.Type> type = typeStr != null ? parseErrorType(typeStr) : Optional.empty();
+        XmppError.Type errorType = typeStr != null ? parseErrorType(typeStr).orElse(null) : null;
         XmppError.Condition condition = XmppError.Condition.UNDEFINED_CONDITION;
         String text = null;
 
@@ -667,8 +708,8 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         }
 
         XmppError.Builder errorBuilder = new XmppError.Builder(condition);
-        if (type.isPresent()) {
-            errorBuilder.type(type.orElseThrow());
+        if (errorType != null) {
+            errorBuilder.type(errorType);
         }
         if (text != null) {
             errorBuilder.text(text);

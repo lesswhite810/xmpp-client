@@ -521,6 +521,70 @@ class XmppStreamDecoderTest {
     }
 
     @Test
+    @DisplayName("应跳过嵌套闭合标签错配的 stanza 并继续解析后续消息")
+    void testNestedMismatchedClosingTagIsDroppedAndFollowingMessageStillParses() {
+        sendStreamHeader();
+        sendXml("<message type='chat' id='broken'><body>broken</message>");
+        assertNull(channel.readInbound());
+
+        sendXml("<iq type='get' id='after-nested-broken'><ping xmlns='urn:xmpp:ping'/></iq>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(Iq.class, msg);
+        assertEquals("after-nested-broken", ((Iq) msg).getId());
+        assertNull(channel.readInbound());
+    }
+
+    @Test
+    @DisplayName("parseFromByteBuf 应跳过嵌套闭合标签错配的 stanza")
+    void testParseFromByteBufSkipsNestedMismatchedClosingTag() {
+        XmppStreamDecoder decoder = new XmppStreamDecoder();
+        var buffer = Unpooled.copiedBuffer(
+                "<message type='chat' id='broken'><body>broken</message>"
+                        + "<iq type='get' id='after-buffer-broken'><ping xmlns='urn:xmpp:ping'/></iq>",
+                StandardCharsets.UTF_8);
+
+        List<Object> elements = decoder.parseFromByteBuf(buffer);
+
+        assertEquals(1, elements.size());
+        assertInstanceOf(Iq.class, elements.getFirst());
+        assertEquals("after-buffer-broken", ((Iq) elements.getFirst()).getId());
+    }
+
+    @Test
+    @DisplayName("应丢弃超过最大嵌套深度的 stanza 并继续解析后续消息")
+    void testTooDeepStanzaIsDroppedAndFollowingMessageStillParses() {
+        sendStreamHeader();
+        sendXml(buildDeeplyNestedMessage("too-deep", 257));
+        assertNull(channel.readInbound());
+
+        sendXml("<iq type='get' id='after-too-deep'><ping xmlns='urn:xmpp:ping'/></iq>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(Iq.class, msg);
+        assertEquals("after-too-deep", ((Iq) msg).getId());
+        assertNull(channel.readInbound());
+    }
+
+    @Test
+    @DisplayName("parseFromByteBuf 应跳过超过最大嵌套深度的 stanza")
+    void testParseFromByteBufSkipsTooDeepStanza() {
+        XmppStreamDecoder decoder = new XmppStreamDecoder();
+        var buffer = Unpooled.copiedBuffer(
+                buildDeeplyNestedMessage("too-deep-buffer", 257)
+                        + "<iq type='get' id='after-too-deep-buffer'><ping xmlns='urn:xmpp:ping'/></iq>",
+                StandardCharsets.UTF_8);
+
+        List<Object> elements = decoder.parseFromByteBuf(buffer);
+
+        assertEquals(1, elements.size());
+        assertInstanceOf(Iq.class, elements.getFirst());
+        assertEquals("after-too-deep-buffer", ((Iq) elements.getFirst()).getId());
+    }
+
+    @Test
     @DisplayName("parseFromByteBuf 应跳过前导噪音和结束标签")
     void testParseFromByteBufSkipsNoiseAndClosingTag() {
         XmppStreamDecoder decoder = new XmppStreamDecoder();
@@ -557,6 +621,21 @@ class XmppStreamDecoderTest {
 
     private void sendStreamFeatures(String content) {
         sendXml("<stream:features xmlns:stream='http://etherx.jabber.org/streams'>" + content + "</stream:features>");
+    }
+
+    private String buildDeeplyNestedMessage(String id, int nestedDepth) {
+        StringBuilder xml = new StringBuilder("<message type='chat' id='")
+                .append(id)
+                .append("'>");
+        for (int index = 0; index < nestedDepth; index++) {
+            xml.append("<x>");
+        }
+        xml.append("payload");
+        for (int index = 0; index < nestedDepth; index++) {
+            xml.append("</x>");
+        }
+        xml.append("</message>");
+        return xml.toString();
     }
 
     private static final class ThrowingExtensionProvider implements ExtensionElementProvider<ExtensionElement> {

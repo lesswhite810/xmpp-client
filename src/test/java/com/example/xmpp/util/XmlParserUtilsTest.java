@@ -3,12 +3,17 @@ package com.example.xmpp.util;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import javax.xml.namespace.QName;
+import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
+import javax.xml.stream.events.StartElement;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.io.StringReader;
+import java.util.Map;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -197,6 +202,60 @@ class XmlParserUtilsTest {
         }
         
         reader.close();
+    }
+
+    @Test
+    @DisplayName("getAttributes 应保留不同命名空间下的同名属性")
+    void testGetAttributesPreservesNamespacedAttributes() throws XMLStreamException {
+        XMLEventReader reader = XmlParserUtils.createInputFactory()
+                .createXMLEventReader(new StringReader(
+                        "<root xmlns:a='urn:test:a' xmlns:b='urn:test:b' id='root' a:id='first' b:id='second'/>"));
+        StartElement startElement = null;
+        while (reader.hasNext()) {
+            var event = reader.nextEvent();
+            if (event.isStartElement()) {
+                startElement = event.asStartElement();
+                break;
+            }
+        }
+
+        assertNotNull(startElement);
+
+        Map<QName, String> attributes = XmlParserUtils.getAttributes(startElement);
+
+        assertEquals(3, attributes.size());
+        assertEquals("root", attributes.get(new QName("id")));
+        assertEquals("first", attributes.get(new QName("urn:test:a", "id", "a")));
+        assertEquals("second", attributes.get(new QName("urn:test:b", "id", "b")));
+        reader.close();
+    }
+
+    @Test
+    @DisplayName("getElementText 应消费结束标签并推进到下一个事件")
+    void testGetElementTextConsumesMatchingEndElement() throws XMLStreamException {
+        XMLEventReader reader = XmlParserUtils.createInputFactory()
+                .createXMLEventReader(new StringReader("<root><child>text</child><next>value</next></root>"));
+
+        while (reader.hasNext()) {
+            var event = reader.nextEvent();
+            if (!event.isStartElement()) {
+                continue;
+            }
+            if (!"child".equals(event.asStartElement().getName().getLocalPart())) {
+                continue;
+            }
+
+            assertEquals("text", XmlParserUtils.getElementText(reader));
+
+            var nextEvent = reader.nextEvent();
+            assertTrue(nextEvent.isStartElement());
+            assertEquals("next", nextEvent.asStartElement().getName().getLocalPart());
+            reader.close();
+            return;
+        }
+
+        reader.close();
+        fail("Should reach child start element");
     }
 
     @Test

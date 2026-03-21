@@ -3,6 +3,7 @@ package com.example.xmpp.util;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLResolver;
@@ -10,9 +11,9 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
 import java.io.ByteArrayInputStream;
+import java.util.LinkedHashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.HashMap;
 
 /**
  * XML 解析器工具类。
@@ -110,14 +111,14 @@ public class XmlParserUtils {
      * 获取开始元素的所有属性。
      *
      * @param startElement 开始元素
-     * @return 属性映射，键为属性名，值为属性值
+     * @return 属性映射，键为属性 QName，值为属性值
      */
-    public static Map<String, String> getAttributes(StartElement startElement) {
-        Map<String, String> attrs = new HashMap<>();
+    public static Map<QName, String> getAttributes(StartElement startElement) {
+        Map<QName, String> attrs = new LinkedHashMap<>();
         Iterator<Attribute> iter = startElement.getAttributes();
         while (iter.hasNext()) {
             Attribute attr = iter.next();
-            attrs.put(attr.getName().getLocalPart(), attr.getValue());
+            attrs.put(attr.getName(), attr.getValue());
         }
         return attrs;
     }
@@ -125,22 +126,18 @@ public class XmlParserUtils {
     /**
      * 获取元素的文本内容。
      *
+     * <p>调用前，reader 可以位于当前元素的 {@code START_ELEMENT}，也可以位于它之前且通过
+     * {@link XMLEventReader#peek()} 可见该开始标签。返回时，当前元素的匹配结束标签已被一并消费，
+     * reader 会推进到该结束标签之后的下一个事件。</p>
+     *
      * @param reader XMLEventReader
      * @return 去除首尾空白后的文本内容
-     * @throws XMLStreamException 如果读取失败
+     * @throws XMLStreamException 如果当前事件既不是开始元素，也未定位到可见的开始元素，或读取失败
      */
     public static String getElementText(XMLEventReader reader) throws XMLStreamException {
-        StringBuilder sb = new StringBuilder();
-        while (reader.hasNext()) {
-            var event = reader.peek();
-            if (event.isCharacters()) {
-                sb.append(reader.nextEvent().asCharacters().getData());
-            } else if (event.isEndElement()) {
-                break;
-            } else {
-                reader.nextEvent();
-            }
+        if (reader.peek() != null && reader.peek().isStartElement()) {
+            reader.nextEvent();
         }
-        return sb.toString().trim();
+        return reader.getElementText().trim();
     }
 }

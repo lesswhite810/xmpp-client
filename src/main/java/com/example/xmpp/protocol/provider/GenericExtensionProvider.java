@@ -6,6 +6,7 @@ import com.example.xmpp.util.XmlStringBuilder;
 import com.example.xmpp.util.XmlParserUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.StartElement;
@@ -56,32 +57,39 @@ public class GenericExtensionProvider {
      */
     private GenericExtensionElement parseElement(XMLEventReader reader, StartElement start)
             throws XMLStreamException {
-        String elementName = start.getName().getLocalPart();
-        String namespace = start.getName().getNamespaceURI();
+        QName startName = start.getName();
+        String elementName = startName.getLocalPart();
+        String namespace = startName.getNamespaceURI();
 
         GenericExtensionElement.Builder builder = GenericExtensionElement.builder(elementName, namespace);
-
         builder.addAttributes(XmlParserUtils.getAttributes(start));
+        boolean closed = false;
 
         while (reader.hasNext()) {
             XMLEvent event = reader.nextEvent();
 
             if (event.isEndElement()) {
-                String endName = event.asEndElement().getName().getLocalPart();
-                if (elementName.equals(endName)) {
+                QName endName = event.asEndElement().getName();
+                if (startName.equals(endName)) {
+                    closed = true;
                     break;
                 }
+                throw new XMLStreamException("Mismatched end element: expected "
+                        + startName + " but found " + endName);
             } else if (event.isStartElement()) {
                 GenericExtensionElement child = parseElement(reader, event.asStartElement());
                 builder.addChild(child);
             } else if (event.isCharacters()) {
                 String text = event.asCharacters().getData();
-                if (StringUtils.isNotBlank(text)) {
+                if (StringUtils.isNotEmpty(text)) {
                     builder.text(text);
                 }
             }
         }
 
+        if (!closed) {
+            throw new XMLStreamException("Unexpected end of XML while parsing <" + elementName + ">");
+        }
         return builder.build();
     }
 

@@ -3,8 +3,8 @@ package com.example.xmpp.protocol.model;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.commons.lang3.StringUtils;
 
+import javax.xml.XMLConstants;
 import javax.xml.namespace.QName;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,7 +24,7 @@ public class GenericExtensionElement implements ExtensionElement {
 
     private final String elementName;
     private final String namespace;
-    private final Map<String, String> attributes;
+    private final Map<QName, String> attributes;
     private final List<ContentNode> contentNodes;
     private final List<GenericExtensionElement> children;
     private final String text;
@@ -50,7 +50,28 @@ public class GenericExtensionElement implements ExtensionElement {
      * @return 属性值
      */
     public String getAttributeValue(String name) {
-        return attributes.get(name);
+        return getAttributeValue(XMLConstants.NULL_NS_URI, name);
+    }
+
+    /**
+     * 获取指定命名空间和属性名的属性值。
+     *
+     * @param namespace 命名空间
+     * @param name 属性名
+     * @return 属性值
+     */
+    public String getAttributeValue(String namespace, String name) {
+        return getAttributeValue(new QName(namespace != null ? namespace : XMLConstants.NULL_NS_URI, name));
+    }
+
+    /**
+     * 获取指定 QName 的属性值。
+     *
+     * @param attributeName 属性 QName
+     * @return 属性值
+     */
+    public String getAttributeValue(QName attributeName) {
+        return attributes.get(attributeName);
     }
 
     /**
@@ -101,32 +122,23 @@ public class GenericExtensionElement implements ExtensionElement {
      */
     @Override
     public String toXml() {
+        XmlStringBuilder xml = new XmlStringBuilder();
+        appendStartElement(xml);
         if (contentNodes.isEmpty()) {
-            return buildEmptyElementXml();
+            xml.append("/>");
+            return xml.toString();
         }
 
-        return new XmlStringBuilder()
-                .wrapElement(elementName, StringUtils.defaultIfEmpty(namespace, null), attributes, xml -> {
-                    for (ContentNode contentNode : contentNodes) {
-                        if (contentNode instanceof TextContent textContent) {
-                            xml.escapeXml(textContent.text());
-                        } else if (contentNode instanceof ElementContent elementContent) {
-                            xml.append(elementContent.element().toXml());
-                        }
-                    }
-                })
-                .toString();
-    }
-
-    /**
-     * 构建空元素的 XML。
-     *
-     * @return XML 字符串
-     */
-    private String buildEmptyElementXml() {
-        return new XmlStringBuilder()
-                .wrapElement(elementName, StringUtils.defaultIfEmpty(namespace, null), attributes, "")
-                .toString();
+        xml.append(">");
+        for (ContentNode contentNode : contentNodes) {
+            if (contentNode instanceof TextContent textContent) {
+                xml.escapeXml(textContent.text());
+            } else if (contentNode instanceof ElementContent elementContent) {
+                xml.append(elementContent.element().toXml());
+            }
+        }
+        xml.append("</").append(elementName).append(">");
+        return xml.toString();
     }
 
     private static List<GenericExtensionElement> extractChildren(List<ContentNode> nodes) {
@@ -147,6 +159,84 @@ public class GenericExtensionElement implements ExtensionElement {
             }
         }
         return builder.isEmpty() ? null : builder.toString();
+    }
+
+    private void appendStartElement(XmlStringBuilder xml) {
+        xml.append("<").append(elementName);
+        if (!namespace.isEmpty()) {
+            xml.append(" xmlns=\"");
+            xml.escapeXml(namespace);
+            xml.append("\"");
+        }
+
+        ResolvedAttributes resolvedAttributes = resolveAttributes();
+        for (Map.Entry<String, String> declaration : resolvedAttributes.namespaceDeclarations().entrySet()) {
+            xml.append(" xmlns:").append(declaration.getKey()).append("=\"");
+            xml.escapeXml(declaration.getValue());
+            xml.append("\"");
+        }
+        for (ResolvedAttribute attribute : resolvedAttributes.attributes()) {
+            xml.append(" ").append(attribute.qualifiedName()).append("=\"");
+            xml.escapeXml(attribute.value());
+            xml.append("\"");
+        }
+    }
+
+    private ResolvedAttributes resolveAttributes() {
+        List<ResolvedAttribute> resolved = new ArrayList<>();
+        Map<String, String> namespaceDeclarations = new LinkedHashMap<>();
+        Map<String, String> namespaceToPrefix = new LinkedHashMap<>();
+        int generatedPrefixIndex = 1;
+
+        for (Map.Entry<QName, String> entry : attributes.entrySet()) {
+            if (entry.getValue() == null) {
+                continue;
+            }
+            QName attributeName = entry.getKey();
+            String attributeNamespace = attributeName.getNamespaceURI();
+            if (attributeNamespace == null || attributeNamespace.isEmpty()) {
+                resolved.add(new ResolvedAttribute(attributeName.getLocalPart(), entry.getValue()));
+                continue;
+            }
+
+            String prefix;
+            if (XMLConstants.XML_NS_URI.equals(attributeNamespace)) {
+                prefix = XMLConstants.XML_NS_PREFIX;
+            } else {
+                prefix = namespaceToPrefix.get(attributeNamespace);
+                if (prefix == null) {
+                    prefix = normalizeAttributePrefix(attributeName.getPrefix(), namespaceDeclarations, generatedPrefixIndex);
+                    while (namespaceDeclarations.containsKey(prefix)
+                            && !attributeNamespace.equals(namespaceDeclarations.get(prefix))) {
+                        generatedPrefixIndex++;
+                        prefix = generatedPrefix(generatedPrefixIndex);
+                    }
+                    namespaceToPrefix.put(attributeNamespace, prefix);
+                    namespaceDeclarations.put(prefix, attributeNamespace);
+                    generatedPrefixIndex++;
+                }
+            }
+
+            resolved.add(new ResolvedAttribute(prefix + ":" + attributeName.getLocalPart(), entry.getValue()));
+        }
+
+        return new ResolvedAttributes(namespaceDeclarations, resolved);
+    }
+
+    private String normalizeAttributePrefix(String prefix,
+                                           Map<String, String> namespaceDeclarations,
+                                           int generatedPrefixIndex) {
+        if (prefix == null || prefix.isEmpty()
+                || XMLConstants.XML_NS_PREFIX.equals(prefix)
+                || XMLConstants.XMLNS_ATTRIBUTE.equals(prefix)
+                || namespaceDeclarations.containsKey(prefix)) {
+            return generatedPrefix(generatedPrefixIndex);
+        }
+        return prefix;
+    }
+
+    private String generatedPrefix(int index) {
+        return "ns" + index;
     }
 
     /**
@@ -205,7 +295,7 @@ public class GenericExtensionElement implements ExtensionElement {
     public static class Builder {
         private final String elementName;
         private final String namespace;
-        private Map<String, String> attributes;
+        private Map<QName, String> attributes;
         private List<ContentNode> contentNodes;
 
         /**
@@ -227,6 +317,17 @@ public class GenericExtensionElement implements ExtensionElement {
          * @return Builder 实例
          */
         public Builder addAttribute(String name, String value) {
+            return addAttribute(new QName(XMLConstants.NULL_NS_URI, name), value);
+        }
+
+        /**
+         * 添加属性。
+         *
+         * @param name 属性 QName
+         * @param value 属性值
+         * @return Builder 实例
+         */
+        public Builder addAttribute(QName name, String value) {
             if (attributes == null) {
                 attributes = new LinkedHashMap<>();
             }
@@ -240,7 +341,7 @@ public class GenericExtensionElement implements ExtensionElement {
          * @param attrs 属性映射
          * @return Builder 实例
          */
-        public Builder addAttributes(Map<String, String> attrs) {
+        public Builder addAttributes(Map<QName, String> attrs) {
             if (MapUtils.isEmpty(attrs)) {
                 return this;
             }
@@ -290,5 +391,12 @@ public class GenericExtensionElement implements ExtensionElement {
         public GenericExtensionElement build() {
             return new GenericExtensionElement(this);
         }
+    }
+
+    private record ResolvedAttributes(Map<String, String> namespaceDeclarations,
+                                      List<ResolvedAttribute> attributes) {
+    }
+
+    private record ResolvedAttribute(String qualifiedName, String value) {
     }
 }
