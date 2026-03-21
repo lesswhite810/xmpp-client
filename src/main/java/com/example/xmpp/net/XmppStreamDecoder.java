@@ -227,6 +227,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     }
 
     private Optional<FrameBoundary> findNextFrame(ByteBuf in, int startIndex) {
+        // 1. 边界检查 + 非 '<' 字符处理
         if (startIndex >= in.writerIndex()) {
             return Optional.empty();
         }
@@ -238,6 +239,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             return Optional.of(new FrameBoundary(FrameType.SKIP, nextTagIndex - startIndex));
         }
 
+        // 2. 特殊标签处理: XML声明/注释/裸闭合标签 → SKIP
         if (matches(in, startIndex, "<?")) {
             return findSequence(in, startIndex + 2, "?>")
                     .map(end -> new FrameBoundary(FrameType.SKIP, end - startIndex));
@@ -251,6 +253,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                     .map(tagEnd -> new FrameBoundary(FrameType.SKIP, tagEnd - startIndex));
         }
 
+        // 3. 开标签解析 → 自闭合/special stream tag → SKIP
         Optional<Integer> openingTagEnd = findTagEnd(in, startIndex + 1);
         if (openingTagEnd.isEmpty()) {
             return Optional.empty();
@@ -268,8 +271,15 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             return Optional.of(new FrameBoundary(FrameType.ELEMENT, openingTagEndIndex - startIndex));
         }
 
+        // 4. 调用 searchFrameEnd 找匹配闭合标签
+        return searchFrameEnd(in, startIndex, openingTagEndIndex, tagName);
+    }
+
+    private Optional<FrameBoundary> searchFrameEnd(ByteBuf in, int startIndex,
+                                                   int openingTagEndIndex, String tagName) {
         int depth = 1;
         int index = openingTagEndIndex;
+
         while (index < in.writerIndex()) {
             int nextTagStart = findNextTagStart(in, index);
             if (nextTagStart < 0) {
@@ -309,6 +319,9 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
             if (matches(in, nextTagStart, "</")) {
                 depth--;
+                if (depth < 0) {
+                    return Optional.empty();
+                }
                 index = tagEndIndex;
                 if (depth == 0) {
                     return Optional.of(new FrameBoundary(FrameType.ELEMENT, tagEndIndex - startIndex));
