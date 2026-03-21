@@ -3,6 +3,7 @@ package com.example.xmpp.protocol.provider;
 import com.example.xmpp.protocol.model.extension.ConnectionRequest;
 import com.example.xmpp.util.XmlParserUtils;
 import com.example.xmpp.util.XmlStringBuilder;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
@@ -13,6 +14,7 @@ import javax.xml.stream.events.XMLEvent;
  *
  * @since 2026-03-18
  */
+@Slf4j
 public final class ConnectionRequestProvider extends AbstractProvider<ConnectionRequest> {
 
     /**
@@ -81,7 +83,7 @@ public final class ConnectionRequestProvider extends AbstractProvider<Connection
                 switch (localName) {
                     case USERNAME -> username = text;
                     case PASSWORD -> password = text;
-                    default -> log().trace("Ignoring unknown element: {}", localName);
+                    default -> log.trace("Ignoring unknown element: {}", localName);
                 }
             }
 

@@ -1,6 +1,7 @@
 package com.example.xmpp.protocol.model;
 
 import com.example.xmpp.util.XmlStringBuilder;
+import lombok.Getter;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -18,6 +19,7 @@ import java.util.Optional;
  *
  * @since 2026-02-27
  */
+@Getter
 public class GenericExtensionElement implements ExtensionElement {
 
     private final String elementName;
@@ -42,26 +44,6 @@ public class GenericExtensionElement implements ExtensionElement {
     }
 
     /**
-     * 获取元素名称。
-     *
-     * @return 元素名称
-     */
-    @Override
-    public String getElementName() {
-        return elementName;
-    }
-
-    /**
-     * 获取命名空间。
-     *
-     * @return 命名空间
-     */
-    @Override
-    public String getNamespace() {
-        return namespace;
-    }
-
-    /**
      * 获取属性值。
      *
      * @param name 属性名
@@ -69,33 +51,6 @@ public class GenericExtensionElement implements ExtensionElement {
      */
     public String getAttributeValue(String name) {
         return attributes.get(name);
-    }
-
-    /**
-     * 获取所有属性。
-     *
-     * @return 属性映射
-     */
-    public Map<String, String> getAttributes() {
-        return attributes;
-    }
-
-    /**
-     * 获取子元素列表。
-     *
-     * @return 子元素列表
-     */
-    public List<GenericExtensionElement> getChildren() {
-        return children;
-    }
-
-    /**
-     * 获取保序内容节点。
-     *
-     * @return 内容节点列表
-     */
-    public List<ContentNode> getContentNodes() {
-        return contentNodes;
     }
 
     /**
@@ -128,15 +83,6 @@ public class GenericExtensionElement implements ExtensionElement {
             }
         }
         return Optional.empty();
-    }
-
-    /**
-     * 获取文本内容。
-     *
-     * @return 文本内容
-     */
-    public String getText() {
-        return text;
     }
 
     /**

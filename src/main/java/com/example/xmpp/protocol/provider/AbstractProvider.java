@@ -151,13 +151,4 @@ public abstract class AbstractProvider<T extends ExtensionElement>
     protected final XmppParseException createParseException(String message) {
         return new XmppParseException(message);
     }
-
-    /**
-     * 获取日志记录器。
-     *
-     * @return Logger 实例
-     */
-    protected final org.slf4j.Logger log() {
-        return log;
-    }
 }
