@@ -48,6 +48,23 @@ import java.util.function.Consumer;
 @Slf4j
 public class XmppStreamDecoder extends ByteToMessageDecoder {
 
+    // XML tag markers
+    private static final String PI_START = "<?";
+    private static final String COMMENT_START = "<!--";
+    private static final String CLOSING_TAG_START = "</";
+    private static final String CDATA_START = "<![CDATA[";
+    private static final String CDATA_END = "]]>";
+    private static final String COMMENT_END = "-->";
+    private static final String DECODER_ROOT_TAG = "decoder-root";
+
+    // XML tag length constants (for offset calculations)
+    private static final int PROCESSING_INSTRUCTION_PREFIX_LENGTH = 2;  // "<?".length()
+    private static final int COMMENT_PREFIX_LENGTH = 4;                  // "<!--".length()
+    private static final int CDATA_PREFIX_LENGTH = 9;                    // "<![CDATA[".length()
+    private static final int CLOSING_TAG_PREFIX_LENGTH = 2;              // "</".length()
+    private static final int OPENING_TAG_PREFIX_LENGTH = 1;               // "<".length()
+    private static final int SELF_CLOSING_CHECK_OFFSET = 2;              // position of '/' in "/>"
+
     private static final XMLInputFactory INPUT_FACTORY = XMLInputFactory.newFactory();
     private static final int MAX_BUFFER_SIZE = 1024 * 1024;
     private static final String STREAMS_NAMESPACE = "http://etherx.jabber.org/streams";
@@ -197,7 +214,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
             StartElement start = event.asStartElement();
             String localName = start.getName().getLocalPart();
-            if ("decoder-root".equals(localName)) {
+            if (DECODER_ROOT_TAG.equals(localName)) {
                 continue;
             }
             if (isStreamOpenElement(localName, start.getName().getNamespaceURI())) {
@@ -240,21 +257,21 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         }
 
         // 2. 特殊标签处理: XML声明/注释/裸闭合标签 → SKIP
-        if (matches(in, startIndex, "<?")) {
-            return findSequence(in, startIndex + 2, "?>")
+        if (matches(in, startIndex, PI_START)) {
+            return findSequence(in, startIndex + PROCESSING_INSTRUCTION_PREFIX_LENGTH, "?>")
                     .map(end -> new FrameBoundary(FrameType.SKIP, end - startIndex));
         }
-        if (matches(in, startIndex, "<!--")) {
-            return findSequence(in, startIndex + 4, "-->")
+        if (matches(in, startIndex, COMMENT_START)) {
+            return findSequence(in, startIndex + COMMENT_PREFIX_LENGTH, COMMENT_END)
                     .map(end -> new FrameBoundary(FrameType.SKIP, end - startIndex));
         }
-        if (matches(in, startIndex, "</")) {
-            return findTagEnd(in, startIndex + 2)
+        if (matches(in, startIndex, CLOSING_TAG_START)) {
+            return findTagEnd(in, startIndex + CLOSING_TAG_PREFIX_LENGTH)
                     .map(tagEnd -> new FrameBoundary(FrameType.SKIP, tagEnd - startIndex));
         }
 
         // 3. 开标签解析 → 自闭合/special stream tag → SKIP
-        Optional<Integer> openingTagEnd = findTagEnd(in, startIndex + 1);
+        Optional<Integer> openingTagEnd = findTagEnd(in, startIndex + OPENING_TAG_PREFIX_LENGTH);
         if (openingTagEnd.isEmpty()) {
             return Optional.empty();
         }
@@ -265,9 +282,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             return Optional.empty();
         }
         if (isStreamOpenTag(tagName)) {
+            log.trace("Skipping stream open tag at index {}", openingTagEndIndex);
             return Optional.of(new FrameBoundary(FrameType.SKIP, openingTagEndIndex - startIndex));
         }
         if (isSelfClosingTag(in, openingTagEndIndex)) {
+            log.trace("Skipping self-closing tag at index {}", openingTagEndIndex);
             return Optional.of(new FrameBoundary(FrameType.ELEMENT, openingTagEndIndex - startIndex));
         }
 
@@ -286,44 +305,50 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 return Optional.empty();
             }
 
-            if (matches(in, nextTagStart, "<!--")) {
-                Optional<Integer> commentEnd = findSequence(in, nextTagStart + 4, "-->");
+            if (matches(in, nextTagStart, COMMENT_START)) {
+                Optional<Integer> commentEnd = findSequence(in, nextTagStart + COMMENT_PREFIX_LENGTH, COMMENT_END);
                 if (commentEnd.isEmpty()) {
                     return Optional.empty();
                 }
+                log.trace("Skipping comment block from {} to {}", nextTagStart, commentEnd.orElseThrow());
                 index = commentEnd.orElseThrow();
                 continue;
             }
-            if (matches(in, nextTagStart, "<![CDATA[")) {
-                Optional<Integer> cdataEnd = findSequence(in, nextTagStart + 9, "]]>");
+            if (matches(in, nextTagStart, CDATA_START)) {
+                Optional<Integer> cdataEnd = findSequence(in, nextTagStart + CDATA_PREFIX_LENGTH, CDATA_END);
                 if (cdataEnd.isEmpty()) {
                     return Optional.empty();
                 }
+                log.trace("Skipping CDATA block from {} to {}", nextTagStart, cdataEnd.orElseThrow());
                 index = cdataEnd.orElseThrow();
                 continue;
             }
-            if (matches(in, nextTagStart, "<?")) {
-                Optional<Integer> processingEnd = findSequence(in, nextTagStart + 2, "?>");
+            if (matches(in, nextTagStart, PI_START)) {
+                Optional<Integer> processingEnd = findSequence(in, nextTagStart + PROCESSING_INSTRUCTION_PREFIX_LENGTH, "?>");
                 if (processingEnd.isEmpty()) {
                     return Optional.empty();
                 }
+                log.trace("Skipping processing instruction from {} to {}", nextTagStart, processingEnd.orElseThrow());
                 index = processingEnd.orElseThrow();
                 continue;
             }
 
-            Optional<Integer> tagEnd = findTagEnd(in, nextTagStart + 1);
+            Optional<Integer> tagEnd = findTagEnd(in, nextTagStart + OPENING_TAG_PREFIX_LENGTH);
             if (tagEnd.isEmpty()) {
                 return Optional.empty();
             }
             int tagEndIndex = tagEnd.orElseThrow();
 
-            if (matches(in, nextTagStart, "</")) {
+            if (matches(in, nextTagStart, CLOSING_TAG_START)) {
                 depth--;
                 if (depth < 0) {
+                    log.trace("Mismatched closing tag at {}, depth would be {}, returning empty", nextTagStart, depth);
                     return Optional.empty();
                 }
+                log.trace("Closing tag at {}, depth {} -> {}, tagName={}", nextTagStart, depth + 1, depth, tagName);
                 index = tagEndIndex;
                 if (depth == 0) {
+                    log.trace("Frame complete: tagName={}, length={}", tagName, tagEndIndex - startIndex);
                     return Optional.of(new FrameBoundary(FrameType.ELEMENT, tagEndIndex - startIndex));
                 }
                 continue;
@@ -415,7 +440,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     }
 
     private boolean isSelfClosingTag(ByteBuf in, int tagEndExclusive) {
-        int index = tagEndExclusive - 2;
+        int index = tagEndExclusive - SELF_CLOSING_CHECK_OFFSET;
         while (index >= 0 && Character.isWhitespace((char) in.getByte(index))) {
             index--;
         }
