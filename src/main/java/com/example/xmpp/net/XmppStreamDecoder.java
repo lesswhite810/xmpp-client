@@ -35,6 +35,7 @@ import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -639,7 +640,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     private Optional<XmppError.Type> parseErrorType(String typeStr) {
         try {
-            return Optional.of(XmppError.Type.valueOf(typeStr.toUpperCase().replace("-", "_")));
+            return Optional.of(XmppError.Type.valueOf(typeStr.toUpperCase(Locale.ROOT).replace("-", "_")));
         } catch (IllegalArgumentException e) {
             return Optional.empty();
         }

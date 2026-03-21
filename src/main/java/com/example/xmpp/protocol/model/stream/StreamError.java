@@ -5,6 +5,8 @@ import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.Locale;
+
 /**
  * XMPP 流错误元素。
  *
@@ -130,7 +132,7 @@ public class StreamError implements ExtensionElement {
             if (name == null) {
                 return UNDEFINED_CONDITION;
             }
-            String normalized = name.toUpperCase().replace('-', '_');
+            String normalized = name.toUpperCase(Locale.ROOT).replace('-', '_');
             try {
                 return valueOf(normalized);
             } catch (IllegalArgumentException e) {

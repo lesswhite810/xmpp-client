@@ -3,6 +3,7 @@ package com.example.xmpp.util;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -30,7 +31,7 @@ public final class EnumUtils {
             return Optional.empty();
         }
         try {
-            return Optional.of(Enum.valueOf(enumClass, value.toUpperCase()));
+            return Optional.of(Enum.valueOf(enumClass, value.toUpperCase(Locale.ROOT)));
         } catch (IllegalArgumentException e) {
             log.warn("Failed to parse enum value '{}' for class {}: {}", value, enumClass.getSimpleName(), e.getMessage());
             return Optional.empty();

@@ -5,6 +5,7 @@ import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -182,7 +183,7 @@ public class XmppError implements XmppExtension {
             if (name == null) {
                 return UNDEFINED_CONDITION;
             }
-            String normalized = name.toUpperCase().replace('-', '_');
+            String normalized = name.toUpperCase(Locale.ROOT).replace('-', '_');
             try {
                 return valueOf(normalized);
             } catch (IllegalArgumentException e) {
