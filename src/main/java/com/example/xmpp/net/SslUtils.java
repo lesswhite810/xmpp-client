@@ -79,10 +79,28 @@ public class SslUtils {
     }
 
     private static void validateTlsAuthenticationConfig(XmppClientConfig config) throws XmppNetworkException {
-        if (config.getTlsAuthenticationMode() == XmppClientConfig.TlsAuthenticationMode.MUTUAL
-                && config.getCustomSslContext() == null
-                && (config.getKeyManagers() == null || config.getKeyManagers().length == 0)) {
-            throw new XmppNetworkException("Mutual TLS requires at least one configured KeyManager");
+        if (config.getCustomSslContext() != null) {
+            return; // 自定义 SSLContext，跳过检查
+        }
+
+        XmppClientConfig.TlsAuthenticationMode mode = config.getTlsAuthenticationMode();
+        TrustManager[] trustManagers = config.getCustomTrustManager();
+        KeyManager[] keyManagers = config.getKeyManagers();
+
+        switch (mode) {
+            case MUTUAL -> {
+                if (keyManagers == null || keyManagers.length == 0) {
+                    throw new XmppNetworkException("Mutual TLS requires at least one configured KeyManager");
+                }
+                if (trustManagers == null || trustManagers.length == 0) {
+                    throw new XmppNetworkException("Mutual TLS requires at least one configured TrustManager");
+                }
+            }
+            case ONE_WAY -> {
+                if (trustManagers == null || trustManagers.length == 0) {
+                    throw new XmppNetworkException("One-Way TLS requires at least one configured TrustManager");
+                }
+            }
         }
     }
 

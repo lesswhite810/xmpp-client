@@ -21,6 +21,15 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class SslUtilsTest {
 
+    private static final TrustManager DUMMY_TRUST_MANAGER = new X509TrustManager() {
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType) {}
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+        @Override
+        public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
+    };
+
     @Test
     @DisplayName("应正确创建默认 SslHandler")
     void testCreateDefaultSslHandler() throws XmppNetworkException {
@@ -29,6 +38,7 @@ class SslUtilsTest {
                 .host("example.com")
                 .port(5222)
                 .securityMode(XmppClientConfig.SecurityMode.IF_POSSIBLE)
+                .customTrustManager(new TrustManager[]{DUMMY_TRUST_MANAGER})
                 .build();
 
         SslHandler handler = SslUtils.createSslHandler(config);
@@ -40,20 +50,11 @@ class SslUtilsTest {
     @Test
     @DisplayName("应正确处理自定义 TrustManager")
     void testCustomTrustManager() throws XmppNetworkException {
-        TrustManager trustAllManager = new X509TrustManager() {
-            @Override
-            public void checkClientTrusted(X509Certificate[] chain, String authType) {}
-            @Override
-            public void checkServerTrusted(X509Certificate[] chain, String authType) {}
-            @Override
-            public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-        };
-
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .host("example.com")
                 .port(5222)
-                .customTrustManager(new TrustManager[]{trustAllManager})
+                .customTrustManager(new TrustManager[]{DUMMY_TRUST_MANAGER})
                 .build();
 
         SslHandler handler = SslUtils.createSslHandler(config);
@@ -83,6 +84,7 @@ class SslUtilsTest {
                 .host("example.com")
                 .port(5222)
                 .handshakeTimeoutMs(customTimeout)
+                .customTrustManager(new TrustManager[]{DUMMY_TRUST_MANAGER})
                 .build();
 
         SslHandler handler = SslUtils.createSslHandler(config);
@@ -130,6 +132,7 @@ class SslUtilsTest {
                 .host("")
                 .port(5222)
                 .securityMode(XmppClientConfig.SecurityMode.IF_POSSIBLE)
+                .customTrustManager(new TrustManager[]{DUMMY_TRUST_MANAGER})
                 .build();
 
         SslHandler handler = SslUtils.createSslHandler(config);
@@ -164,6 +167,7 @@ class SslUtilsTest {
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .host("example.com")
+                .customTrustManager(new TrustManager[]{DUMMY_TRUST_MANAGER})
                 .build();
 
         SslHandler handler = SslUtils.createSslHandler(config);
@@ -179,6 +183,7 @@ class SslUtilsTest {
                 .host("example.com")
                 .enabledSSLProtocols(new String[]{"TLSv1.3", "UNSUPPORTED_PROTOCOL"})
                 .enabledSSLCiphers(new String[]{"TLS_AES_128_GCM_SHA256", "UNSUPPORTED_CIPHER"})
+                .customTrustManager(new TrustManager[]{DUMMY_TRUST_MANAGER})
                 .build();
 
         SslHandler handler = SslUtils.createSslHandler(config);
