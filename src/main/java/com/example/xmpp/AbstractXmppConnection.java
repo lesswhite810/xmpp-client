@@ -15,6 +15,7 @@ import com.example.xmpp.util.XmppConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Validate;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
@@ -136,7 +137,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
         if (childElement instanceof ExtensionElement ext) {
             return ext.getElementName();
         }
-        return childElement.getClass().getSimpleName().toLowerCase();
+        return childElement.getClass().getSimpleName().toLowerCase(Locale.ROOT);
     }
 
     private Optional<String> findChildElementNamespace(Object childElement) {

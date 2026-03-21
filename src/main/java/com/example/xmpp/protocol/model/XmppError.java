@@ -204,7 +204,7 @@ public class XmppError implements XmppExtension {
 
         @Override
         public String toString() {
-            return name().toLowerCase().replace("_", "-");
+            return name().toLowerCase(Locale.ROOT).replace("_", "-");
         }
     }
 }

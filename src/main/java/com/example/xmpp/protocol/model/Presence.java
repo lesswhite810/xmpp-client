@@ -5,6 +5,7 @@ import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -313,7 +314,7 @@ public final class Presence extends Stanza {
 
         @Override
         public String toString() {
-            return name().toLowerCase();
+            return name().toLowerCase(Locale.ROOT);
         }
 
         /**
@@ -350,7 +351,7 @@ public final class Presence extends Stanza {
 
         @Override
         public String toString() {
-            return name().toLowerCase();
+            return name().toLowerCase(Locale.ROOT);
         }
 
         /**
