@@ -18,12 +18,12 @@ public final class PingProvider extends AbstractProvider<Ping> {
     /**
      * Ping 元素名称。
      */
-    public static final String ELEMENT = "ping";
+    private static final String ELEMENT = "ping";
 
     /**
      * Ping 命名空间。
      */
-    public static final String NAMESPACE = "urn:xmpp:ping";
+    private static final String NAMESPACE = "urn:xmpp:ping";
 
     /**
      * 获取元素名称。

@@ -19,12 +19,12 @@ public final class BindProvider extends AbstractProvider<Bind> {
     /**
      * 绑定元素名称。
      */
-    public static final String ELEMENT = "bind";
+    private static final String ELEMENT = "bind";
 
     /**
      * 绑定命名空间。
      */
-    public static final String NAMESPACE = "urn:ietf:params:xml:ns:xmpp-bind";
+    private static final String NAMESPACE = "urn:ietf:params:xml:ns:xmpp-bind";
 
     private static final String ELEMENT_JID = "jid";
     private static final String ELEMENT_RESOURCE = "resource";
@@ -67,21 +67,25 @@ public final class BindProvider extends AbstractProvider<Bind> {
                 break;
             }
 
-            if (event.isStartElement()) {
-                StartElement start = event.asStartElement();
-                String localName = start.getName().getLocalPart();
+            if (!event.isStartElement()) {
+                continue;
+            }
 
-                switch (localName) {
-                    case ELEMENT_JID -> {
-                        String jid = getElementText(reader);
-                        builder.jid(jid);
-                    }
-                    case ELEMENT_RESOURCE -> {
-                        String resource = getElementText(reader);
-                        builder.resource(resource);
-                    }
-                    default -> {
-                    }
+            StartElement start = event.asStartElement();
+            if (!NAMESPACE.equals(start.getName().getNamespaceURI())) {
+                continue;
+            }
+
+            switch (start.getName().getLocalPart()) {
+                case ELEMENT_JID -> {
+                    String jid = getElementText(reader);
+                    builder.jid(jid);
+                }
+                case ELEMENT_RESOURCE -> {
+                    String resource = getElementText(reader);
+                    builder.resource(resource);
+                }
+                default -> {
                 }
             }
         }

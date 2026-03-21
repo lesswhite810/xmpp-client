@@ -20,12 +20,12 @@ public final class ConnectionRequestProvider extends AbstractProvider<Connection
     /**
      * ConnectionRequest 元素名称。
      */
-    public static final String ELEMENT = "connectionRequest";
+    private static final String ELEMENT = "connectionRequest";
 
     /**
      * ConnectionRequest 命名空间。
      */
-    public static final String NAMESPACE = "urn:broadband-forum-org:cwmp:xmppConnReq-1-0";
+    private static final String NAMESPACE = "urn:broadband-forum-org:cwmp:xmppConnReq-1-0";
 
     /**
      * 用户名字段名称。
