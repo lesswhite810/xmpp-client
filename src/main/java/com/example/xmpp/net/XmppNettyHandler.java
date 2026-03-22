@@ -22,8 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
-import java.util.Objects;
-import java.util.Optional;
 
 /**
  * XMPP Netty 入站处理器。
@@ -33,6 +31,8 @@ import java.util.Optional;
 @Slf4j
 @RequiredArgsConstructor
 public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
+
+    private static final String UNKNOWN_ERROR_TYPE = "unknown";
 
     private volatile StateContext stateContext;
 
@@ -91,7 +91,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
      * @param terminated 当前生命周期是否已终止
      */
     private void logCaughtException(String stateName, Object remoteAddress, Throwable cause, boolean terminated) {
-        String errorType = cause.getClass().getSimpleName();
+        String errorType = resolveErrorType(cause);
         if (terminated) {
             log.debug("Ignoring exception for terminated channel - State: {}, Remote: {}, ErrorType: {}",
                     stateName, remoteAddress, errorType);
@@ -141,7 +141,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         if (isStaleChannel(ctx)) {
             log.debug("Ignoring exception from stale channel - Remote: {}, ErrorType: {}",
-                    ctx.channel().remoteAddress(), cause.getClass().getSimpleName());
+                    ctx.channel().remoteAddress(), resolveErrorType(cause));
             ctx.close();
             return;
         }
@@ -166,7 +166,14 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
         if (cause instanceof IOException) {
             return new XmppNetworkException("I/O error");
         }
+        if (cause == null) {
+            return new XmppException("Connection error");
+        }
         return new XmppException("Connection error: " + cause.getClass().getSimpleName());
+    }
+
+    private String resolveErrorType(Throwable cause) {
+        return cause != null ? cause.getClass().getSimpleName() : UNKNOWN_ERROR_TYPE;
     }
 
     @Override
@@ -246,25 +253,28 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
      *
      * @param ctx Netty 通道上下文
      * @param packet 待发送的数据包
-     * @return 写出 future，或 null
+     * @return 写出 future；如果发送前校验失败则返回失败 future
      */
     public ChannelFuture sendStanza(ChannelHandlerContext ctx, Object packet) {
-        return Optional.ofNullable(packet)
-                .filter(XmlSerializable.class::isInstance)
-                .map(XmlSerializable.class::cast)
-                .map(serializable -> {
-                    String xml = serializable.toXml();
-                    if (StringUtils.isEmpty(xml)) {
-                        return null;
-                    }
-                    if (packet instanceof XmppStanza stanza) {
-                        log.debug("Sending stanza: {}", SecurityUtils.summarizeStanza(stanza));
-                    } else {
-                        log.debug("Sending stanza: {}", serializable.getClass().getSimpleName());
-                    }
-                    return NettyUtils.writeAndFlushStringAsync(ctx, xml);
-                })
-                .filter(Objects::nonNull)
-                .orElse(null);
+        if (packet == null) {
+            return createFailedSendFuture(ctx, "Packet must not be null");
+        }
+        if (!(packet instanceof XmlSerializable serializable)) {
+            return createFailedSendFuture(ctx, "Unsupported packet type");
+        }
+
+        String xml = serializable.toXml();
+        if (StringUtils.isEmpty(xml)) {
+            return createFailedSendFuture(ctx, "Failed to serialize stanza for sending");
+        }
+        String packetDescription = packet instanceof XmppStanza stanza
+                ? SecurityUtils.summarizeStanza(stanza)
+                : serializable.getClass().getSimpleName();
+        log.debug("Sending stanza: {}", packetDescription);
+        return NettyUtils.writeAndFlushStringAsync(ctx, xml);
+    }
+
+    private ChannelFuture createFailedSendFuture(ChannelHandlerContext ctx, String message) {
+        return ctx.newFailedFuture(new XmppNetworkException(message));
     }
 }

@@ -117,6 +117,10 @@ public class AdminManager {
      * @return 会话 ID，或空
      */
     private Optional<String> extractSessionId(XmppStanza response) {
+        if (response == null) {
+            log.debug("Response is null");
+            return Optional.empty();
+        }
         if (!(response instanceof Iq iq)) {
             log.debug("Response is not an IQ stanza: {}", response.getClass().getSimpleName());
             return Optional.empty();

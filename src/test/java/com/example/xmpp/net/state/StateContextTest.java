@@ -3,6 +3,7 @@ package com.example.xmpp.net.state;
 import com.example.xmpp.XmppTcpConnection;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
+import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.protocol.model.XmlSerializable;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -19,6 +20,8 @@ import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,13 +47,16 @@ class StateContextTest {
     }
 
     @Test
-    void testSendStanzaReturnsNullForEmptyXml() {
+    void testSendStanzaReturnsFailedFutureForEmptyXml() {
         TestFixture fixture = new TestFixture();
         fixture.readOutboundAsString();
 
         ChannelFuture future = fixture.context.sendStanza(fixture.channel.pipeline().lastContext(), (XmlSerializable) () -> "");
 
-        assertNull(future);
+        assertNotNull(future);
+        assertTrue(future.isDone());
+        assertFalse(future.isSuccess());
+        assertInstanceOf(XmppNetworkException.class, future.cause());
         assertNull(fixture.channel.readOutbound());
 
         fixture.channel.finishAndReleaseAll();
@@ -71,13 +77,16 @@ class StateContextTest {
     }
 
     @Test
-    void testSendStanzaReturnsNullForUnknownPacketType() {
+    void testSendStanzaReturnsFailedFutureForUnknownPacketType() {
         TestFixture fixture = new TestFixture();
         fixture.readOutboundAsString();
 
         ChannelFuture future = fixture.context.sendStanza(fixture.channel.pipeline().lastContext(), new Object());
 
-        assertNull(future);
+        assertNotNull(future);
+        assertTrue(future.isDone());
+        assertFalse(future.isSuccess());
+        assertInstanceOf(XmppNetworkException.class, future.cause());
         assertNull(fixture.channel.readOutbound());
 
         fixture.channel.finishAndReleaseAll();

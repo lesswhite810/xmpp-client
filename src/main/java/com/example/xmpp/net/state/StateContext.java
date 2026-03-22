@@ -120,18 +120,21 @@ public class StateContext {
      *
      * @param ctx 通道上下文
      * @param packet 要发送的对象
-     * @return 写出 future，或 null
+     * @return 写出 future；如果发送前校验失败则返回失败 future
      */
     public ChannelFuture sendStanza(ChannelHandlerContext ctx, Object packet) {
-        if (packet instanceof XmlSerializable serializable) {
-            String xmlStr = serializable.toXml();
-            if (StringUtils.isNotEmpty(xmlStr)) {
-                return NettyUtils.writeAndFlushStringAsync(ctx, xmlStr);
-            }
-        } else {
-            log.warn("Unknown packet type: {}", packet != null ? packet.getClass().getName() : "null");
+        if (packet == null) {
+            return createFailedSendFuture(ctx, "Packet must not be null");
         }
-        return null;
+        if (!(packet instanceof XmlSerializable serializable)) {
+            log.warn("Unknown packet type: {}", packet != null ? packet.getClass().getName() : "null");
+            return createFailedSendFuture(ctx, "Unsupported packet type");
+        }
+        String xmlStr = serializable.toXml();
+        if (StringUtils.isEmpty(xmlStr)) {
+            return createFailedSendFuture(ctx, "Failed to serialize stanza for sending");
+        }
+        return NettyUtils.writeAndFlushStringAsync(ctx, xmlStr);
     }
 
     /**
@@ -239,6 +242,10 @@ public class StateContext {
 
             doTransition(newState, ctx);
         }
+    }
+
+    private ChannelFuture createFailedSendFuture(ChannelHandlerContext ctx, String message) {
+        return ctx.newFailedFuture(new XmppNetworkException(message));
     }
 
 }

@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -48,6 +49,19 @@ class AdminManagerBehaviorTest {
         Object result = method.invoke(manager, response);
 
         assertEquals(Optional.of("single-quoted-session"), result);
+    }
+
+    @Test
+    @DisplayName("extractSessionId 遇到空响应时应返回空")
+    void testExtractSessionIdReturnsEmptyForNullResponse() throws Exception {
+        XmppConnection connection = mock(XmppConnection.class);
+        AdminManager manager = new AdminManager(connection, "admin", "example.com", 3000);
+
+        Method method = AdminManager.class.getDeclaredMethod("extractSessionId", XmppStanza.class);
+        method.setAccessible(true);
+
+        Object result = assertDoesNotThrow(() -> method.invoke(manager, new Object[] {null}));
+        assertEquals(Optional.empty(), result);
     }
 
     @Test

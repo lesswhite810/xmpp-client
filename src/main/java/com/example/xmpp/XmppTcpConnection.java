@@ -315,13 +315,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     /**
-     * 处理当前通道失活后的收尾逻辑。
-     */
-    public synchronized void handleChannelInactive() {
-        handleChannelInactive(channel);
-    }
-
-    /**
      * 仅处理当前活动通道上的失活事件。
      *
      * @param inactiveChannel 失活的通道

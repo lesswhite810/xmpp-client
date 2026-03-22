@@ -834,6 +834,53 @@ class XmppNettyHandlerTest {
     }
 
     @Test
+    void testExceptionCaughtWithNullCauseUsesGenericConnectionException() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            assertDoesNotThrow(() -> handler.exceptionCaught(channel.pipeline().lastContext(), null));
+
+            CompletionException exception = assertThrows(CompletionException.class,
+                    () -> connection.getConnectionReadyFuture().join());
+            XmppException cause = assertInstanceOf(XmppException.class, exception.getCause());
+            assertEquals("Connection error", cause.getMessage());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testExceptionCaughtWithNullCauseOnStaleChannelDoesNotThrow() throws Exception {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel staleChannel = newBoundChannel(connection, handler);
+        EmbeddedChannel currentChannel = new EmbeddedChannel();
+
+        try {
+            bindChannel(connection, currentChannel);
+
+            assertDoesNotThrow(() -> handler.exceptionCaught(staleChannel.pipeline().lastContext(), null));
+        } finally {
+            staleChannel.finishAndReleaseAll();
+            currentChannel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void testHandshakeFailureCompletesConnectionWithNetworkException() {
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
@@ -886,20 +933,33 @@ class XmppNettyHandlerTest {
     }
 
     @Test
-    void testSendStanzaReturnsNullForNullAndEmptyXml() {
+    void testSendStanzaReturnsFailedFutureForNullAndEmptyXml() {
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
                 .password("pass".toCharArray())
                 .securityMode(XmppClientConfig.SecurityMode.DISABLED)
                 .build();
-        XmppNettyHandler handler = new XmppNettyHandler(config, new XmppTcpConnection(config));
-        EmbeddedChannel channel = new EmbeddedChannel(handler);
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
 
         try {
             ChannelHandlerContext context = channel.pipeline().lastContext();
-            assertNull(handler.sendStanza(context, null));
-            assertNull(handler.sendStanza(context, new EmptySerializable()));
+            drainOutboundStrings(channel);
+            ChannelFuture nullPacketFuture = handler.sendStanza(context, null);
+            ChannelFuture emptyXmlFuture = handler.sendStanza(context, new EmptySerializable());
+
+            assertNotNull(nullPacketFuture);
+            assertTrue(nullPacketFuture.isDone());
+            assertFalse(nullPacketFuture.isSuccess());
+            assertInstanceOf(XmppNetworkException.class, nullPacketFuture.cause());
+
+            assertNotNull(emptyXmlFuture);
+            assertTrue(emptyXmlFuture.isDone());
+            assertFalse(emptyXmlFuture.isSuccess());
+            assertInstanceOf(XmppNetworkException.class, emptyXmlFuture.cause());
+            assertNull(channel.readOutbound());
         } finally {
             channel.finishAndReleaseAll();
         }
