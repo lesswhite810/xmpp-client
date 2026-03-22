@@ -164,7 +164,10 @@ class XmppStreamDecoderTest {
     @DisplayName("应正确解析 StreamError")
     void testParseStreamError() {
         sendStreamHeader();
-        sendXml("<error xmlns='http://etherx.jabber.org/streams'><not-authorized/><text>Authentication required</text></error>");
+        sendXml("<stream:error xmlns:stream='http://etherx.jabber.org/streams'>"
+                + "<not-authorized xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+                + "<text xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Authentication required</text>"
+                + "</stream:error>");
 
         Object msg = channel.readInbound();
         assertNotNull(msg);
@@ -176,8 +179,11 @@ class XmppStreamDecoderTest {
     @DisplayName("应解析带 by 的 StreamError")
     void testParseStreamErrorWithBy() {
         sendStreamHeader();
-        sendXml("<error xmlns='http://etherx.jabber.org/streams'>"
-                + "<see-other-host/><by>proxy.example.com</by><text>redirect</text></error>");
+        sendXml("<stream:error xmlns:stream='http://etherx.jabber.org/streams'>"
+                + "<see-other-host xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+                + "<by xmlns='urn:ietf:params:xml:ns:xmpp-streams'>proxy.example.com</by>"
+                + "<text xmlns='urn:ietf:params:xml:ns:xmpp-streams'>redirect</text>"
+                + "</stream:error>");
 
         Object msg = channel.readInbound();
         assertNotNull(msg);
@@ -187,6 +193,42 @@ class XmppStreamDecoderTest {
         assertEquals(StreamError.Condition.SEE_OTHER_HOST, error.getCondition());
         assertEquals("proxy.example.com", error.getBy());
         assertEquals("redirect", error.getText());
+    }
+
+    @Test
+    @DisplayName("未知 stream error condition 不应被误判为 undefined-condition")
+    void testParseStreamErrorWithUnknownConditionShouldKeepNullCondition() {
+        sendStreamHeader();
+        sendXml("<stream:error xmlns:stream='http://etherx.jabber.org/streams'>"
+                + "<unexpected-condition xmlns='urn:ietf:params:xml:ns:xmpp-streams'/>"
+                + "<text xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Authentication required</text>"
+                + "</stream:error>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(StreamError.class, msg);
+
+        StreamError error = (StreamError) msg;
+        assertNull(error.getCondition());
+        assertEquals("Authentication required", error.getText());
+    }
+
+    @Test
+    @DisplayName("错误命名空间的 stream error condition 不应被当成合法 condition")
+    void testParseStreamErrorShouldIgnoreConditionWithWrongNamespace() {
+        sendStreamHeader();
+        sendXml("<stream:error xmlns:stream='http://etherx.jabber.org/streams'>"
+                + "<not-authorized xmlns='urn:example:custom'/>"
+                + "<text xmlns='urn:ietf:params:xml:ns:xmpp-streams'>Authentication required</text>"
+                + "</stream:error>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(StreamError.class, msg);
+
+        StreamError error = (StreamError) msg;
+        assertNull(error.getCondition());
+        assertEquals("Authentication required", error.getText());
     }
 
     @Test

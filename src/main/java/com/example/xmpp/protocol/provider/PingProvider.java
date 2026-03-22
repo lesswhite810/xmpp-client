@@ -59,6 +59,12 @@ public final class PingProvider extends AbstractProvider<Ping> {
             if (isElementEnd(event)) {
                 break;
             }
+            if (event.isStartElement()) {
+                throw new XMLStreamException("Ping element must not contain child elements");
+            }
+            if (event.isCharacters() && !event.asCharacters().isWhiteSpace()) {
+                throw new XMLStreamException("Ping element must not contain text content");
+            }
         }
         return Ping.INSTANCE;
     }

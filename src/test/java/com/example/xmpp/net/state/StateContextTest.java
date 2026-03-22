@@ -11,7 +11,10 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -148,6 +151,22 @@ class StateContextTest {
         fixture.channel.finishAndReleaseAll();
     }
 
+    @Test
+    void testResumeAfterTlsHandshakeSkipsTransitionWhenStateIsNoLongerConnecting() throws Exception {
+        ControlledTlsFixture fixture = new ControlledTlsFixture();
+
+        fixture.context.clearTransitionRequests();
+        fixture.context.resumeAfterTlsHandshake(fixture.channel.pipeline().lastContext());
+        setCurrentState(fixture.context, XmppHandlerState.SESSION_ACTIVE);
+
+        fixture.openStreamPromise.setSuccess();
+
+        assertTrue(fixture.context.getTransitionRequests().isEmpty());
+        assertEquals("SESSION_ACTIVE", fixture.context.getCurrentStateName());
+
+        fixture.channel.finishAndReleaseAll();
+    }
+
     private static final class TestFixture {
         private final XmppClientConfig config;
         private final XmppTcpConnection connection;
@@ -182,6 +201,61 @@ class StateContextTest {
         }
     }
 
+    private static final class ControlledTlsFixture {
+        private final XmppTcpConnection connection;
+        private final ContextCaptureHandler captureHandler;
+        private final EmbeddedChannel channel;
+        private final io.netty.channel.ChannelPromise openStreamPromise;
+        private final ControlledStateContext context;
+
+        private ControlledTlsFixture() {
+            XmppClientConfig config = XmppClientConfig.builder()
+                    .xmppServiceDomain("example.com")
+                    .username("user")
+                    .password("pass".toCharArray())
+                    .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                    .usingDirectTLS(true)
+                    .build();
+            this.connection = new XmppTcpConnection(config);
+            this.captureHandler = new ContextCaptureHandler();
+            this.channel = new EmbeddedChannel(captureHandler);
+            this.openStreamPromise = captureHandler.context.newPromise();
+            this.context = new ControlledStateContext(config, connection, captureHandler.context, openStreamPromise);
+        }
+    }
+
+    private static final class ControlledStateContext extends StateContext {
+        private final ChannelFuture openStreamFuture;
+        private final List<XmppHandlerState> transitionRequests = new ArrayList<>();
+
+        private ControlledStateContext(XmppClientConfig config, XmppTcpConnection connection, ChannelHandlerContext ctx,
+                                       ChannelFuture openStreamFuture) {
+            super(config, connection, ctx);
+            this.openStreamFuture = openStreamFuture;
+        }
+
+        @Override
+        public ChannelFuture openStream(ChannelHandlerContext ctx) {
+            return openStreamFuture;
+        }
+
+        @Override
+        public void transitionTo(XmppHandlerState newState, ChannelHandlerContext ctx) {
+            if (transitionRequests != null) {
+                transitionRequests.add(newState);
+            }
+            super.transitionTo(newState, ctx);
+        }
+
+        private void clearTransitionRequests() {
+            transitionRequests.clear();
+        }
+
+        private List<XmppHandlerState> getTransitionRequests() {
+            return List.copyOf(transitionRequests);
+        }
+    }
+
     private static final class ContextCaptureHandler extends ChannelInboundHandlerAdapter {
         private ChannelHandlerContext context;
 
@@ -189,5 +263,11 @@ class StateContextTest {
         public void handlerAdded(ChannelHandlerContext ctx) {
             this.context = ctx;
         }
+    }
+
+    private static void setCurrentState(StateContext context, XmppHandlerState state) throws Exception {
+        Field field = StateContext.class.getDeclaredField("currentState");
+        field.setAccessible(true);
+        field.set(context, state);
     }
 }

@@ -621,7 +621,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     }
 
     private StreamError parseStreamError(XMLEventReader reader) throws XMLStreamException {
-        StreamError.Condition condition = StreamError.Condition.UNDEFINED_CONDITION;
+        StreamError.Condition condition = null;
         String text = null;
         String by = null;
 
@@ -636,12 +636,20 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
             StartElement element = event.asStartElement();
             String name = element.getName().getLocalPart();
-            if ("text".equals(name)) {
+            String childNamespace = element.getName().getNamespaceURI();
+            if ("text".equals(name) && StreamError.NAMESPACE.equals(childNamespace)) {
                 text = XmlParserUtils.getElementText(reader);
-            } else if ("by".equals(name)) {
+            } else if ("by".equals(name) && StreamError.NAMESPACE.equals(childNamespace)) {
                 by = XmlParserUtils.getElementText(reader);
+            } else if (StreamError.NAMESPACE.equals(childNamespace)) {
+                Optional<StreamError.Condition> parsedCondition = parseKnownStreamErrorCondition(name);
+                if (parsedCondition.isPresent()) {
+                    condition = parsedCondition.orElseThrow();
+                } else {
+                    log.debug("Ignoring unknown stream error child <{} xmlns=\"{}\">", name, childNamespace);
+                }
             } else {
-                condition = StreamError.Condition.fromString(name);
+                log.debug("Ignoring non-stream-error child <{} xmlns=\"{}\">", name, childNamespace);
             }
         }
 
@@ -650,6 +658,18 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 .text(text)
                 .by(by)
                 .build();
+    }
+
+    private Optional<StreamError.Condition> parseKnownStreamErrorCondition(String name) {
+        if (name == null) {
+            return Optional.empty();
+        }
+        String normalized = name.toUpperCase(Locale.ROOT).replace('-', '_');
+        try {
+            return Optional.of(StreamError.Condition.valueOf(normalized));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     private Iq parseIq(XMLEventReader reader, StartElement element) throws XMLStreamException {

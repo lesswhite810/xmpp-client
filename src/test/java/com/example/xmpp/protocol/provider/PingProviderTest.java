@@ -1,5 +1,6 @@
 package com.example.xmpp.protocol.provider;
 
+import com.example.xmpp.exception.XmppParseException;
 import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.util.XmlParserUtils;
 import com.example.xmpp.util.XmlStringBuilder;
@@ -10,6 +11,7 @@ import javax.xml.stream.XMLEventReader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * PingProvider 测试。
@@ -42,6 +44,30 @@ class PingProviderTest {
         Ping ping = provider.parse(reader);
 
         assertSame(Ping.INSTANCE, ping);
+    }
+
+    @Test
+    @DisplayName("ping 包含子元素时应抛出 XmppParseException")
+    void testParseShouldRejectChildElements() throws Exception {
+        PingProvider provider = new PingProvider();
+        XMLEventReader reader = XmlParserUtils.createReader(
+                "<ping xmlns='urn:xmpp:ping'><unexpected/></ping>".getBytes());
+        reader.nextEvent();
+        reader.nextEvent();
+
+        assertThrows(XmppParseException.class, () -> provider.parse(reader));
+    }
+
+    @Test
+    @DisplayName("ping 包含非空白文本时应抛出 XmppParseException")
+    void testParseShouldRejectNonWhitespaceText() throws Exception {
+        PingProvider provider = new PingProvider();
+        XMLEventReader reader = XmlParserUtils.createReader(
+                "<ping xmlns='urn:xmpp:ping'>pong</ping>".getBytes());
+        reader.nextEvent();
+        reader.nextEvent();
+
+        assertThrows(XmppParseException.class, () -> provider.parse(reader));
     }
 
     @Test

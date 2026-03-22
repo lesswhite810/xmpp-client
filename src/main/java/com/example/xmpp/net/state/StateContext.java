@@ -80,14 +80,7 @@ public class StateContext {
                 return;
             }
 
-            currentState.validateTransition(newState);
-
-            String connectionId = config.getXmppServiceDomain();
-            log.debug("[{}] State transition: {} -> {}", connectionId, currentState.name(), newState.name());
-
-            currentState.onExit(this, ctx);
-            currentState = newState;
-            newState.onEnter(this, ctx);
+            doTransition(newState, ctx);
         }
     }
 
@@ -213,8 +206,39 @@ public class StateContext {
                 log.debug("Skipping post-handshake state transition because channel is inactive");
                 return;
             }
-            transitionTo(XmppHandlerState.AWAITING_FEATURES, ctx);
+            transitionToIfCurrentState(XmppHandlerState.CONNECTING, XmppHandlerState.AWAITING_FEATURES, ctx);
         });
+    }
+
+    private void doTransition(XmppHandlerState newState, ChannelHandlerContext ctx) {
+        currentState.validateTransition(newState);
+
+        String connectionId = config.getXmppServiceDomain();
+        log.debug("[{}] State transition: {} -> {}", connectionId, currentState.name(), newState.name());
+
+        currentState.onExit(this, ctx);
+        currentState = newState;
+        newState.onEnter(this, ctx);
+    }
+
+    private void transitionToIfCurrentState(XmppHandlerState expectedState, XmppHandlerState newState,
+                                            ChannelHandlerContext ctx) {
+        synchronized (stateLock) {
+            if (terminated) {
+                log.debug("Ignoring transition to {} because state context is cleared", newState);
+                return;
+            }
+            if (currentState != expectedState) {
+                log.debug("Skipping transition to {} because current state is {}, expected {}",
+                        newState, currentState, expectedState);
+                return;
+            }
+            if (currentState == newState) {
+                return;
+            }
+
+            doTransition(newState, ctx);
+        }
     }
 
 }
