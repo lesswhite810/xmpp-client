@@ -131,7 +131,7 @@ public class StateContext {
             return createFailedSendFuture(ctx, "Unsupported packet type");
         }
         String xmlStr = serializable.toXml();
-        if (StringUtils.isEmpty(xmlStr)) {
+        if (StringUtils.isBlank(xmlStr)) {
             return createFailedSendFuture(ctx, "Failed to serialize stanza for sending");
         }
         return NettyUtils.writeAndFlushStringAsync(ctx, xmlStr);

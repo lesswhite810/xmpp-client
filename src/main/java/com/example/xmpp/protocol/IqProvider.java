@@ -1,5 +1,6 @@
 package com.example.xmpp.protocol;
 
+import com.example.xmpp.exception.XmppParseException;
 import com.example.xmpp.protocol.model.Iq;
 import javax.xml.stream.XMLEventReader;
 
@@ -17,7 +18,7 @@ public interface IqProvider extends Provider<Iq> {
      * @param reader XML 事件读取器
      * @param builder Iq 构建器
      * @return Iq 对象
-     * @throws Exception 解析失败
+     * @throws XmppParseException 解析失败
      */
-    Iq parse(XMLEventReader reader, Iq.Builder builder) throws Exception;
+    Iq parse(XMLEventReader reader, Iq.Builder builder) throws XmppParseException;
 }

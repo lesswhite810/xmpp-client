@@ -244,21 +244,22 @@ class XmppTcpConnectionUnitTest {
     }
 
     @Test
-    void testDispatchStanzaFailsWhenSerializationReturnsNullFuture() throws Exception {
+    void testDispatchStanzaFailsWhenSerializationReturnsBlankXml() throws Exception {
         XmppTcpConnection connection = new XmppTcpConnection(newConfig());
-        RecordingNettyHandler nettyHandler = new RecordingNettyHandler(newConfig(), connection, null);
-        EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
+        XmppNettyHandler nettyHandler = new XmppNettyHandler(newConfig(), connection);
+        EmbeddedChannel channel = new EmbeddedChannel(nettyHandler);
 
         try {
             setField(connection, "channel", channel);
             setField(connection, "nettyHandler", nettyHandler);
 
             CompletionException exception = assertThrows(CompletionException.class,
-                    () -> connection.dispatchStanza(new TestStanza("<message id='m2'/>")).join());
+                    () -> connection.dispatchStanza(new TestStanza("   ")).join());
 
             XmppNetworkException cause = assertInstanceOf(XmppNetworkException.class, exception.getCause());
-            assertTrue(cause.getMessage().contains("Failed to serialize stanza for sending"));
-            assertNotNull(nettyHandler.lastContext);
+            assertTrue(cause.getMessage().contains("Failed to send stanza"));
+            XmppNetworkException rootCause = assertInstanceOf(XmppNetworkException.class, cause.getCause());
+            assertTrue(rootCause.getMessage().contains("Failed to serialize stanza for sending"));
         } finally {
             channel.finishAndReleaseAll();
         }

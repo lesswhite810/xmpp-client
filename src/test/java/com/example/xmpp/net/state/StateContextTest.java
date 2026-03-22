@@ -47,16 +47,24 @@ class StateContextTest {
     }
 
     @Test
-    void testSendStanzaReturnsFailedFutureForEmptyXml() {
+    void testSendStanzaReturnsFailedFutureForEmptyAndBlankXml() {
         TestFixture fixture = new TestFixture();
         fixture.readOutboundAsString();
 
-        ChannelFuture future = fixture.context.sendStanza(fixture.channel.pipeline().lastContext(), (XmlSerializable) () -> "");
+        ChannelFuture emptyFuture = fixture.context.sendStanza(fixture.channel.pipeline().lastContext(),
+                (XmlSerializable) () -> "");
+        ChannelFuture blankFuture = fixture.context.sendStanza(fixture.channel.pipeline().lastContext(),
+                (XmlSerializable) () -> "   ");
 
-        assertNotNull(future);
-        assertTrue(future.isDone());
-        assertFalse(future.isSuccess());
-        assertInstanceOf(XmppNetworkException.class, future.cause());
+        assertNotNull(emptyFuture);
+        assertTrue(emptyFuture.isDone());
+        assertFalse(emptyFuture.isSuccess());
+        assertInstanceOf(XmppNetworkException.class, emptyFuture.cause());
+
+        assertNotNull(blankFuture);
+        assertTrue(blankFuture.isDone());
+        assertFalse(blankFuture.isSuccess());
+        assertInstanceOf(XmppNetworkException.class, blankFuture.cause());
         assertNull(fixture.channel.readOutbound());
 
         fixture.channel.finishAndReleaseAll();

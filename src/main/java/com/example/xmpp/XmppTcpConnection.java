@@ -530,10 +530,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         }
 
         ChannelFuture writeFuture = nettyHandler.sendStanza(context, stanza);
-        if (writeFuture == null) {
-            return CompletableFuture.failedFuture(new XmppNetworkException("Failed to serialize stanza for sending"));
-        }
-
         CompletableFuture<Void> result = new CompletableFuture<>();
         writeFuture.addListener(future -> {
             if (future.isSuccess()) {

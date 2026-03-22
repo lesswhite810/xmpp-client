@@ -126,15 +126,15 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
     }
 
     @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    public void channelInactive(ChannelHandlerContext ctx) {
         if (isStaleChannel(ctx)) {
             log.debug("Ignoring channelInactive from stale channel: {}", ctx.channel());
-            super.channelInactive(ctx);
+            ctx.fireChannelInactive();
             return;
         }
         log.info("Channel inactive - Connection closed");
         connection.handleChannelInactive(ctx.channel());
-        super.channelInactive(ctx);
+        ctx.fireChannelInactive();
     }
 
     @Override
@@ -264,7 +264,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
         }
 
         String xml = serializable.toXml();
-        if (StringUtils.isEmpty(xml)) {
+        if (StringUtils.isBlank(xml)) {
             return createFailedSendFuture(ctx, "Failed to serialize stanza for sending");
         }
         String packetDescription = packet instanceof XmppStanza stanza

@@ -933,7 +933,7 @@ class XmppNettyHandlerTest {
     }
 
     @Test
-    void testSendStanzaReturnsFailedFutureForNullAndEmptyXml() {
+    void testSendStanzaReturnsFailedFutureForNullEmptyAndBlankXml() {
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
@@ -949,6 +949,7 @@ class XmppNettyHandlerTest {
             drainOutboundStrings(channel);
             ChannelFuture nullPacketFuture = handler.sendStanza(context, null);
             ChannelFuture emptyXmlFuture = handler.sendStanza(context, new EmptySerializable());
+            ChannelFuture blankXmlFuture = handler.sendStanza(context, new BlankSerializable());
 
             assertNotNull(nullPacketFuture);
             assertTrue(nullPacketFuture.isDone());
@@ -959,6 +960,11 @@ class XmppNettyHandlerTest {
             assertTrue(emptyXmlFuture.isDone());
             assertFalse(emptyXmlFuture.isSuccess());
             assertInstanceOf(XmppNetworkException.class, emptyXmlFuture.cause());
+
+            assertNotNull(blankXmlFuture);
+            assertTrue(blankXmlFuture.isDone());
+            assertFalse(blankXmlFuture.isSuccess());
+            assertInstanceOf(XmppNetworkException.class, blankXmlFuture.cause());
             assertNull(channel.readOutbound());
         } finally {
             channel.finishAndReleaseAll();
@@ -1251,6 +1257,14 @@ class XmppNettyHandlerTest {
         @Override
         public String toXml() {
             return "";
+        }
+    }
+
+    private static final class BlankSerializable implements XmlSerializable {
+
+        @Override
+        public String toXml() {
+            return "   ";
         }
     }
 }
