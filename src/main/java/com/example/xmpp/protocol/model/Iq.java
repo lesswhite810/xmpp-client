@@ -71,7 +71,6 @@ public final class Iq extends Stanza {
      * @param request 请求 IQ
      * @param error 错误信息
      * @return 错误响应 IQ
-     * @throws NullPointerException 如果 request 或 error 为 null
      */
     public static Iq createErrorResponse(Iq request, XmppError error) {
         return new Builder(Type.ERROR)
@@ -89,7 +88,6 @@ public final class Iq extends Stanza {
      * @param request 请求 IQ
      * @param childElement 子元素
      * @return 结果响应 IQ
-     * @throws NullPointerException 如果 request 为 null
      */
     public static Iq createResultResponse(Iq request, ExtensionElement childElement) {
         return new Builder(Type.RESULT)

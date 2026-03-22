@@ -17,8 +17,11 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import javax.security.sasl.SaslException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -186,5 +189,18 @@ class SaslNegotiatorTest {
         SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
 
         assertThrows(XmppAuthException.class, negotiator::start);
+    }
+
+    @Test
+    @DisplayName("sendStanza 在 packet 为 null 时应抛出参数异常")
+    void testSendStanzaRejectsNullPacket() throws Exception {
+        SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
+        Method sendStanza = SaslNegotiator.class.getDeclaredMethod("sendStanza", Object.class);
+        sendStanza.setAccessible(true);
+
+        InvocationTargetException exception = assertThrows(InvocationTargetException.class,
+                () -> sendStanza.invoke(negotiator, new Object[] {null}));
+        IllegalArgumentException cause = assertInstanceOf(IllegalArgumentException.class, exception.getCause());
+        assertTrue(cause.getMessage().contains("Packet must not be null"));
     }
 }

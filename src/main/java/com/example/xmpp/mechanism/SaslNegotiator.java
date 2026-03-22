@@ -122,9 +122,11 @@ public class SaslNegotiator {
      *
      * @param packet 待发送的协议元素
      * @return 发送结果
-     * @throws XmppAuthException 发送失败
      */
-    private ChannelFuture sendStanza(Object packet) throws XmppAuthException {
+    private ChannelFuture sendStanza(Object packet) {
+        if (packet == null) {
+            throw new IllegalArgumentException("Packet must not be null");
+        }
         if (packet instanceof ExtensionElement element) {
             String xmlString = element.toXml();
             log.debug("Sending SASL stanza: {}", SecurityUtils.summarizeExtensionElement(element));

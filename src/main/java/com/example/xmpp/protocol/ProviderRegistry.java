@@ -47,7 +47,6 @@ public final class ProviderRegistry {
      * 注册 Provider。
      *
      * @param provider Provider 实例
-     * @throws NullPointerException 如果 provider 为 null
      */
     public void registerProvider(Provider<?> provider) {
         Objects.requireNonNull(provider, "Provider cannot be null");
@@ -165,6 +164,9 @@ public final class ProviderRegistry {
     }
 
     private String createKey(String elementName, String namespace) {
+        if (StringUtils.isBlank(elementName)) {
+            throw new IllegalArgumentException("elementName must not be null or blank");
+        }
         if (StringUtils.isEmpty(namespace)) {
             return elementName;
         }
@@ -182,8 +184,7 @@ public final class ProviderRegistry {
         int spiCount = 0;
         for (ProtocolProvider protocolProvider : loader) {
             try {
-                Provider<?> provider = protocolProvider.createProvider();
-                registerProvider(provider);
+                registerDiscoveredProvider(protocolProvider);
                 spiCount++;
                 log.debug("Discovered SPI provider: {}", protocolProvider.getClass().getName());
             } catch (Exception e) {
@@ -193,5 +194,10 @@ public final class ProviderRegistry {
         if (spiCount > 0) {
             log.info("Discovered {} SPI providers", spiCount);
         }
+    }
+
+    private void registerDiscoveredProvider(ProtocolProvider<?> protocolProvider) {
+        Provider<?> provider = protocolProvider.createProvider();
+        registerProvider(provider);
     }
 }

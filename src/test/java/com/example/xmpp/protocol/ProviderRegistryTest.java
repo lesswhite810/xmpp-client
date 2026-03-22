@@ -189,6 +189,24 @@ class ProviderRegistryTest {
     }
 
     @Test
+    @DisplayName("elementName 为 null 时应抛出参数异常")
+    void testNullElementNameRejected() {
+        ExtensionElementProvider<TestElement> provider = new TestProvider(null, "urn:test");
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> registry.registerProvider(provider));
+        assertEquals("elementName must not be null or blank", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("elementName 为空白时应抛出参数异常")
+    void testBlankElementNameRejected() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> registry.getProvider("   ", "urn:test"));
+        assertEquals("elementName must not be null or blank", exception.getMessage());
+    }
+
+    @Test
     @DisplayName("应能注册并查找 IQ Provider")
     void testRegisterIqProvider() {
         TestIqProvider provider = new TestIqProvider();
@@ -201,6 +219,18 @@ class ProviderRegistryTest {
         } finally {
             registry.removeProvider("test-iq", "urn:test:iq");
         }
+    }
+
+    @Test
+    @DisplayName("ProtocolProvider 应返回强类型 Provider")
+    void testProtocolProviderReturnsTypedProvider() {
+        ProtocolProvider<TestProvider> protocolProvider = new TestProtocolProvider();
+
+        TestProvider provider = protocolProvider.createProvider();
+
+        assertNotNull(provider);
+        assertEquals("test-spi", provider.getElementName());
+        assertEquals("urn:test:spi", provider.getNamespace());
     }
 
     // 测试辅助类
@@ -303,6 +333,24 @@ class ProviderRegistryTest {
         @Override
         public String getNamespace() {
             return "urn:test:iq";
+        }
+    }
+
+    private static final class TestProtocolProvider implements ProtocolProvider<TestProvider> {
+
+        @Override
+        public TestProvider createProvider() {
+            return new TestProvider("test-spi", "urn:test:spi");
+        }
+
+        @Override
+        public String getElementName() {
+            return "test-spi";
+        }
+
+        @Override
+        public String getNamespace() {
+            return "urn:test:spi";
         }
     }
 }

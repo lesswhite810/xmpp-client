@@ -72,7 +72,6 @@ public abstract sealed class Stanza implements XmppStanza, XmlSerializable permi
      *
      * @param namespace 扩展元素命名空间
      * @return 扩展元素
-     * @throws NullPointerException 如果 namespace 为 null
      */
     public Optional<ExtensionElement> getExtension(String namespace) {
         Objects.requireNonNull(namespace, "namespace must not be null");
@@ -90,7 +89,6 @@ public abstract sealed class Stanza implements XmppStanza, XmlSerializable permi
      * @param elementName 扩展元素名称
      * @param namespace 扩展元素命名空间
      * @return 扩展元素
-     * @throws NullPointerException 如果 elementName 或 namespace 为 null
      */
     public Optional<ExtensionElement> getExtension(String elementName, String namespace) {
         Objects.requireNonNull(elementName, "elementName must not be null");

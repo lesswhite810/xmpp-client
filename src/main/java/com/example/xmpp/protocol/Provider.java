@@ -27,7 +27,6 @@ public interface Provider<T> {
      *
      * @param object 要序列化的对象
      * @param xml XML 构建器
-     * @throws NullPointerException 如果 xml 为 null
      */
     void serialize(T object, XmlStringBuilder xml);
 

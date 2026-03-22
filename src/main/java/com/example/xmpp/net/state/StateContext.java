@@ -127,7 +127,7 @@ public class StateContext {
             return createFailedSendFuture(ctx, "Packet must not be null");
         }
         if (!(packet instanceof XmlSerializable serializable)) {
-            log.warn("Unknown packet type: {}", packet != null ? packet.getClass().getName() : "null");
+            log.warn("Unknown packet type: {}", packet.getClass().getName());
             return createFailedSendFuture(ctx, "Unsupported packet type");
         }
         String xmlStr = serializable.toXml();

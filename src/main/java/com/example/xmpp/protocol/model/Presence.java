@@ -48,7 +48,6 @@ public final class Presence extends Stanza {
      * 获取状态显示枚举值。
      *
      * @return 状态显示
-     * @throws NullPointerException 如果 show 为 null
      */
     public Optional<Show> getPresenceShow() {
         return Show.fromString(show);

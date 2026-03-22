@@ -3,9 +3,10 @@ package com.example.xmpp.protocol;
 /**
  * 协议扩展 Provider 接口（SPI）。
  *
+ * @param <P> Provider 类型
  * @since 2026-02-15
  */
-public interface ProtocolProvider {
+public interface ProtocolProvider<P extends Provider<?>> {
 
     /**
      * 获取 XML 元素名称。
@@ -26,5 +27,5 @@ public interface ProtocolProvider {
      *
      * @return Provider 实例
      */
-    Provider<?> createProvider();
+    P createProvider();
 }
