@@ -790,42 +790,92 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     private void parseExtensionElement(XMLEventReader reader, StartElement start,
                                        String name, String namespace,
                                        Consumer<ExtensionElement> addExtension) {
-        if (parseWithRegisteredProvider(reader, name, namespace, addExtension)) {
+        Optional<ExtensionElementProvider<?>> provider =
+                ProviderRegistry.getInstance().getExtensionProvider(name, namespace);
+        if (provider.isPresent()) {
+            ExtensionElementProvider<?> registeredProvider = provider.orElseThrow();
+            parseWithRegisteredProvider(reader, start, name, namespace, registeredProvider, addExtension);
             return;
         }
         log.debug("No provider for <{} xmlns=\"{}\">, using generic parser", name, namespace);
-        parseWithGenericProvider(reader, start, name, namespace, addExtension);
+        parseWithGenericProvider(reader, start, name, namespace)
+                .ifPresent(addExtension);
     }
 
-    private boolean parseWithRegisteredProvider(XMLEventReader reader, String name, String namespace,
-                                                Consumer<ExtensionElement> addExtension) {
-        Optional<ExtensionElementProvider<?>> provider =
-                ProviderRegistry.getInstance().getExtensionProvider(name, namespace);
-        if (provider.isEmpty()) {
-            return false;
+    private void parseWithRegisteredProvider(XMLEventReader reader, StartElement start,
+                                             String name, String namespace,
+                                             ExtensionElementProvider<?> provider,
+                                             Consumer<ExtensionElement> addExtension) {
+        Optional<GenericExtensionElement> genericSnapshot =
+                parseWithGenericProvider(reader, start, name, namespace);
+        if (genericSnapshot.isEmpty()) {
+            return;
         }
+        GenericExtensionElement extensionSnapshot = genericSnapshot.orElseThrow();
 
-        try {
-            Object parsed = provider.orElseThrow().parse(reader);
-            if (parsed instanceof ExtensionElement ext) {
-                addExtension.accept(ext);
-            }
-            return true;
-        } catch (XmppParseException e) {
-            log.warn("Provider failed to parse <{} xmlns=\"{}\"> - ErrorType: {}",
-                    name, namespace, e.getClass().getSimpleName());
-            return true;
+        if (parseExtensionSnapshotWithRegisteredProvider(provider, extensionSnapshot,
+                name, namespace, addExtension)) {
+            return;
         }
+        log.debug("Provider fallback to generic parser for <{} xmlns=\"{}\">", name, namespace);
+        addExtension.accept(extensionSnapshot);
     }
 
-    private void parseWithGenericProvider(XMLEventReader reader, StartElement start, String name, String namespace,
-                                          Consumer<ExtensionElement> addExtension) {
+    private Optional<GenericExtensionElement> parseWithGenericProvider(XMLEventReader reader, StartElement start,
+                                                                       String name, String namespace) {
         try {
-            GenericExtensionElement ext = GenericExtensionProvider.INSTANCE.parse(reader, start);
-            addExtension.accept(ext);
+            return Optional.of(GenericExtensionProvider.INSTANCE.parse(reader, start));
         } catch (XmppParseException e) {
             log.warn("Generic parser failed for <{} xmlns=\"{}\"> - ErrorType: {}",
                     name, namespace, e.getClass().getSimpleName());
+            return Optional.empty();
+        }
+    }
+
+    private boolean parseExtensionSnapshotWithRegisteredProvider(ExtensionElementProvider<?> provider,
+                                                                 GenericExtensionElement genericSnapshot,
+                                                                 String name, String namespace,
+                                                                 Consumer<ExtensionElement> addExtension) {
+        XMLEventReader replayReader = null;
+        try {
+            replayReader = createExtensionReplayReader(genericSnapshot);
+            Object parsed = provider.parse(replayReader);
+            if (parsed instanceof ExtensionElement extensionElement) {
+                addExtension.accept(extensionElement);
+                return true;
+            }
+            log.warn("Provider returned non-extension result for <{} xmlns=\"{}\">", name, namespace);
+            return false;
+        } catch (XmppParseException | XMLStreamException e) {
+            log.warn("Provider failed to parse <{} xmlns=\"{}\"> - ErrorType: {}",
+                    name, namespace, e.getClass().getSimpleName());
+            return false;
+        } finally {
+            closeReaderQuietly(replayReader);
+        }
+    }
+
+    private XMLEventReader createExtensionReplayReader(GenericExtensionElement genericSnapshot)
+            throws XMLStreamException {
+        XMLEventReader replayReader = INPUT_FACTORY.createXMLEventReader(new StringReader(genericSnapshot.toXml()));
+        while (replayReader.hasNext()) {
+            XMLEvent event = replayReader.nextEvent();
+            if (event.isStartElement()) {
+                return replayReader;
+            }
+        }
+        closeReaderQuietly(replayReader);
+        throw new XMLStreamException("Extension snapshot does not contain a start element");
+    }
+
+    private void closeReaderQuietly(XMLEventReader reader) {
+        if (reader == null) {
+            return;
+        }
+        try {
+            reader.close();
+        } catch (XMLStreamException e) {
+            log.debug("Error closing XML reader", e);
         }
     }
 

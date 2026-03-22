@@ -27,6 +27,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import javax.xml.stream.XMLEventReader;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.events.XMLEvent;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -476,7 +478,7 @@ class XmppStreamDecoderTest {
     }
 
     @Test
-    @DisplayName("Provider 解析失败时应忽略该扩展")
+    @DisplayName("Provider 解析失败时应回退到通用解析器并保留原扩展边界")
     void testIgnoreExtensionWhenProviderThrowsParseException() {
         ProviderRegistry registry = ProviderRegistry.getInstance();
         ThrowingExtensionProvider provider = new ThrowingExtensionProvider("broken", "urn:test:broken");
@@ -495,10 +497,43 @@ class XmppStreamDecoderTest {
             assertEquals(1, message.getExtensions().size());
             assertInstanceOf(GenericExtensionElement.class, message.getExtensions().getFirst());
             GenericExtensionElement extension = (GenericExtensionElement) message.getExtensions().getFirst();
-            assertEquals("value", extension.getElementName());
-            assertEquals("ignored", extension.getText());
+            assertEquals("broken", extension.getElementName());
+            assertEquals("urn:test:broken", extension.getNamespace());
+            assertTrue(extension.getFirstChild("value").isPresent());
+            assertEquals("ignored", extension.getFirstChild("value").orElseThrow().getText());
         } finally {
             registry.removeProvider("broken", "urn:test:broken");
+        }
+    }
+
+    @Test
+    @DisplayName("Provider 部分消费事件后解析失败时仍应回退到通用解析器")
+    void testFallbackToGenericExtensionWhenProviderFailsAfterPartialConsumption() {
+        ProviderRegistry registry = ProviderRegistry.getInstance();
+        PartiallyConsumingExtensionProvider provider =
+                new PartiallyConsumingExtensionProvider("broken-partial", "urn:test:broken");
+        registry.registerProvider(provider);
+
+        try {
+            sendStreamHeader();
+            sendXml("<message type='chat' id='msg-broken-partial'>"
+                    + "<broken-partial xmlns='urn:test:broken'><value>ignored</value></broken-partial>"
+                    + "</message>");
+
+            Object msg = channel.readInbound();
+            assertNotNull(msg);
+            assertInstanceOf(Message.class, msg);
+
+            Message message = (Message) msg;
+            assertEquals(1, message.getExtensions().size());
+            assertInstanceOf(GenericExtensionElement.class, message.getExtensions().getFirst());
+            GenericExtensionElement extension = (GenericExtensionElement) message.getExtensions().getFirst();
+            assertEquals("broken-partial", extension.getElementName());
+            assertEquals("urn:test:broken", extension.getNamespace());
+            assertTrue(extension.getFirstChild("value").isPresent());
+            assertEquals("ignored", extension.getFirstChild("value").orElseThrow().getText());
+        } finally {
+            registry.removeProvider("broken-partial", "urn:test:broken");
         }
     }
 
@@ -638,7 +673,7 @@ class XmppStreamDecoderTest {
         return xml.toString();
     }
 
-    private static final class ThrowingExtensionProvider implements ExtensionElementProvider<ExtensionElement> {
+    private static class ThrowingExtensionProvider implements ExtensionElementProvider<ExtensionElement> {
 
         private final String elementName;
 
@@ -667,6 +702,28 @@ class XmppStreamDecoderTest {
         @Override
         public String getNamespace() {
             return namespace;
+        }
+    }
+
+    private static final class PartiallyConsumingExtensionProvider extends ThrowingExtensionProvider {
+
+        private PartiallyConsumingExtensionProvider(String elementName, String namespace) {
+            super(elementName, namespace);
+        }
+
+        @Override
+        public ExtensionElement parse(XMLEventReader reader) throws XmppParseException {
+            try {
+                while (reader.hasNext()) {
+                    XMLEvent event = reader.nextEvent();
+                    if (event.isEndElement() && "value".equals(event.asEndElement().getName().getLocalPart())) {
+                        break;
+                    }
+                }
+            } catch (XMLStreamException e) {
+                throw new XmppParseException("broken provider", e);
+            }
+            throw new XmppParseException("broken provider after partial consumption");
         }
     }
 }
