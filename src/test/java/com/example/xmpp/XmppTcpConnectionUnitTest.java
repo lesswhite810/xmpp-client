@@ -9,17 +9,27 @@ import com.example.xmpp.exception.XmppProtocolException;
 import com.example.xmpp.net.XmppNettyHandler;
 import com.example.xmpp.protocol.model.XmlSerializable;
 import com.example.xmpp.protocol.model.XmppStanza;
+import com.example.xmpp.util.ConnectionUtils;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.embedded.EmbeddedChannel;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -294,6 +304,34 @@ class XmppTcpConnectionUnitTest {
     }
 
     @Test
+    void testConnectAsyncPreservesDirectTlsInitializationFailureCauseWithoutLoggingSensitiveDetails() {
+        Logger[] loggers = {
+                (Logger) LogManager.getLogger(XmppTcpConnection.class),
+                (Logger) LogManager.getLogger(ConnectionUtils.class),
+                (Logger) LogManager.getLogger(io.netty.channel.ChannelInitializer.class)
+        };
+        TestLogAppender appender = attachAppender("connectAsyncDirectTls", loggers);
+        XmppTcpConnection connection = new XmppTcpConnection(XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .host("127.0.0.1")
+                .port(5223)
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .usingDirectTLS(true)
+                .build());
+
+        try {
+            XmppNetworkException exception = assertThrows(XmppNetworkException.class, connection::connectAsync);
+
+            assertTrue(containsMessage(exception, "TrustManager"));
+            assertFalse(appender.contains("TrustManager"));
+        } finally {
+            detachAppender(appender, loggers);
+        }
+    }
+
+    @Test
     void testFailConnectionPublishesTerminalEventsOnlyOnce() throws Exception {
         clearEventBusListeners();
         XmppTcpConnection connection = new XmppTcpConnection(newConfig());
@@ -385,6 +423,34 @@ class XmppTcpConnectionUnitTest {
         }
     }
 
+    private boolean containsMessage(Throwable throwable, String messagePart) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current.getMessage() != null && current.getMessage().contains(messagePart)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private TestLogAppender attachAppender(String name, Logger... loggers) {
+        TestLogAppender appender = new TestLogAppender(name);
+        appender.start();
+        for (Logger logger : loggers) {
+            logger.addAppender(appender);
+            logger.setLevel(Level.ALL);
+        }
+        return appender;
+    }
+
+    private void detachAppender(Appender appender, Logger... loggers) {
+        for (Logger logger : loggers) {
+            logger.removeAppender(appender);
+        }
+        appender.stop();
+    }
+
     private static final class TestStanza implements XmppStanza, XmlSerializable {
 
         private final String xml;
@@ -432,6 +498,42 @@ class XmppTcpConnectionUnitTest {
             lastContext = ctx;
             lastStanza = (XmlSerializable) packet;
             return future;
+        }
+    }
+
+    private static final class TestLogAppender extends AbstractAppender {
+        private final List<LogEvent> events = new ArrayList<>();
+
+        private TestLogAppender(String name) {
+            super(name, null, PatternLayout.createDefaultLayout(), false, null);
+        }
+
+        @Override
+        public void append(LogEvent event) {
+            events.add(event.toImmutable());
+        }
+
+        private boolean contains(String text) {
+            for (LogEvent event : events) {
+                if (event.getMessage() != null && event.getMessage().getFormattedMessage().contains(text)) {
+                    return true;
+                }
+                if (containsMessage(event.getThrown(), text)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private boolean containsMessage(Throwable throwable, String text) {
+            Throwable current = throwable;
+            while (current != null) {
+                if (current.getMessage() != null && current.getMessage().contains(text)) {
+                    return true;
+                }
+                current = current.getCause();
+            }
+            return false;
         }
     }
 }

@@ -42,14 +42,15 @@ class ConnectionUtilsTest {
     void testConnectSyncWrapsUnexpectedConnectException() {
         Bootstrap bootstrap = mock(Bootstrap.class);
         InetSocketAddress address = InetSocketAddress.createUnresolved("example.com", XmppConstants.DEFAULT_XMPP_PORT);
+        IllegalStateException cause = new IllegalStateException("boom");
 
-        when(bootstrap.connect(address)).thenThrow(new IllegalStateException("boom"));
+        when(bootstrap.connect(address)).thenThrow(cause);
 
         XmppNetworkException exception = org.junit.jupiter.api.Assertions.assertThrows(XmppNetworkException.class,
                 () -> ConnectionUtils.connectSync(bootstrap, address));
 
         assertEquals("Failed to connect to example.com:" + XmppConstants.DEFAULT_XMPP_PORT, exception.getMessage());
-        org.junit.jupiter.api.Assertions.assertNull(exception.getCause());
+        assertSame(cause, exception.getCause());
     }
 
     @Test
@@ -68,7 +69,7 @@ class ConnectionUtilsTest {
                 () -> ConnectionUtils.connectSync(bootstrap, address));
 
         assertEquals("Failed to connect to example.com:" + XmppConstants.DEFAULT_XMPP_PORT, exception.getMessage());
-        org.junit.jupiter.api.Assertions.assertNull(exception.getCause());
+        assertSame(cause, exception.getCause());
     }
 
     @Test

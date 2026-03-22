@@ -38,7 +38,11 @@ public class ConnectionUtils {
             ChannelFuture future = bootstrap.connect(address);
             future.sync();
             if (!future.isSuccess()) {
-                throw new XmppNetworkException("Failed to connect to " + hostDesc + ":" + port);
+                Throwable cause = future.cause();
+                if (cause instanceof XmppNetworkException xmppNetworkException) {
+                    throw xmppNetworkException;
+                }
+                throw new XmppNetworkException("Failed to connect to " + hostDesc + ":" + port, cause);
             }
             Channel channel = future.channel();
             log.info("Connected to {}", channel.remoteAddress());
@@ -46,13 +50,13 @@ public class ConnectionUtils {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.warn("Connection interrupted for {}:{}", hostDesc, port);
-            throw new XmppNetworkException("Connection interrupted");
+            throw new XmppNetworkException("Connection interrupted", e);
         } catch (XmppNetworkException e) {
             throw e;
         } catch (Exception e) {
             log.warn("Connection failed - Target: {}:{}, ErrorType: {}",
                     hostDesc, port, e.getClass().getSimpleName());
-            throw new XmppNetworkException("Failed to connect to " + hostDesc + ":" + port);
+            throw new XmppNetworkException("Failed to connect to " + hostDesc + ":" + port, e);
         }
     }
 }

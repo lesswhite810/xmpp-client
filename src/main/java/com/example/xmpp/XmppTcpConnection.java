@@ -35,6 +35,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 基于 TCP 的 XMPP 连接实现。
@@ -60,6 +61,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     private XmppNettyHandler nettyHandler;
 
     private volatile CompletableFuture<Void> connectionReadyFuture = new CompletableFuture<>();
+
+    private final AtomicReference<XmppNetworkException> pipelineInitializationFailure = new AtomicReference<>();
 
     private TerminalEventState terminalEventState = TerminalEventState.NONE;
 
@@ -119,8 +122,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         resetForNewConnectionAttempt();
         try {
             initializeConnectionInfrastructure();
-            this.channel = connectToTargets(targets)
-                    .orElseThrow(() -> new XmppNetworkException("All connection attempts failed"));
+            this.channel = connectToTargets(targets);
             return connectionReadyFuture;
         } catch (XmppException e) {
             failConnectionAttempt(e);
@@ -217,7 +219,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
                         SslHandler sslHandler = SslUtils.createSslHandler(config);
                         ch.pipeline().addLast(sslHandler);
                     } catch (XmppNetworkException e) {
-                        throw new IllegalStateException("Failed to initialize Direct TLS pipeline", e);
+                        pipelineInitializationFailure.set(e);
+                        throw new IllegalStateException("Failed to initialize Direct TLS pipeline");
                     }
                 }
                 ch.pipeline().addLast(new XmppStreamDecoder());
@@ -227,25 +230,39 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         return bootstrap;
     }
 
-    private Optional<Channel> connectToTargets(List<ConnectionTarget> targets) {
+    private Channel connectToTargets(List<ConnectionTarget> targets) throws XmppNetworkException {
+        XmppNetworkException primaryFailure = null;
         for (ConnectionTarget target : targets) {
-            Optional<Channel> channel = attemptConnectionTarget(target);
-            if (channel.isPresent()) {
-                return channel;
+            try {
+                return attemptConnectionTarget(target);
+            } catch (XmppNetworkException e) {
+                log.warn("Connection failed for target {} - ErrorType: {}", target, e.getClass().getSimpleName());
+                if (primaryFailure == null) {
+                    primaryFailure = e;
+                } else {
+                    primaryFailure.addSuppressed(e);
+                }
             }
         }
-        return Optional.empty();
+        if (primaryFailure != null) {
+            throw primaryFailure;
+        }
+        throw new XmppNetworkException("All connection attempts failed");
     }
 
-    private Optional<Channel> attemptConnectionTarget(ConnectionTarget target) {
+    private Channel attemptConnectionTarget(ConnectionTarget target) throws XmppNetworkException {
+        pipelineInitializationFailure.set(null);
         try {
             log.debug("Attempting connection target {}", target);
             Channel connectedChannel = ConnectionUtils.connectSync(createBootstrap(), target.toSocketAddress());
             log.debug("Connection target {} established", target);
-            return Optional.of(connectedChannel);
+            return connectedChannel;
         } catch (XmppNetworkException e) {
-            log.warn("Connection failed for target {}: {}", target, e.getMessage());
-            return Optional.empty();
+            XmppNetworkException initializationFailure = pipelineInitializationFailure.getAndSet(null);
+            if (initializationFailure != null) {
+                throw initializationFailure;
+            }
+            throw e;
         }
     }
 
