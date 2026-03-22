@@ -49,7 +49,5 @@ public interface HandlerState {
      *
      * @return 是否激活
      */
-    default boolean isSessionActive() {
-        return false;
-    }
+    boolean isSessionActive();
 }

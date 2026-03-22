@@ -410,6 +410,11 @@ public enum XmppHandlerState implements HandlerState {
         return name();
     }
 
+    @Override
+    public boolean isSessionActive() {
+        return false;
+    }
+
     /**
      * 校验当前状态是否允许切换到目标状态。
      *

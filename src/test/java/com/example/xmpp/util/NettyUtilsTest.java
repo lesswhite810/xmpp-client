@@ -11,12 +11,14 @@ import io.netty.util.concurrent.GenericFutureListener;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -84,5 +86,19 @@ class NettyUtilsTest {
         assertSame(future, NettyUtils.writeAndFlushStringAsync(ctx, "data"));
         verify(buf).writeCharSequence("data", CharsetUtil.UTF_8);
         verify(buf).release();
+    }
+
+    @Test
+    @DisplayName("UTF-8 预估容量应覆盖补充平面字符")
+    void testUtf8EstimateCoversSupplementaryCharacters() {
+        String content = "a😀中𐍈";
+
+        int estimatedSize = (int) (content.length() * 3.0f);
+        int actualSize = content.getBytes(StandardCharsets.UTF_8).length;
+
+        assertEquals(6, content.length());
+        assertEquals(12, actualSize);
+        assertEquals(18, estimatedSize);
+        assertTrue(estimatedSize >= actualSize);
     }
 }
