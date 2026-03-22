@@ -6,7 +6,6 @@ import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.exception.XmppStreamErrorException;
 import com.example.xmpp.net.state.StateContext;
-import com.example.xmpp.net.state.XmppHandlerState;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.XmlSerializable;
 import com.example.xmpp.protocol.model.stream.StreamError;
@@ -230,30 +229,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
             return;
         }
         log.debug("SSL handshake completed successfully");
-        ChannelFuture openStreamFuture = currentStateContext.openStream(ctx);
-        if (openStreamFuture == null) {
-            failTlsHandshakeRecovery(ctx, null);
-            return;
-        }
-        openStreamFuture.addListener(result -> {
-            if (!result.isSuccess()) {
-                failTlsHandshakeRecovery(ctx, result.cause());
-                return;
-            }
-            if (!ctx.channel().isActive()) {
-                log.debug("Skipping post-handshake state transition because channel is inactive");
-                return;
-            }
-            currentStateContext.transitionTo(XmppHandlerState.AWAITING_FEATURES, ctx);
-        });
-    }
-
-    private void failTlsHandshakeRecovery(ChannelHandlerContext ctx, Throwable cause) {
-        XmppException exception = cause == null
-                ? new XmppException("Failed to reopen stream after TLS handshake")
-                : new XmppNetworkException("Failed to reopen stream after TLS handshake");
-        connection.failConnection(ctx.channel(), exception);
-        ctx.close();
+        currentStateContext.resumeAfterTlsHandshake(ctx);
     }
 
     private void handleTlsHandshakeFailure(ChannelHandlerContext ctx, SslHandshakeCompletionEvent event) {

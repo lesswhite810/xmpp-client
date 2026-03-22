@@ -133,6 +133,21 @@ class StateContextTest {
         fixture.channel.finishAndReleaseAll();
     }
 
+    @Test
+    void testResumeAfterTlsHandshakeReopensStreamAndTransitionsToAwaitingFeatures() {
+        TestFixture fixture = new TestFixture(true);
+        fixture.readOutboundAsString();
+
+        fixture.context.resumeAfterTlsHandshake(fixture.channel.pipeline().lastContext());
+
+        String outbound = fixture.readOutboundAsString();
+        assertTrue(outbound.startsWith("<?xml version='1.0'?>"));
+        assertTrue(outbound.contains("<stream:stream"));
+        assertEquals("AWAITING_FEATURES", fixture.context.getCurrentStateName());
+
+        fixture.channel.finishAndReleaseAll();
+    }
+
     private static final class TestFixture {
         private final XmppClientConfig config;
         private final XmppTcpConnection connection;

@@ -4,6 +4,7 @@ import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.XmppTcpConnection;
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppException;
+import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.protocol.model.XmlSerializable;
 import com.example.xmpp.protocol.model.stream.StreamHeader;
 import com.example.xmpp.mechanism.SaslNegotiator;
@@ -182,6 +183,38 @@ public class StateContext {
                 .append(streamHeader.toXml());
 
         return NettyUtils.writeAndFlushStringAsync(ctx, xml.toString());
+    }
+
+    /**
+     * 在 TLS 握手成功后恢复 XMPP 协议流程。
+     *
+     * <p>该方法会重新打开 XMPP 流，并在写成功后推进到等待服务端 features 的状态。</p>
+     *
+     * @param ctx 通道上下文
+     */
+    public void resumeAfterTlsHandshake(ChannelHandlerContext ctx) {
+        ChannelFuture openStreamFuture = openStream(ctx);
+        if (openStreamFuture == null) {
+            closeConnectionOnError(ctx, new XmppException("Failed to reopen stream after TLS handshake"));
+            return;
+        }
+
+        openStreamFuture.addListener(result -> {
+            if (!result.isSuccess()) {
+                closeConnectionOnError(ctx,
+                        new XmppNetworkException("Failed to reopen stream after TLS handshake", result.cause()));
+                return;
+            }
+            if (terminated) {
+                log.debug("Skipping post-handshake state transition because state context is cleared");
+                return;
+            }
+            if (!ctx.channel().isActive()) {
+                log.debug("Skipping post-handshake state transition because channel is inactive");
+                return;
+            }
+            transitionTo(XmppHandlerState.AWAITING_FEATURES, ctx);
+        });
     }
 
 }
