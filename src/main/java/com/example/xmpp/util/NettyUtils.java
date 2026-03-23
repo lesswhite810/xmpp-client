@@ -46,7 +46,7 @@ public class NettyUtils {
         Validate.notNull(ctx, "ChannelHandlerContext must not be null");
         Validate.notNull(content, "Content must not be null");
 
-        int estimatedSize = (int) (content.length() * UTF8_MAX_BYTES_PER_CHAR);
+        int estimatedSize = (int) Math.min((long) content.length() * UTF8_MAX_BYTES_PER_CHAR, Integer.MAX_VALUE);
         ByteBuf buf = ctx.alloc().buffer(estimatedSize);
 
         buf.writeCharSequence(content, StandardCharsets.UTF_8);
