@@ -168,7 +168,7 @@ public final class XmppEventBus {
             return;
         }
 
-        for (Consumer<ConnectionEvent> handler : List.copyOf(handlers)) {
+        for (Consumer<ConnectionEvent> handler : handlers) {
             Thread.ofVirtual().start(() -> {
                 try {
                     handler.accept(event);
