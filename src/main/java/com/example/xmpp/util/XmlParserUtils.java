@@ -52,30 +52,14 @@ public class XmlParserUtils {
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, Boolean.FALSE);
         factory.setXMLResolver(SECURE_XML_RESOLVER);
 
-        setPropertyIfSupported(factory, "com.ctc.wstx.enableTDs", Boolean.FALSE);
-        setPropertyIfSupported(factory, "javax.xml.stream.supportDTD", Boolean.FALSE);
+        factory.setProperty("com.ctc.wstx.enableTDs", Boolean.FALSE);
+        factory.setProperty("javax.xml.stream.supportDTD", Boolean.FALSE);
 
         factory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.TRUE);
         factory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
 
         log.debug("XMLInputFactory created with XXE protection enabled");
         return factory;
-    }
-
-    /**
-     * 尝试设置属性，如果不支持则忽略。
-     *
-     * @param factory XML 输入工厂
-     * @param name 属性名称
-     * @param value 属性值
-     */
-    private static void setPropertyIfSupported(XMLInputFactory factory, String name, Object value) {
-        try {
-            factory.setProperty(name, value);
-            log.debug("Set XML parser property: {} = {}", name, value);
-        } catch (Exception e) {
-            log.trace("XML parser property {} not supported - ErrorType: {}", name, e.getClass().getSimpleName());
-        }
     }
 
     /**
