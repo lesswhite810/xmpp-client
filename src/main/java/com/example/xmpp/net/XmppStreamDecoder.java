@@ -315,31 +315,13 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 return Optional.empty();
             }
 
-            if (matches(in, nextTagStart, COMMENT_START)) {
-                Optional<Integer> commentEnd = findSequence(in, nextTagStart + COMMENT_PREFIX_LENGTH, COMMENT_END);
-                if (commentEnd.isEmpty()) {
-                    return Optional.empty();
-                }
-                log.trace("Skipping comment block from {} to {}", nextTagStart, commentEnd.orElseThrow());
-                index = commentEnd.orElseThrow();
-                continue;
+            Optional<Integer> specialSectionEnd = advancePastSpecialSection(in, nextTagStart);
+            if (specialSectionEnd.isEmpty()) {
+                return Optional.empty();
             }
-            if (matches(in, nextTagStart, CDATA_START)) {
-                Optional<Integer> cdataEnd = findSequence(in, nextTagStart + CDATA_PREFIX_LENGTH, CDATA_END);
-                if (cdataEnd.isEmpty()) {
-                    return Optional.empty();
-                }
-                log.trace("Skipping CDATA block from {} to {}", nextTagStart, cdataEnd.orElseThrow());
-                index = cdataEnd.orElseThrow();
-                continue;
-            }
-            if (matches(in, nextTagStart, PI_START)) {
-                Optional<Integer> processingEnd = findSequence(in, nextTagStart + PROCESSING_INSTRUCTION_PREFIX_LENGTH, "?>");
-                if (processingEnd.isEmpty()) {
-                    return Optional.empty();
-                }
-                log.trace("Skipping processing instruction from {} to {}", nextTagStart, processingEnd.orElseThrow());
-                index = processingEnd.orElseThrow();
+            int nextIndex = specialSectionEnd.orElseThrow();
+            if (nextIndex != nextTagStart) {
+                index = nextIndex;
                 continue;
             }
 
@@ -350,44 +332,99 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             int tagEndIndex = tagEnd.orElseThrow();
 
             if (matches(in, nextTagStart, CLOSING_TAG_START)) {
-                String closingTagName = readTagName(in, nextTagStart + CLOSING_TAG_PREFIX_LENGTH, tagEndIndex)
-                        .orElse("");
-                if (StringUtils.isBlank(closingTagName) || tagStack.isEmpty()) {
-                    return malformedFrameBoundary(startIndex, tagEndIndex, "invalid-closing-tag", nextTagStart);
+                Optional<FrameBoundary> boundary = handleClosingTag(
+                        in, startIndex, nextTagStart, tagEndIndex, tagStack, tagName);
+                if (boundary.isPresent()) {
+                    return boundary;
                 }
-
-                String expectedTagName = tagStack.peekLast();
-                if (!closingTagName.equals(expectedTagName)) {
-                    log.trace("Mismatched closing tag at {}, expected={}, actual={}",
-                            nextTagStart, expectedTagName, closingTagName);
-                    return malformedFrameBoundary(startIndex, tagEndIndex, closingTagName, nextTagStart);
-                }
-
-                tagStack.removeLast();
-                log.trace("Closing tag at {}, remainingDepth={}, tagName={}",
-                        nextTagStart, tagStack.size(), closingTagName);
                 index = tagEndIndex;
-                if (tagStack.isEmpty()) {
-                    log.trace("Frame complete: tagName={}, length={}", tagName, tagEndIndex - startIndex);
-                    return Optional.of(new FrameBoundary(FrameType.ELEMENT, tagEndIndex - startIndex));
-                }
                 continue;
             }
 
-            if (!isSelfClosingTag(in, tagEndIndex)) {
-                String nestedTagName = readTagName(in, nextTagStart + OPENING_TAG_PREFIX_LENGTH, tagEndIndex)
-                        .orElse("");
-                if (StringUtils.isBlank(nestedTagName)) {
-                    return malformedFrameBoundary(startIndex, tagEndIndex, "invalid-opening-tag", nextTagStart);
-                }
-                if (tagStack.size() >= MAX_XML_NESTING_DEPTH) {
-                    return depthExceededFrameBoundary(startIndex, tagEndIndex,
-                            nestedTagName, nextTagStart, tagStack.size() + 1);
-                }
-                tagStack.addLast(nestedTagName);
+            Optional<FrameBoundary> boundary = handleNestedOpeningTag(
+                    in, startIndex, nextTagStart, tagEndIndex, tagStack);
+            if (boundary.isPresent()) {
+                return boundary;
             }
             index = tagEndIndex;
         }
+        return Optional.empty();
+    }
+
+    private Optional<Integer> advancePastSpecialSection(ByteBuf in, int nextTagStart) {
+        Optional<Integer> commentEnd = advancePastDelimitedSection(
+                in, nextTagStart, COMMENT_START, COMMENT_PREFIX_LENGTH, COMMENT_END, "comment block");
+        if (commentEnd.isEmpty() || commentEnd.orElseThrow() != nextTagStart) {
+            return commentEnd;
+        }
+
+        Optional<Integer> cdataEnd = advancePastDelimitedSection(
+                in, nextTagStart, CDATA_START, CDATA_PREFIX_LENGTH, CDATA_END, "CDATA block");
+        if (cdataEnd.isEmpty() || cdataEnd.orElseThrow() != nextTagStart) {
+            return cdataEnd;
+        }
+
+        return advancePastDelimitedSection(
+                in, nextTagStart, PI_START, PROCESSING_INSTRUCTION_PREFIX_LENGTH, "?>",
+                "processing instruction");
+    }
+
+    private Optional<Integer> advancePastDelimitedSection(ByteBuf in, int nextTagStart, String prefix,
+                                                          int prefixLength, String suffix,
+                                                          String sectionDescription) {
+        if (!matches(in, nextTagStart, prefix)) {
+            return Optional.of(nextTagStart);
+        }
+
+        Optional<Integer> sectionEnd = findSequence(in, nextTagStart + prefixLength, suffix);
+        if (sectionEnd.isPresent()) {
+            log.trace("Skipping {} from {} to {}", sectionDescription, nextTagStart, sectionEnd.orElseThrow());
+        }
+        return sectionEnd;
+    }
+
+    private Optional<FrameBoundary> handleClosingTag(ByteBuf in, int startIndex, int nextTagStart,
+                                                     int tagEndIndex, Deque<String> tagStack,
+                                                     String rootTagName) {
+        String closingTagName = readTagName(in, nextTagStart + CLOSING_TAG_PREFIX_LENGTH, tagEndIndex).orElse("");
+        if (StringUtils.isBlank(closingTagName) || tagStack.isEmpty()) {
+            return malformedFrameBoundary(startIndex, tagEndIndex, "invalid-closing-tag", nextTagStart);
+        }
+
+        String expectedTagName = tagStack.peekLast();
+        if (!closingTagName.equals(expectedTagName)) {
+            log.trace("Mismatched closing tag at {}, expected={}, actual={}",
+                    nextTagStart, expectedTagName, closingTagName);
+            return malformedFrameBoundary(startIndex, tagEndIndex, closingTagName, nextTagStart);
+        }
+
+        tagStack.removeLast();
+        log.trace("Closing tag at {}, remainingDepth={}, tagName={}",
+                nextTagStart, tagStack.size(), closingTagName);
+        if (!tagStack.isEmpty()) {
+            return Optional.empty();
+        }
+
+        log.trace("Frame complete: tagName={}, length={}", rootTagName, tagEndIndex - startIndex);
+        return Optional.of(new FrameBoundary(FrameType.ELEMENT, tagEndIndex - startIndex));
+    }
+
+    private Optional<FrameBoundary> handleNestedOpeningTag(ByteBuf in, int startIndex, int nextTagStart,
+                                                           int tagEndIndex, Deque<String> tagStack) {
+        if (isSelfClosingTag(in, tagEndIndex)) {
+            return Optional.empty();
+        }
+
+        String nestedTagName = readTagName(in, nextTagStart + OPENING_TAG_PREFIX_LENGTH, tagEndIndex).orElse("");
+        if (StringUtils.isBlank(nestedTagName)) {
+            return malformedFrameBoundary(startIndex, tagEndIndex, "invalid-opening-tag", nextTagStart);
+        }
+        if (tagStack.size() >= MAX_XML_NESTING_DEPTH) {
+            return depthExceededFrameBoundary(startIndex, tagEndIndex,
+                    nestedTagName, nextTagStart, tagStack.size() + 1);
+        }
+
+        tagStack.addLast(nestedTagName);
         return Optional.empty();
     }
 
