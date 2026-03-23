@@ -3,6 +3,7 @@ package com.example.xmpp.util;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.xml.XMLConstants;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
@@ -55,8 +56,8 @@ public class XmlParserUtils {
 
         // 外部访问控制
         try {
-            factory.setProperty("javax.xml.accessExternalDTD", "none");
-            factory.setProperty("javax.xml.accessExternalSchema", "none");
+            factory.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "none");
+            factory.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "none");
         } catch (IllegalArgumentException e) {
             log.debug("External access control properties not supported: {}", e.getMessage());
         }
