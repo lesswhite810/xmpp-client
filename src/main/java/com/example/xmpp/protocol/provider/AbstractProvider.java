@@ -48,7 +48,7 @@ public abstract class AbstractProvider<T extends ExtensionElement>
         } catch (XMLStreamException e) {
             String msg = String.format("Failed to parse <%s xmlns=\"%s\">",
                     getElementName(), getNamespace());
-            log.debug(msg, e);
+            log.debug("{}: {}", msg, e.getMessage());
             throw new XmppParseException(msg);
         }
     }

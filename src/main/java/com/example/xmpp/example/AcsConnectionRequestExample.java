@@ -149,9 +149,9 @@ public class AcsConnectionRequestExample {
                     .get(XmppConstants.DEFAULT_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         } catch (XmppAuthException e) {
-            log.error("ACS 认证失败，请检查凭据配置", e);
+            log.error("ACS 认证失败，请检查凭据配置: {}", e.getMessage());
         } catch (Exception e) {
-            log.error("发生错误", e);
+            log.error("发生错误: {}", e.getMessage());
         }
     }
 }

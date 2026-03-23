@@ -178,7 +178,7 @@ public abstract class ScramMechanism implements SaslMechanism {
             clearSensitiveState();
             throw e;
         } catch (RuntimeException e) {
-            log.error("SCRAM {} unexpected error during authentication.", getMechanismName(), e);
+            log.error("SCRAM {} unexpected error during authentication: {}", getMechanismName(), e.getMessage());
             clearSensitiveState();
             throw new SaslException("SCRAM processing failed");
         }
@@ -345,7 +345,7 @@ public abstract class ScramMechanism implements SaslMechanism {
             mac.init(new SecretKeySpec(key, getHmacAlgorithm()));
             return mac.doFinal(data);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            log.error("SCRAM {} HMAC computation failed.", getMechanismName(), e);
+            log.error("SCRAM {} HMAC computation failed: {}", getMechanismName(), e.getMessage());
             throw new SaslException(HMAC_OPERATION + " failed");
         }
     }
@@ -362,7 +362,7 @@ public abstract class ScramMechanism implements SaslMechanism {
             MessageDigest digest = MessageDigest.getInstance(getDigestAlgorithm());
             return digest.digest(data);
         } catch (NoSuchAlgorithmException e) {
-            log.error("SCRAM {} hash computation failed for algorithm '{}'.", getMechanismName(), getDigestAlgorithm(), e);
+            log.error("SCRAM {} hash computation failed for algorithm '{}': {}", getMechanismName(), getDigestAlgorithm(), e.getMessage());
             throw new SaslException("Hash failed: " + getDigestAlgorithm());
         }
     }

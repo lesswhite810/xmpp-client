@@ -150,7 +150,7 @@ public class ConnectionRequestManager {
                     Throwable cause = unwrap(throwable);
 
                     if (!isRetryableError(cause)) {
-                        log.error("Non-retryable error, giving up: {}", cause.getMessage(), cause);
+                        log.error("Non-retryable error, giving up: {}", cause.getMessage());
                         return CompletableFuture.failedFuture(throwable);
                     }
 

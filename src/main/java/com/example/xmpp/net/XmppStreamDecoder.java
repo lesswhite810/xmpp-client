@@ -208,7 +208,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 try {
                     reader.close();
                 } catch (XMLStreamException e) {
-                    log.debug("Error closing XML reader", e);
+                    log.debug("Error closing XML reader: {}", e.getMessage());
                 }
             }
         }
@@ -946,7 +946,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         try {
             reader.close();
         } catch (XMLStreamException e) {
-            log.debug("Error closing XML reader", e);
+            log.debug("Error closing XML reader: {}", e.getMessage());
         }
     }
 
