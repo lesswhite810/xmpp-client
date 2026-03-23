@@ -19,15 +19,6 @@ public record ConnectionEvent(XmppConnection connection, ConnectionEventType eve
         this(connection, eventType, null);
     }
 
-    /**
-     * 获取错误信息。
-     *
-     * @return 错误异常
-     */
-    public Exception error() {
-        return error;
-    }
-
     @Override
     public String toString() {
         if (error != null) {
