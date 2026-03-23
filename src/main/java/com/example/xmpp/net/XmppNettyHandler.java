@@ -156,7 +156,11 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
 
         XmppException connectionException = toConnectionException(cause);
         connection.failConnection(ctx.channel(), connectionException);
-        ctx.close();
+        ctx.close().addListener(future -> {
+            if (!future.isSuccess()) {
+                log.debug("Failed to close channel after error: {}", future.cause().getMessage());
+            }
+        });
     }
 
     private XmppException toConnectionException(Throwable cause) {
@@ -197,7 +201,11 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
             log.warn("Received stream error - condition: {}",
                     streamError.getCondition());
             connection.failConnection(ctx.channel(), new XmppStreamErrorException(streamError));
-            ctx.close();
+            ctx.close().addListener(future -> {
+                if (!future.isSuccess()) {
+                    log.debug("Failed to close channel after error: {}", future.cause().getMessage());
+                }
+            });
             return;
         }
         currentStateContext.handleMessage(ctx, msg);
@@ -245,7 +253,11 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
                 ctx.channel().remoteAddress(),
                 cause != null ? cause.getClass().getSimpleName() : "unknown");
         connection.failConnection(ctx.channel(), new XmppNetworkException("SSL handshake failed"));
-        ctx.close();
+        ctx.close().addListener(future -> {
+            if (!future.isSuccess()) {
+                log.debug("Failed to close channel after error: {}", future.cause().getMessage());
+            }
+        });
     }
 
     /**
