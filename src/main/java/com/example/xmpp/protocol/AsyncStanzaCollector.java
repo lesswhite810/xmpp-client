@@ -47,16 +47,19 @@ public class AsyncStanzaCollector {
      * @return 是否收集成功
      */
     public boolean processStanza(XmppStanza stanza) {
-        if (collected.get()) {
+        // compareAndSet 同时完成：检查是否已收集 + 原子标记
+        if (!collected.compareAndSet(false, true)) {
             return false;
         }
 
+        // 只有获取了"收集权"的线程才执行 filter
         if (filter.accept(stanza)) {
-            if (collected.compareAndSet(false, true)) {
-                future.complete(stanza);
-                return true;
-            }
+            future.complete(stanza);
+            return true;
         }
+
+        // filter 不匹配，重置为 false，让后续 stanza 有机会被收集
+        collected.set(false);
         return false;
     }
 }
