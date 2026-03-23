@@ -169,12 +169,14 @@ public final class XmppEventBus {
         }
 
         for (Consumer<ConnectionEvent> handler : List.copyOf(handlers)) {
-            try {
-                handler.accept(event);
-            } catch (Exception e) {
-                log.error("Error handling event {}@{} - ErrorType: {}",
-                        event.eventType(), connection, e.getClass().getSimpleName(), e);
-            }
+            Thread.ofVirtual().start(() -> {
+                try {
+                    handler.accept(event);
+                } catch (Throwable t) {
+                    log.error("Error handling event {} - ErrorType: {}",
+                            event.eventType(), t.getClass().getSimpleName());
+                }
+            });
         }
     }
 
