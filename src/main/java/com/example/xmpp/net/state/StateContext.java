@@ -147,7 +147,11 @@ public class StateContext {
         if (connection != null) {
             connection.failConnection(ctx.channel(), exception);
         }
-        ctx.close();
+        ctx.close().addListener(future -> {
+            if (!future.isSuccess()) {
+                log.debug("Failed to close channel after error: {}", future.cause().getMessage());
+            }
+        });
     }
 
     /**
