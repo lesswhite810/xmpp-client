@@ -274,7 +274,7 @@ public abstract class ScramMechanism implements SaslMechanism {
         Map<Character, String> attributes = parseAttributes(serverFinalMessage);
         if (attributes.containsKey('e')) {
             log.warn("SCRAM {} server returned error (type=e).", getMechanismName());
-            throw new SaslException("Server returned error: " + attributes.get('e'));
+            throw new SaslException("Server returned SCRAM error (type=e)");
         }
 
         String verifierBase64 = attributes.get('v');

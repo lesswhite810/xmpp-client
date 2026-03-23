@@ -503,7 +503,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             log.warn("Failed to send stanza: {}", cause.getMessage());
             return;
         }
-        log.error("Failed to send stanza: {}", cause.getMessage(), cause);
+        log.error("Failed to send stanza: {}", cause.getMessage());
     }
 
     private Throwable unwrapCompletionError(Throwable error) {

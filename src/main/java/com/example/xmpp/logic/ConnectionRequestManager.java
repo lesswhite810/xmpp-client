@@ -102,7 +102,7 @@ public class ConnectionRequestManager {
                 .whenComplete((response, throwable) -> {
                     if (throwable != null) {
                         Throwable cause = unwrap(throwable);
-                        log.error("Failed to send ConnectionRequest to {}: {}", cpeJid, cause.getMessage(), cause);
+                        log.error("Failed to send ConnectionRequest to {}: {}", cpeJid, cause.getMessage());
                     }
                 });
     }
