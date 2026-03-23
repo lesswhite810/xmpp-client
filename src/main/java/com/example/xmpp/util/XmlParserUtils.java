@@ -53,7 +53,6 @@ public class XmlParserUtils {
         factory.setXMLResolver(SECURE_XML_RESOLVER);
 
         factory.setProperty("com.ctc.wstx.enableTDs", Boolean.FALSE);
-        factory.setProperty("javax.xml.stream.supportDTD", Boolean.FALSE);
 
         factory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.TRUE);
         factory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
