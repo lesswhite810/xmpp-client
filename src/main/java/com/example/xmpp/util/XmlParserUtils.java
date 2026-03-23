@@ -47,13 +47,21 @@ public class XmlParserUtils {
     private static XMLInputFactory createInputFactoryInternal() {
         XMLInputFactory factory = XMLInputFactory.newInstance();
 
+        // XXE 防护
         factory.setProperty(XMLInputFactory.IS_VALIDATING, Boolean.FALSE);
         factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, Boolean.FALSE);
         factory.setXMLResolver(SECURE_XML_RESOLVER);
 
-        factory.setProperty("com.ctc.wstx.enableTDs", Boolean.FALSE);
+        // 外部访问控制
+        try {
+            factory.setProperty("javax.xml.accessExternalDTD", "none");
+            factory.setProperty("javax.xml.accessExternalSchema", "none");
+        } catch (IllegalArgumentException e) {
+            log.debug("External access control properties not supported: {}", e.getMessage());
+        }
 
+        // XMPP 需要 namespace 和 coalescing
         factory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.TRUE);
         factory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
 
