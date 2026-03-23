@@ -166,7 +166,7 @@ class XmppErrorTest {
         void testTypeToString() {
             assertEquals("auth", XmppError.Type.AUTH.toString());
             assertEquals("cancel", XmppError.Type.CANCEL.toString());
-            assertEquals("continue-", XmppError.Type.CONTINUE_.toString());
+            assertEquals("continue", XmppError.Type.CONTINUE.toString());
             assertEquals("modify", XmppError.Type.MODIFY.toString());
             assertEquals("wait", XmppError.Type.WAIT.toString());
         }

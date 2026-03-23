@@ -198,13 +198,13 @@ public class XmppError implements XmppExtension {
     public enum Type {
         AUTH,
         CANCEL,
-        CONTINUE_,
+        CONTINUE,
         MODIFY,
         WAIT;
 
         @Override
         public String toString() {
-            return name().toLowerCase(Locale.ROOT).replace("_", "-");
+            return name().toLowerCase(Locale.ROOT);
         }
     }
 }
