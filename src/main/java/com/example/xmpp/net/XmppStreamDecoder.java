@@ -728,7 +728,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         String typeStr = getAttributeValue(element, "type");
         XmppError.Type errorType = typeStr != null ? parseErrorType(typeStr).orElse(null) : null;
         if (typeStr != null && errorType == null) {
-            log.debug("Unknown XMPP error type '{}' from server, treating as null", typeStr);
+            log.warn("XMPP protocol violation: unknown error type '{}' from server, treating as null", typeStr);
         }
         XmppError.Condition condition = null;
         String text = null;
