@@ -35,7 +35,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 基于 TCP 的 XMPP 连接实现。
@@ -61,8 +60,6 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     private XmppNettyHandler nettyHandler;
 
     private volatile CompletableFuture<Void> connectionReadyFuture = new CompletableFuture<>();
-
-    private final AtomicReference<XmppNetworkException> pipelineInitializationFailure = new AtomicReference<>();
 
     private TerminalEventState terminalEventState = TerminalEventState.NONE;
 
@@ -202,7 +199,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
                 .orElse(List.of());
     }
 
-    private Bootstrap createBootstrap() {
+    private Bootstrap createBootstrap() throws XmppNetworkException {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(workerGroup);
         bootstrap.channel(NioSocketChannel.class);
@@ -211,17 +208,14 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         bootstrap.option(ChannelOption.SO_RCVBUF, 64 * 1024);
         bootstrap.option(ChannelOption.SO_SNDBUF, 64 * 1024);
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeout());
+        final SslHandler directTlsHandler = config.isUsingDirectTLS()
+                ? SslUtils.createSslHandler(config)
+                : null;
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) {
-                if (config.isUsingDirectTLS()) {
-                    try {
-                        SslHandler sslHandler = SslUtils.createSslHandler(config);
-                        ch.pipeline().addLast(sslHandler);
-                    } catch (XmppNetworkException e) {
-                        pipelineInitializationFailure.set(e);
-                        throw new IllegalStateException("Failed to initialize Direct TLS pipeline");
-                    }
+                if (directTlsHandler != null) {
+                    ch.pipeline().addLast(directTlsHandler);
                 }
                 ch.pipeline().addLast(new XmppStreamDecoder());
                 ch.pipeline().addLast(nettyHandler);
@@ -251,19 +245,10 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     private Channel attemptConnectionTarget(ConnectionTarget target) throws XmppNetworkException {
-        pipelineInitializationFailure.set(null);
-        try {
-            log.debug("Attempting connection target {}", target);
-            Channel connectedChannel = ConnectionUtils.connectSync(createBootstrap(), target.toSocketAddress());
-            log.debug("Connection target {} established", target);
-            return connectedChannel;
-        } catch (XmppNetworkException e) {
-            XmppNetworkException initializationFailure = pipelineInitializationFailure.getAndSet(null);
-            if (initializationFailure != null) {
-                throw initializationFailure;
-            }
-            throw e;
-        }
+        log.debug("Attempting connection target {}", target);
+        Channel connectedChannel = ConnectionUtils.connectSync(createBootstrap(), target.toSocketAddress());
+        log.debug("Connection target {} established", target);
+        return connectedChannel;
     }
 
     private XmppException unwrapXmppException(Throwable cause) {
