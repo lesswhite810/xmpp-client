@@ -175,7 +175,7 @@ public class StateContext {
                 .build();
 
         XmlStringBuilder xml = new XmlStringBuilder(XmppConstants.DEFAULT_XML_BUILDER_CAPACITY);
-        xml.append("<?xml version='1.0'?>")
+        xml.append("<?xml version='1.0' encoding='UTF-8'?>")
                 .append(streamHeader.toXml());
 
         return NettyUtils.writeAndFlushStringAsync(ctx, xml.toString());
