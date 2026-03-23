@@ -56,6 +56,24 @@ class ConnectionRequestProviderTest {
     }
 
     @Test
+    @DisplayName("parse 应忽略错误命名空间的同名子元素")
+    void testParseIgnoresChildElementsWithWrongNamespace() throws Exception {
+        XMLEventReader reader = createReader("""
+                <connectionRequest xmlns="urn:broadband-forum-org:cwmp:xmppConnReq-1-0">
+                    <username xmlns="urn:example:wrong">wrong-user</username>
+                    <password xmlns="urn:example:wrong">wrong-pass</password>
+                    <username>acs-user</username>
+                    <password>acs-pass</password>
+                </connectionRequest>
+                """);
+
+        ConnectionRequest request = provider.parse(reader);
+
+        assertEquals("acs-user", request.getUsername());
+        assertEquals("acs-pass", request.getPassword());
+    }
+
+    @Test
     @DisplayName("parse 在存在 XML 声明和空白时仍应正确解析字段")
     void testParseWithXmlDeclarationAndWhitespace() throws Exception {
         XMLEventReader reader = createReader("""

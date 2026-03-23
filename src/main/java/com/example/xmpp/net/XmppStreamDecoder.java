@@ -18,6 +18,7 @@ import com.example.xmpp.protocol.model.stream.StreamError;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.protocol.model.stream.TlsElements;
 import com.example.xmpp.protocol.provider.GenericExtensionProvider;
+import com.example.xmpp.util.XmppConstants;
 import com.example.xmpp.util.XmlParserUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -575,11 +576,25 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 continue;
             }
 
-            String name = event.asStartElement().getName().getLocalPart();
+            StartElement start = event.asStartElement();
+            String name = start.getName().getLocalPart();
+            String namespace = start.getName().getNamespaceURI();
             switch (name) {
-                case "mechanism" -> mechanisms.add(XmlParserUtils.getElementText(reader));
-                case "starttls" -> startTls = true;
-                case "bind" -> bind = true;
+                case "mechanism" -> {
+                    if (SASL_NAMESPACE.equals(namespace)) {
+                        mechanisms.add(XmlParserUtils.getElementText(reader));
+                    }
+                }
+                case "starttls" -> {
+                    if (TLS_NAMESPACE.equals(namespace)) {
+                        startTls = true;
+                    }
+                }
+                case "bind" -> {
+                    if (XmppConstants.NS_XMPP_BIND.equals(namespace)) {
+                        bind = true;
+                    }
+                }
                 default -> {
                 }
             }
@@ -610,7 +625,12 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 continue;
             }
 
-            String name = event.asStartElement().getName().getLocalPart();
+            StartElement start = event.asStartElement();
+            String name = start.getName().getLocalPart();
+            String namespace = start.getName().getNamespaceURI();
+            if (!SASL_NAMESPACE.equals(namespace)) {
+                continue;
+            }
             if ("text".equals(name)) {
                 text = XmlParserUtils.getElementText(reader);
             } else {
@@ -695,7 +715,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         String name = start.getName().getLocalPart();
         String namespace = start.getName().getNamespaceURI();
 
-        if ("error".equals(name)) {
+        if ("error".equals(name) && isClientElementNamespace(namespace)) {
             XmppError error = parseError(reader, start);
             builder.error(error);
             return;
@@ -707,7 +727,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     private XmppError parseError(XMLEventReader reader, StartElement element) throws XMLStreamException {
         String typeStr = getAttributeValue(element, "type");
         XmppError.Type errorType = typeStr != null ? parseErrorType(typeStr).orElse(null) : null;
-        XmppError.Condition condition = XmppError.Condition.UNDEFINED_CONDITION;
+        XmppError.Condition condition = null;
         String text = null;
 
         while (reader.hasNext()) {
@@ -719,11 +739,20 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 continue;
             }
 
-            String name = event.asStartElement().getName().getLocalPart();
-            if ("text".equals(name)) {
+            StartElement child = event.asStartElement();
+            String name = child.getName().getLocalPart();
+            String namespace = child.getName().getNamespaceURI();
+            if ("text".equals(name) && XmppError.NAMESPACE.equals(namespace)) {
                 text = XmlParserUtils.getElementText(reader);
+            } else if (XmppError.NAMESPACE.equals(namespace)) {
+                Optional<XmppError.Condition> parsedCondition = parseKnownXmppErrorCondition(name);
+                if (parsedCondition.isPresent()) {
+                    condition = parsedCondition.orElseThrow();
+                } else {
+                    log.debug("Ignoring unknown stanza error child <{} xmlns=\"{}\">", name, namespace);
+                }
             } else {
-                condition = XmppError.Condition.fromString(name);
+                log.debug("Ignoring non-stanza-error child <{} xmlns=\"{}\">", name, namespace);
             }
         }
 
@@ -735,6 +764,18 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             errorBuilder.text(text);
         }
         return errorBuilder.build();
+    }
+
+    private Optional<XmppError.Condition> parseKnownXmppErrorCondition(String name) {
+        if (name == null) {
+            return Optional.empty();
+        }
+        String normalized = name.toUpperCase(Locale.ROOT).replace('-', '_');
+        try {
+            return Optional.of(XmppError.Condition.valueOf(normalized));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     private Optional<XmppError.Type> parseErrorType(String typeStr) {
@@ -762,6 +803,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             String name = start.getName().getLocalPart();
             String namespace = start.getName().getNamespaceURI();
 
+            if (!isClientElementNamespace(namespace)) {
+                parseExtensionElement(reader, start, name, namespace, builder::addExtension);
+                continue;
+            }
+
             switch (name) {
                 case "body" -> builder.body(XmlParserUtils.getElementText(reader));
                 case "subject" -> builder.subject(XmlParserUtils.getElementText(reader));
@@ -788,6 +834,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             StartElement start = event.asStartElement();
             String name = start.getName().getLocalPart();
             String namespace = start.getName().getNamespaceURI();
+
+            if (!isClientElementNamespace(namespace)) {
+                parseExtensionElement(reader, start, name, namespace, builder::addExtension);
+                continue;
+            }
 
             switch (name) {
                 case "show" -> builder.show(XmlParserUtils.getElementText(reader));
@@ -902,6 +953,10 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     private boolean isEndElement(XMLEvent event, String elementName) {
         return event.isEndElement()
                 && elementName.equals(event.asEndElement().getName().getLocalPart());
+    }
+
+    private boolean isClientElementNamespace(String namespace) {
+        return StringUtils.isEmpty(namespace) || XmppConstants.NS_JABBER_CLIENT.equals(namespace);
     }
 
     private String getAttributeValue(StartElement element, String attrName) {

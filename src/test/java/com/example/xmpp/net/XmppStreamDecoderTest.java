@@ -475,6 +475,68 @@ class XmppStreamDecoderTest {
     }
 
     @Test
+    @DisplayName("未知 stanza error condition 不应被误判为 undefined-condition")
+    void testParseIqErrorWithUnknownConditionShouldKeepNullCondition() {
+        sendStreamHeader();
+        sendXml("<iq type='error' id='iq-error-unknown-condition'>"
+                + "<error type='cancel'>"
+                + "<unexpected-condition xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/>"
+                + "<text xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'>unsupported</text>"
+                + "</error></iq>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(Iq.class, msg);
+
+        Iq iq = (Iq) msg;
+        assertNotNull(iq.getError());
+        assertNull(iq.getError().getCondition());
+        assertEquals("unsupported", iq.getError().getText());
+        assertEquals(XmppError.Type.CANCEL, iq.getError().getType());
+    }
+
+    @Test
+    @DisplayName("错误命名空间的 stanza error condition 不应被当成合法 condition")
+    void testParseIqErrorShouldIgnoreConditionWithWrongNamespace() {
+        sendStreamHeader();
+        sendXml("<iq type='error' id='iq-error-wrong-ns'>"
+                + "<error type='cancel'>"
+                + "<feature-not-implemented xmlns='urn:example:custom'/>"
+                + "<text xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'>unsupported</text>"
+                + "</error></iq>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(Iq.class, msg);
+
+        Iq iq = (Iq) msg;
+        assertNotNull(iq.getError());
+        assertNull(iq.getError().getCondition());
+        assertEquals("unsupported", iq.getError().getText());
+        assertEquals(XmppError.Type.CANCEL, iq.getError().getType());
+    }
+
+    @Test
+    @DisplayName("错误命名空间的 message body 不应被误解析为标准正文")
+    void testParseMessageShouldIgnoreBodyWithWrongNamespace() {
+        sendStreamHeader();
+        sendXml("<message type='chat' id='msg-body-wrong-ns'>"
+                + "<body xmlns='urn:example:custom'>custom</body>"
+                + "</message>");
+
+        Object msg = channel.readInbound();
+        assertNotNull(msg);
+        assertInstanceOf(Message.class, msg);
+
+        Message message = (Message) msg;
+        assertNull(message.getBody());
+        assertEquals(1, message.getExtensions().size());
+        assertInstanceOf(GenericExtensionElement.class, message.getExtensions().getFirst());
+        assertEquals("body",
+                ((GenericExtensionElement) message.getExtensions().getFirst()).getElementName());
+    }
+
+    @Test
     @DisplayName("未知扩展元素应使用通用解析器")
     void testFallbackToGenericExtensionParser() {
         sendStreamHeader();

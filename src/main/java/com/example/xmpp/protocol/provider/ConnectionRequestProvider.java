@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
 /**
@@ -76,19 +77,25 @@ public final class ConnectionRequestProvider extends AbstractProvider<Connection
         while (reader.hasNext()) {
             XMLEvent event = reader.nextEvent();
 
-            if (event.isStartElement()) {
-                String localName = event.asStartElement().getName().getLocalPart();
-                String text = XmlParserUtils.getElementText(reader);
-
-                switch (localName) {
-                    case USERNAME -> username = text;
-                    case PASSWORD -> password = text;
-                    default -> log.trace("Ignoring unknown element: {}", localName);
+            if (!event.isStartElement()) {
+                if (isElementEnd(event)) {
+                    break;
                 }
+                continue;
             }
 
-            if (isElementEnd(event)) {
-                break;
+            StartElement start = event.asStartElement();
+            if (!NAMESPACE.equals(start.getName().getNamespaceURI())) {
+                continue;
+            }
+
+            String localName = start.getName().getLocalPart();
+            String text = XmlParserUtils.getElementText(reader);
+
+            switch (localName) {
+                case USERNAME -> username = text;
+                case PASSWORD -> password = text;
+                default -> log.trace("Ignoring unknown element: {}", localName);
             }
         }
 
