@@ -50,13 +50,13 @@ public class ConnectionUtils {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.warn("Connection interrupted for {}:{}", hostDesc, port);
-            throw new XmppNetworkException("Connection interrupted", e);
+            throw new XmppNetworkException("Connection interrupted");
         } catch (XmppNetworkException e) {
             throw e;
         } catch (Exception e) {
             log.warn("Connection failed - Target: {}:{}, ErrorType: {}",
                     hostDesc, port, e.getClass().getSimpleName());
-            throw new XmppNetworkException("Failed to connect to " + hostDesc + ":" + port, e);
+            throw new XmppNetworkException("Failed to connect to " + hostDesc + ":" + port);
         }
     }
 }

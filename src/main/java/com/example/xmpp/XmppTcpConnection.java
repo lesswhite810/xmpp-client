@@ -89,10 +89,10 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             disconnect();
-            throw new XmppNetworkException("Interrupted while waiting for XMPP session to become ready", e);
+            throw new XmppNetworkException("Interrupted while waiting for XMPP session to become ready");
         } catch (TimeoutException e) {
             disconnect();
-            throw new XmppNetworkException("Timed out waiting for XMPP session to become ready", e);
+            throw new XmppNetworkException("Timed out waiting for XMPP session to become ready");
         } catch (ExecutionException e) {
             disconnect();
             throw unwrapXmppException(e.getCause());

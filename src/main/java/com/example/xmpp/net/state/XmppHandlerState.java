@@ -282,7 +282,7 @@ public enum XmppHandlerState implements HandlerState {
             } catch (IllegalArgumentException e) {
                 log.warn("Invalid SASL authentication data", e);
                 context.setSaslNegotiator(null);
-                context.closeConnectionOnError(ctx, new XmppAuthException("Invalid SASL authentication data", e));
+                context.closeConnectionOnError(ctx, new XmppAuthException("Invalid SASL authentication data"));
             }
         }
 

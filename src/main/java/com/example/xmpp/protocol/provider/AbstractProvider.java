@@ -49,7 +49,7 @@ public abstract class AbstractProvider<T extends ExtensionElement>
             String msg = String.format("Failed to parse <%s xmlns=\"%s\">",
                     getElementName(), getNamespace());
             log.debug(msg, e);
-            throw new XmppParseException(msg, e);
+            throw new XmppParseException(msg);
         }
     }
 

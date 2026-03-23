@@ -43,7 +43,7 @@ public class GenericExtensionProvider {
         try {
             return parseElement(reader, startEvent);
         } catch (XMLStreamException e) {
-            throw new XmppParseException("Failed to parse generic element", e);
+            throw new XmppParseException("Failed to parse generic element");
         }
     }
 
@@ -108,7 +108,7 @@ public class GenericExtensionProvider {
             }
             return parse(reader, event.asStartElement());
         } catch (XMLStreamException e) {
-            throw new XmppParseException("Failed to peek event", e);
+            throw new XmppParseException("Failed to peek event");
         }
     }
 }

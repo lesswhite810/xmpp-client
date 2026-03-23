@@ -57,12 +57,12 @@ public class SaslNegotiator {
         try {
             content = encodeSaslContent(mechanism.processChallenge(null));
         } catch (SaslException e) {
-            throw new XmppAuthException("Failed to generate initial response", e);
+            throw new XmppAuthException("Failed to generate initial response");
         }
         try {
             return sendStanza(new Auth(mechanismName, content));
         } catch (IllegalArgumentException e) {
-            throw new XmppAuthException("Invalid Auth stanza", e);
+            throw new XmppAuthException("Invalid Auth stanza");
         }
     }
 
@@ -77,19 +77,19 @@ public class SaslNegotiator {
         try {
             cContent = BASE64_DECODER.decode(contentB64 != null ? contentB64 : "");
         } catch (IllegalArgumentException e) {
-            throw new XmppAuthException("Invalid challenge content", e);
+            throw new XmppAuthException("Invalid challenge content");
         }
         byte[] response;
         try {
             response = mechanism.processChallenge(cContent);
         } catch (SaslException e) {
-            throw new XmppAuthException("Failed to process challenge", e);
+            throw new XmppAuthException("Failed to process challenge");
         }
         String responseB64 = encodeSaslContent(response);
         try {
             sendStanza(new SaslResponse(responseB64));
         } catch (IllegalArgumentException e) {
-            throw new XmppAuthException("Invalid Response stanza", e);
+            throw new XmppAuthException("Invalid Response stanza");
         }
     }
 
@@ -105,9 +105,9 @@ public class SaslNegotiator {
             try {
                 mechanism.processChallenge(BASE64_DECODER.decode(contentB64));
             } catch (IllegalArgumentException e) {
-                throw new XmppAuthException("Invalid success content", e);
+                throw new XmppAuthException("Invalid success content");
             } catch (SaslException e) {
-                throw new XmppAuthException("Failed to verify server signature", e);
+                throw new XmppAuthException("Failed to verify server signature");
             }
         }
         boolean complete = mechanism.isComplete();
