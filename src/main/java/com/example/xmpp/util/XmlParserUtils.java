@@ -96,6 +96,9 @@ public class XmlParserUtils {
      * @throws XMLStreamException 如果创建 reader 失败
      */
     public static XMLEventReader createReader(byte[] bytes) throws XMLStreamException {
+        if (bytes == null) {
+            throw new IllegalArgumentException("bytes cannot be null");
+        }
         return SHARED_INPUT_FACTORY.createXMLEventReader(new ByteArrayInputStream(bytes));
     }
 
