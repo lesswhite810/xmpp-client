@@ -40,6 +40,12 @@ public class GenericExtensionProvider {
      */
     public GenericExtensionElement parse(XMLEventReader reader, StartElement startEvent)
             throws XmppParseException {
+        if (reader == null) {
+            throw new XmppParseException("XMLEventReader cannot be null");
+        }
+        if (startEvent == null) {
+            throw new XmppParseException("StartElement cannot be null");
+        }
         try {
             return parseElement(reader, startEvent);
         } catch (XMLStreamException e) {
