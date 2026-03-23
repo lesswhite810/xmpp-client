@@ -6,6 +6,7 @@ import com.example.xmpp.exception.XmppNetworkException;
 import io.netty.handler.ssl.SslHandler;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
@@ -15,6 +16,7 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * SSL/TLS 工具类。
@@ -89,15 +91,15 @@ public class SslUtils {
 
         switch (mode) {
             case MUTUAL -> {
-                if (keyManagers == null || keyManagers.length == 0) {
+                if (ArrayUtils.isEmpty(keyManagers)) {
                     throw new XmppNetworkException("Mutual TLS requires at least one configured KeyManager");
                 }
-                if (trustManagers == null || trustManagers.length == 0) {
+                if (ArrayUtils.isEmpty(trustManagers)) {
                     throw new XmppNetworkException("Mutual TLS requires at least one configured TrustManager");
                 }
             }
             case ONE_WAY -> {
-                if (trustManagers == null || trustManagers.length == 0) {
+                if (ArrayUtils.isEmpty(trustManagers)) {
                     throw new XmppNetworkException("One-Way TLS requires at least one configured TrustManager");
                 }
             }
@@ -111,19 +113,8 @@ public class SslUtils {
      * @param enabledProtocols 启用的协议
      */
     private static void configureProtocols(SSLEngine sslEngine, String[] enabledProtocols) {
-        if (enabledProtocols == null || enabledProtocols.length == 0) {
-            return;
-        }
-
-        Set<String> supportedProtocols = Set.of(sslEngine.getSupportedProtocols());
-        String[] protocolsToEnable = Arrays.stream(enabledProtocols)
-                .filter(supportedProtocols::contains)
-                .toArray(String[]::new);
-
-        if (protocolsToEnable.length > 0) {
-            sslEngine.setEnabledProtocols(protocolsToEnable);
-            log.debug("Enabled SSL protocols: {}", Arrays.asList(protocolsToEnable));
-        }
+        applyEnabledValues(enabledProtocols, Set.of(sslEngine.getSupportedProtocols()),
+                sslEngine::setEnabledProtocols, "SSL protocols");
     }
 
     /**
@@ -133,18 +124,22 @@ public class SslUtils {
      * @param enabledCiphers 启用的密码套件
      */
     private static void configureCipherSuites(SSLEngine sslEngine, String[] enabledCiphers) {
-        if (enabledCiphers == null || enabledCiphers.length == 0) {
+        applyEnabledValues(enabledCiphers, Set.of(sslEngine.getSupportedCipherSuites()),
+                sslEngine::setEnabledCipherSuites, "SSL ciphers");
+    }
+
+    private static void applyEnabledValues(String[] configuredValues, Set<String> supportedValues,
+                                           Consumer<String[]> enabler, String description) {
+        if (ArrayUtils.isEmpty(configuredValues)) {
             return;
         }
 
-        Set<String> supportedCiphers = Set.of(sslEngine.getSupportedCipherSuites());
-        String[] ciphersToEnable = Arrays.stream(enabledCiphers)
-                .filter(supportedCiphers::contains)
+        String[] valuesToEnable = Arrays.stream(configuredValues)
+                .filter(supportedValues::contains)
                 .toArray(String[]::new);
-
-        if (ciphersToEnable.length > 0) {
-            sslEngine.setEnabledCipherSuites(ciphersToEnable);
-            log.debug("Enabled SSL ciphers: {}", Arrays.asList(ciphersToEnable));
+        if (ArrayUtils.isNotEmpty(valuesToEnable)) {
+            enabler.accept(valuesToEnable);
+            log.debug("Enabled {}: {}", description, Arrays.asList(valuesToEnable));
         }
     }
 }

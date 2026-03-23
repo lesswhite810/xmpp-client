@@ -3,6 +3,7 @@ package com.example.xmpp.protocol.model;
 import com.example.xmpp.util.XmlStringBuilder;
 import lombok.Getter;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.xml.XMLConstants;
 import javax.xml.namespace.QName;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 通用扩展元素。
@@ -142,23 +144,20 @@ public class GenericExtensionElement implements ExtensionElement {
     }
 
     private static List<GenericExtensionElement> extractChildren(List<ContentNode> nodes) {
-        List<GenericExtensionElement> result = new ArrayList<>();
-        for (ContentNode node : nodes) {
-            if (node instanceof ElementContent elementContent) {
-                result.add(elementContent.element());
-            }
-        }
-        return result;
+        return nodes.stream()
+                .filter(ElementContent.class::isInstance)
+                .map(ElementContent.class::cast)
+                .map(ElementContent::element)
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private static String mergeText(List<ContentNode> nodes) {
-        StringBuilder builder = new StringBuilder();
-        for (ContentNode node : nodes) {
-            if (node instanceof TextContent textContent) {
-                builder.append(textContent.text());
-            }
-        }
-        return builder.isEmpty() ? null : builder.toString();
+        String mergedText = nodes.stream()
+                .filter(TextContent.class::isInstance)
+                .map(TextContent.class::cast)
+                .map(TextContent::text)
+                .collect(Collectors.joining());
+        return StringUtils.defaultIfEmpty(mergedText, null);
     }
 
     private void appendStartElement(XmlStringBuilder xml) {
@@ -194,7 +193,7 @@ public class GenericExtensionElement implements ExtensionElement {
             }
             QName attributeName = entry.getKey();
             String attributeNamespace = attributeName.getNamespaceURI();
-            if (attributeNamespace == null || attributeNamespace.isEmpty()) {
+            if (StringUtils.isEmpty(attributeNamespace)) {
                 resolved.add(new ResolvedAttribute(attributeName.getLocalPart(), entry.getValue()));
                 continue;
             }
@@ -226,7 +225,7 @@ public class GenericExtensionElement implements ExtensionElement {
     private String normalizeAttributePrefix(String prefix,
                                            Map<String, String> namespaceDeclarations,
                                            int generatedPrefixIndex) {
-        if (prefix == null || prefix.isEmpty()
+        if (StringUtils.isEmpty(prefix)
                 || XMLConstants.XML_NS_PREFIX.equals(prefix)
                 || XMLConstants.XMLNS_ATTRIBUTE.equals(prefix)
                 || namespaceDeclarations.containsKey(prefix)) {

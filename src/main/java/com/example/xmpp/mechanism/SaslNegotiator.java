@@ -12,6 +12,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.security.sasl.SaslException;
@@ -127,30 +128,31 @@ public class SaslNegotiator {
         if (packet == null) {
             throw new IllegalArgumentException("Packet must not be null");
         }
-        if (packet instanceof ExtensionElement element) {
-            String xmlString = element.toXml();
-            log.debug("Sending SASL stanza: {}", SecurityUtils.summarizeExtensionElement(element));
-
-            ChannelFuture future = ctx.writeAndFlush(ByteBufUtil.writeUtf8(ctx.alloc(), xmlString));
-            future.addListener(result -> {
-                if (result.isSuccess()) {
-                    log.debug("SASL stanza sent successfully");
-                } else {
-                    Throwable cause = result.cause();
-                    log.error("Failed to send SASL stanza - ErrorType: {}",
-                            cause != null ? cause.getClass().getSimpleName() : "unknown");
-                    ctx.pipeline().fireExceptionCaught(new XmppAuthException("Failed to send SASL stanza"));
-                }
-            });
-            return future;
-        } else {
+        if (!(packet instanceof ExtensionElement element)) {
             throw new IllegalArgumentException(
                     "Packet must implement ExtensionElement interface: " + packet.getClass().getName());
         }
+
+        String xmlString = element.toXml();
+        log.debug("Sending SASL stanza: {}", SecurityUtils.summarizeExtensionElement(element));
+
+        ChannelFuture future = ctx.writeAndFlush(ByteBufUtil.writeUtf8(ctx.alloc(), xmlString));
+        future.addListener(result -> {
+            if (result.isSuccess()) {
+                log.debug("SASL stanza sent successfully");
+                return;
+            }
+
+            Throwable cause = result.cause();
+            log.error("Failed to send SASL stanza - ErrorType: {}",
+                    cause != null ? cause.getClass().getSimpleName() : "unknown");
+            ctx.pipeline().fireExceptionCaught(new XmppAuthException("Failed to send SASL stanza"));
+        });
+        return future;
     }
 
     private String encodeSaslContent(byte[] content) {
-        if (content == null || content.length == 0) {
+        if (ArrayUtils.isEmpty(content)) {
             return EMPTY_SASL_CONTENT;
         }
         return BASE64_ENCODER.encodeToString(content);

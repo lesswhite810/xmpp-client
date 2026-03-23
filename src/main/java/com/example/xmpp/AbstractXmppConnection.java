@@ -13,6 +13,7 @@ import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.util.XmppConstants;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 
 import java.util.Locale;
@@ -97,7 +98,7 @@ public abstract class AbstractXmppConnection implements XmppConnection {
 
         String elementName = getChildElementName(childElement);
         Optional<String> namespace = findChildElementNamespace(childElement);
-        if (elementName == null || namespace.isEmpty()) {
+        if (StringUtils.isBlank(elementName) || namespace.isEmpty()) {
             return false;
         }
 
@@ -121,11 +122,13 @@ public abstract class AbstractXmppConnection implements XmppConnection {
     }
 
     private XmppError.Condition resolveUnsupportedIqCondition(IqHandlerKey key) {
-        boolean knownNamespace = iqRequestHandlers.keySet().stream()
-                .anyMatch(registeredKey -> registeredKey.iqType() == key.iqType()
-                        && registeredKey.namespace().equals(key.namespace()));
-        return knownNamespace ? XmppError.Condition.FEATURE_NOT_IMPLEMENTED
-                : XmppError.Condition.SERVICE_UNAVAILABLE;
+        for (IqHandlerKey registeredKey : iqRequestHandlers.keySet()) {
+            if (registeredKey.iqType() == key.iqType()
+                    && registeredKey.namespace().equals(key.namespace())) {
+                return XmppError.Condition.FEATURE_NOT_IMPLEMENTED;
+            }
+        }
+        return XmppError.Condition.SERVICE_UNAVAILABLE;
     }
 
     private void sendUnsupportedIqError(Iq iq, XmppError.Condition condition) {
