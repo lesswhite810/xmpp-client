@@ -121,6 +121,9 @@ public final class XmppEventBus {
      */
     private void unsubscribe(XmppConnection connection, ConnectionEventType eventType,
                             Consumer<ConnectionEvent> handler) {
+        if (connection == null) {
+            return;
+        }
         Map<ConnectionEventType, List<Consumer<ConnectionEvent>>> connectionHandlers = listeners.get(connection);
         if (connectionHandlers != null) {
             List<Consumer<ConnectionEvent>> handlers = connectionHandlers.get(eventType);
@@ -144,6 +147,9 @@ public final class XmppEventBus {
      * @param connection 连接实例
      */
     public void unsubscribeAll(XmppConnection connection) {
+        if (connection == null) {
+            return;
+        }
         listeners.remove(connection);
         log.debug("Unsubscribed all handlers for connection: {}", connection);
     }
