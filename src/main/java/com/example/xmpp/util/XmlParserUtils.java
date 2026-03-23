@@ -1,5 +1,6 @@
 package com.example.xmpp.util;
 
+import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
@@ -13,6 +14,7 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
 import java.io.ByteArrayInputStream;
 import java.util.LinkedHashMap;
+import java.util.Objects;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -95,10 +97,8 @@ public class XmlParserUtils {
      * @return 新创建的 XMLEventReader 实例
      * @throws XMLStreamException 如果创建 reader 失败
      */
-    public static XMLEventReader createReader(byte[] bytes) throws XMLStreamException {
-        if (bytes == null) {
-            throw new IllegalArgumentException("bytes cannot be null");
-        }
+    public static XMLEventReader createReader(@NonNull byte[] bytes) throws XMLStreamException {
+        Objects.requireNonNull(bytes);
         return SHARED_INPUT_FACTORY.createXMLEventReader(new ByteArrayInputStream(bytes));
     }
 
