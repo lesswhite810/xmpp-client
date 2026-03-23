@@ -102,7 +102,8 @@ public class ConnectionRequestManager {
                 .whenComplete((response, throwable) -> {
                     if (throwable != null) {
                         Throwable cause = unwrap(throwable);
-                        log.error("Failed to send ConnectionRequest to {}: {}", cpeJid, cause.getMessage());
+                        log.error("Failed to send ConnectionRequest to {} - ErrorType: {}",
+                                cpeJid, resolveErrorType(cause));
                     }
                 });
     }
@@ -128,6 +129,10 @@ public class ConnectionRequestManager {
         return throwable.getCause() != null ? throwable.getCause() : throwable;
     }
 
+    private String resolveErrorType(Throwable throwable) {
+        return throwable != null ? throwable.getClass().getSimpleName() : "unknown";
+    }
+
     /**
      * 发送连接请求并自动重试。
      *
@@ -150,7 +155,8 @@ public class ConnectionRequestManager {
                     Throwable cause = unwrap(throwable);
 
                     if (!isRetryableError(cause)) {
-                        log.error("Non-retryable error, giving up: {}", cause.getMessage());
+                        log.error("Non-retryable error, giving up - ErrorType: {}",
+                                resolveErrorType(cause));
                         return CompletableFuture.failedFuture(throwable);
                     }
 

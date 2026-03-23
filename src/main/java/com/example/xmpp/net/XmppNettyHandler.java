@@ -99,13 +99,13 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
         }
 
         if (cause instanceof XmppException) {
-            log.warn("XMPP exception caught - State: {}, Remote: {}, ErrorType: {}",
+            log.error("XMPP exception caught - State: {}, Remote: {}, ErrorType: {}",
                     stateName, remoteAddress, errorType);
             return;
         }
 
         if (cause instanceof IOException) {
-            log.warn("I/O exception caught - State: {}, Remote: {}, ErrorType: {}",
+            log.error("I/O exception caught - State: {}, Remote: {}, ErrorType: {}",
                     stateName, remoteAddress, errorType);
             return;
         }
@@ -158,7 +158,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
         connection.failConnection(ctx.channel(), connectionException);
         ctx.close().addListener(future -> {
             if (!future.isSuccess()) {
-                log.debug("Failed to close channel after error: {}", future.cause().getMessage());
+                logCloseFailure(future);
             }
         });
     }
@@ -203,7 +203,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
             connection.failConnection(ctx.channel(), new XmppStreamErrorException(streamError));
             ctx.close().addListener(future -> {
                 if (!future.isSuccess()) {
-                    log.debug("Failed to close channel after error: {}", future.cause().getMessage());
+                    logCloseFailure(future);
                 }
             });
             return;
@@ -249,13 +249,13 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
 
     private void handleTlsHandshakeFailure(ChannelHandlerContext ctx, SslHandshakeCompletionEvent event) {
         Throwable cause = event.cause();
-        log.warn("SSL handshake failed - Remote: {}, ErrorType: {}",
+        log.error("SSL handshake failed - Remote: {}, ErrorType: {}",
                 ctx.channel().remoteAddress(),
                 cause != null ? cause.getClass().getSimpleName() : "unknown");
         connection.failConnection(ctx.channel(), new XmppNetworkException("SSL handshake failed"));
         ctx.close().addListener(future -> {
             if (!future.isSuccess()) {
-                log.debug("Failed to close channel after error: {}", future.cause().getMessage());
+                logCloseFailure(future);
             }
         });
     }
@@ -288,5 +288,10 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
 
     private ChannelFuture createFailedSendFuture(ChannelHandlerContext ctx, String message) {
         return ctx.newFailedFuture(new XmppNetworkException(message));
+    }
+
+    private void logCloseFailure(io.netty.util.concurrent.Future<?> future) {
+        log.error("Failed to close channel after error - ErrorType: {}",
+                resolveErrorType(future.cause()));
     }
 }

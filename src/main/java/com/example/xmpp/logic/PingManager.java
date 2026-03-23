@@ -192,7 +192,7 @@ public final class PingManager {
                                 && completionException.getCause() != null
                                 ? completionException.getCause()
                                 : ex;
-                        log.warn("Keepalive Ping failed - ErrorType: {}", cause.getClass().getSimpleName());
+                        log.error("Keepalive Ping failed - ErrorType: {}", cause.getClass().getSimpleName());
                         return;
                     }
                     log.debug("Keepalive Pong received.");

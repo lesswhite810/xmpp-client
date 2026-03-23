@@ -188,7 +188,7 @@ public final class ProviderRegistry {
                 spiCount++;
                 log.debug("Discovered SPI provider: {}", protocolProvider.getClass().getName());
             } catch (Exception e) {
-                log.warn("Failed to load SPI provider: {}: {}", protocolProvider.getClass().getName(), e.getMessage());
+                log.error("Failed to load SPI provider: {}: {}", protocolProvider.getClass().getName(), e.getMessage());
             }
         }
         if (spiCount > 0) {

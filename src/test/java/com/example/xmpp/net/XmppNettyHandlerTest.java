@@ -8,11 +8,13 @@ import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.exception.XmppStanzaErrorException;
+import com.example.xmpp.mechanism.SaslNegotiator;
 import com.example.xmpp.protocol.model.XmlSerializable;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.protocol.model.extension.Bind;
+import com.example.xmpp.protocol.model.sasl.SaslChallenge;
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.net.state.StateContext;
@@ -26,11 +28,19 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -382,6 +392,9 @@ class XmppNettyHandlerTest {
 
     @Test
     void testSaslWriteFailureCompletesConnectionFutureImmediately() {
+        Logger saslLogger = (Logger) LogManager.getLogger(SaslNegotiator.class);
+        Logger handlerLogger = (Logger) LogManager.getLogger(XmppNettyHandler.class);
+        TestLogAppender appender = attachAppender("saslWriteFailure", saslLogger, handlerLogger);
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
@@ -406,7 +419,45 @@ class XmppNettyHandlerTest {
                     () -> connection.getConnectionReadyFuture().join());
             XmppAuthException cause = assertInstanceOf(XmppAuthException.class, exception.getCause());
             assertTrue(cause.getMessage().contains("Failed to send SASL stanza"));
+            assertNull(cause.getCause());
+            assertTrue(appender.containsAtLevel("Failed to send SASL stanza - ErrorType:", Level.ERROR));
+            assertTrue(appender.containsAtLevel("XMPP exception caught - State: AWAITING_FEATURES", Level.ERROR));
         } finally {
+            detachAppender(appender, saslLogger, handlerLogger);
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testInvalidSaslChallengeDoesNotExposeNestedCause() {
+        Logger stateLogger = (Logger) LogManager.getLogger(XmppHandlerState.class);
+        TestLogAppender appender = attachAppender("invalidSaslChallenge", stateLogger);
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .enabledSaslMechanisms(Set.of("SCRAM-SHA-1"))
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            drainOutboundStrings(channel);
+            channel.writeInbound(StreamFeatures.builder()
+                    .mechanisms(List.of("SCRAM-SHA-1"))
+                    .build());
+            channel.writeInbound(new SaslChallenge("%%%"));
+
+            CompletionException exception = assertThrows(CompletionException.class,
+                    () -> connection.getConnectionReadyFuture().join());
+            XmppAuthException cause = assertInstanceOf(XmppAuthException.class, exception.getCause());
+            assertEquals("Invalid challenge content", cause.getMessage());
+            assertNull(cause.getCause());
+            assertTrue(appender.containsAtLevel("SASL authentication error - ErrorType: XmppAuthException", Level.ERROR));
+        } finally {
+            detachAppender(appender, stateLogger);
             channel.finishAndReleaseAll();
         }
     }
@@ -1265,6 +1316,48 @@ class XmppNettyHandlerTest {
         @Override
         public String toXml() {
             return "   ";
+        }
+    }
+
+    private TestLogAppender attachAppender(String name, Logger... loggers) {
+        TestLogAppender appender = new TestLogAppender(name);
+        appender.start();
+        for (Logger logger : loggers) {
+            logger.addAppender(appender);
+            logger.setLevel(Level.ALL);
+        }
+        return appender;
+    }
+
+    private void detachAppender(Appender appender, Logger... loggers) {
+        for (Logger logger : loggers) {
+            logger.removeAppender(appender);
+        }
+        appender.stop();
+    }
+
+    private static final class TestLogAppender extends AbstractAppender {
+
+        private final List<LogEvent> events = new ArrayList<>();
+
+        private TestLogAppender(String name) {
+            super(name, null, PatternLayout.createDefaultLayout(), false, null);
+        }
+
+        @Override
+        public void append(LogEvent event) {
+            events.add(event.toImmutable());
+        }
+
+        private boolean containsAtLevel(String text, Level level) {
+            for (LogEvent event : events) {
+                if (event.getLevel() == level
+                        && event.getMessage() != null
+                        && event.getMessage().getFormattedMessage().contains(text)) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

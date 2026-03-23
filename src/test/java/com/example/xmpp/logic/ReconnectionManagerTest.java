@@ -11,6 +11,13 @@ import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
 import com.example.xmpp.protocol.model.stream.StreamError;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +27,8 @@ import org.mockito.MockitoAnnotations;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -133,19 +142,27 @@ class ReconnectionManagerTest {
     @Test
     @DisplayName("重连失败后应继续调度下一次重试")
     void testReconnectFailureSchedulesNextAttempt() throws Exception {
+        Logger logger = (Logger) LogManager.getLogger(ReconnectionManager.class);
+        TestLogAppender appender = attachAppender("reconnectFailure", logger);
         AtomicInteger attempts = new AtomicInteger();
 
-        when(connection.isConnected()).thenReturn(false);
-        doAnswer(invocation -> {
-            attempts.incrementAndGet();
-            throw new XmppNetworkException("connect failed");
-        }).when(connection).connect();
+        try {
+            when(connection.isConnected()).thenReturn(false);
+            doAnswer(invocation -> {
+                attempts.incrementAndGet();
+                throw new XmppNetworkException("connect failed");
+            }).when(connection).connect();
 
-        invokeRunReconnectAttempt(0);
+            invokeRunReconnectAttempt(0);
 
-        assertEquals(1, attempts.get());
-        assertNotNull(getCurrentTask());
-        reconnectionManager.shutdown();
+            assertEquals(1, attempts.get());
+            assertNotNull(getCurrentTask());
+            assertTrue(appender.containsAtLevel("Reconnection failed - type: XmppNetworkException, retryIndex: 1",
+                    Level.ERROR));
+            reconnectionManager.shutdown();
+        } finally {
+            detachAppender(appender, logger);
+        }
     }
 
     @Test
@@ -319,5 +336,47 @@ class ReconnectionManagerTest {
         Method method = ReconnectionManager.class.getDeclaredMethod("runReconnectAttempt", int.class);
         method.setAccessible(true);
         method.invoke(reconnectionManager, retryIndex);
+    }
+
+    private TestLogAppender attachAppender(String name, Logger... loggers) {
+        TestLogAppender appender = new TestLogAppender(name);
+        appender.start();
+        for (Logger logger : loggers) {
+            logger.addAppender(appender);
+            logger.setLevel(Level.ALL);
+        }
+        return appender;
+    }
+
+    private void detachAppender(Appender appender, Logger... loggers) {
+        for (Logger logger : loggers) {
+            logger.removeAppender(appender);
+        }
+        appender.stop();
+    }
+
+    private static final class TestLogAppender extends AbstractAppender {
+
+        private final List<LogEvent> events = new ArrayList<>();
+
+        private TestLogAppender(String name) {
+            super(name, null, PatternLayout.createDefaultLayout(), false, null);
+        }
+
+        @Override
+        public void append(LogEvent event) {
+            events.add(event.toImmutable());
+        }
+
+        private boolean containsAtLevel(String text, Level level) {
+            for (LogEvent event : events) {
+                if (event.getLevel() == level
+                        && event.getMessage() != null
+                        && event.getMessage().getFormattedMessage().contains(text)) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }

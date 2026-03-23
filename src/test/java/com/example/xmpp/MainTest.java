@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doAnswer;
@@ -42,7 +42,7 @@ class MainTest {
             RuntimeException exception = assertThrows(RuntimeException.class, () -> Main.main(new String[0]));
 
             assertEquals("XMPP connection failed", exception.getMessage());
-            assertSame(cause, exception.getCause());
+            assertNull(exception.getCause());
         }
 
         XmppClientConfig config = configRef.get();

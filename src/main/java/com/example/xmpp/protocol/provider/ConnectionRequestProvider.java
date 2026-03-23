@@ -105,7 +105,7 @@ public final class ConnectionRequestProvider extends AbstractProvider<Connection
                     .password(password)
                     .build();
         } catch (IllegalArgumentException e) {
-            throw new XMLStreamException("Invalid ConnectionRequest payload");
+            throw new XMLStreamException("Invalid ConnectionRequest payload", e);
         }
     }
 

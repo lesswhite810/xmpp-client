@@ -75,11 +75,11 @@ public final class ReconnectionManager {
         }
         stopReconnectTask();
         if (isNonRecoverableError(disconnectError)) {
-            log.warn("Connection closed after non-recoverable error. Skipping reconnection: {}",
+            log.error("Connection closed after non-recoverable error. Skipping reconnection: {}",
                     disconnectError.getClass().getSimpleName());
             return;
         }
-        log.warn("Connection closed after error. Starting reconnection.");
+        log.error("Connection closed after error. Starting reconnection.");
         scheduleReconnect(0);
     }
 
@@ -183,8 +183,8 @@ public final class ReconnectionManager {
      * @param error 失败异常
      */
     private void handleXmppReconnectFailure(int retryIndex, XmppException error) {
-        log.warn("Reconnection failed - type: {}, retryIndex: {}",
-                error.getClass().getSimpleName(), retryIndex + 1, error);
+        log.error("Reconnection failed - type: {}, retryIndex: {}, message: {}",
+                error.getClass().getSimpleName(), retryIndex + 1, error.getMessage());
         if (isNonRecoverableError(error)) {
             stopReconnectTask();
             log.info("Stopping reconnection after non-recoverable reconnect failure: {}",

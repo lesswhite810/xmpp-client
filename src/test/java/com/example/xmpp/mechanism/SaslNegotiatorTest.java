@@ -20,8 +20,10 @@ import javax.security.sasl.SaslException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -124,14 +126,18 @@ class SaslNegotiatorTest {
 
         SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
 
-        assertThrows(XmppAuthException.class, () -> negotiator.handleChallenge("AQID"));
+        XmppAuthException exception = assertThrows(XmppAuthException.class, () -> negotiator.handleChallenge("AQID"));
+        assertEquals("Failed to process challenge", exception.getMessage());
+        assertNull(exception.getCause());
     }
 
     @Test
     void testHandleChallengeRejectsInvalidBase64Content() {
         SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
 
-        assertThrows(XmppAuthException.class, () -> negotiator.handleChallenge("%%%"));
+        XmppAuthException exception = assertThrows(XmppAuthException.class, () -> negotiator.handleChallenge("%%%"));
+        assertEquals("Invalid challenge content", exception.getMessage());
+        assertNull(exception.getCause());
     }
 
     @Test
@@ -139,7 +145,9 @@ class SaslNegotiatorTest {
     void testHandleSuccessRejectsInvalidBase64Content() {
         SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
 
-        assertThrows(XmppAuthException.class, () -> negotiator.handleSuccess("%%%"));
+        XmppAuthException exception = assertThrows(XmppAuthException.class, () -> negotiator.handleSuccess("%%%"));
+        assertEquals("Invalid success content", exception.getMessage());
+        assertNull(exception.getCause());
     }
 
     @Test
@@ -161,6 +169,29 @@ class SaslNegotiatorTest {
         SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
 
         assertThrows(XmppAuthException.class, negotiator::start);
+    }
+
+    @Test
+    void testStartDoesNotExposeInitialResponseCause() throws Exception {
+        when(mechanism.getMechanismName()).thenReturn("SCRAM-SHA-256");
+        when(mechanism.processChallenge(null)).thenThrow(new SaslException("secret"));
+
+        SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
+
+        XmppAuthException exception = assertThrows(XmppAuthException.class, negotiator::start);
+        assertEquals("Failed to generate initial response", exception.getMessage());
+        assertNull(exception.getCause());
+    }
+
+    @Test
+    void testHandleSuccessDoesNotExposeVerificationCause() throws Exception {
+        when(mechanism.processChallenge(new byte[] {1, 2, 3})).thenThrow(new SaslException("secret"));
+
+        SaslNegotiator negotiator = new SaslNegotiator(mechanism, context);
+
+        XmppAuthException exception = assertThrows(XmppAuthException.class, () -> negotiator.handleSuccess("AQID"));
+        assertEquals("Failed to verify server signature", exception.getMessage());
+        assertNull(exception.getCause());
     }
 
     @Test

@@ -174,13 +174,15 @@ public abstract class ScramMechanism implements SaslMechanism {
                     throw new SaslException("Invalid state");
             }
         } catch (SaslException e) {
-            log.warn("SCRAM {} authentication failed: {}", getMechanismName(), e.getMessage());
+            log.error("SCRAM {} authentication failed - ErrorType: {}",
+                    getMechanismName(), e.getClass().getSimpleName());
             clearSensitiveState();
             throw e;
         } catch (RuntimeException e) {
-            log.error("SCRAM {} unexpected error during authentication: {}", getMechanismName(), e.getMessage());
+            log.error("SCRAM {} unexpected error during authentication - ErrorType: {}",
+                    getMechanismName(), e.getClass().getSimpleName());
             clearSensitiveState();
-            throw new SaslException("SCRAM processing failed");
+            throw new SaslException("SCRAM processing failed", e);
         }
     }
 
@@ -222,16 +224,16 @@ public abstract class ScramMechanism implements SaslMechanism {
         try {
             salt = Base64.getDecoder().decode(saltBase64);
         } catch (IllegalArgumentException e) {
-            log.warn("SCRAM {} failed to decode salt (invalid Base64).", getMechanismName());
-            throw new SaslException("Invalid SCRAM salt");
+            log.error("SCRAM {} failed to decode salt (invalid Base64).", getMechanismName());
+            throw new SaslException("Invalid SCRAM salt", e);
         }
 
         int iterations;
         try {
             iterations = Integer.parseInt(iterationsStr);
         } catch (NumberFormatException e) {
-            log.warn("SCRAM {} failed to parse iterations value.", getMechanismName());
-            throw new SaslException("Invalid SCRAM iterations");
+            log.error("SCRAM {} failed to parse iterations value.", getMechanismName());
+            throw new SaslException("Invalid SCRAM iterations", e);
         }
 
         if (iterations < EFFECTIVE_MIN_ITERATIONS) {
@@ -274,7 +276,7 @@ public abstract class ScramMechanism implements SaslMechanism {
         Map<Character, String> attributes = parseAttributes(serverFinalMessage);
         if (attributes.containsKey('e')) {
             log.warn("SCRAM {} server returned error (type=e).", getMechanismName());
-            throw new SaslException("Server returned SCRAM error (type=e)");
+            throw new SaslException("Server returned error (type=e)");
         }
 
         String verifierBase64 = attributes.get('v');
@@ -290,8 +292,8 @@ public abstract class ScramMechanism implements SaslMechanism {
         try {
             serverSignatureExpected = Base64.getDecoder().decode(verifierBase64);
         } catch (IllegalArgumentException e) {
-            log.warn("SCRAM {} failed to decode server verifier (invalid Base64).", getMechanismName());
-            throw new SaslException("Invalid server verifier");
+            log.error("SCRAM {} failed to decode server verifier (invalid Base64).", getMechanismName());
+            throw new SaslException("Invalid server verifier", e);
         }
 
         if (!MessageDigest.isEqual(serverSignature, serverSignatureExpected)) {
@@ -326,8 +328,9 @@ public abstract class ScramMechanism implements SaslMechanism {
             SecretKeyFactory skf = SecretKeyFactory.getInstance(getPBKDF2Algorithm());
             return skf.generateSecret(spec).getEncoded();
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            log.error("SCRAM {} key derivation failed: {}.", PBKDF2_OPERATION, e.getMessage());
-            throw new SaslException(PBKDF2_OPERATION + " failed");
+            log.error("SCRAM {} key derivation failed - ErrorType: {}",
+                    PBKDF2_OPERATION, e.getClass().getSimpleName());
+            throw new SaslException(PBKDF2_OPERATION + " failed", e);
         }
     }
 
@@ -345,8 +348,9 @@ public abstract class ScramMechanism implements SaslMechanism {
             mac.init(new SecretKeySpec(key, getHmacAlgorithm()));
             return mac.doFinal(data);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            log.error("SCRAM {} HMAC computation failed: {}", getMechanismName(), e.getMessage());
-            throw new SaslException(HMAC_OPERATION + " failed");
+            log.error("SCRAM {} HMAC computation failed - ErrorType: {}",
+                    getMechanismName(), e.getClass().getSimpleName());
+            throw new SaslException(HMAC_OPERATION + " failed", e);
         }
     }
 
@@ -362,8 +366,9 @@ public abstract class ScramMechanism implements SaslMechanism {
             MessageDigest digest = MessageDigest.getInstance(getDigestAlgorithm());
             return digest.digest(data);
         } catch (NoSuchAlgorithmException e) {
-            log.error("SCRAM {} hash computation failed for algorithm '{}': {}", getMechanismName(), getDigestAlgorithm(), e.getMessage());
-            throw new SaslException("Hash failed: " + getDigestAlgorithm());
+            log.error("SCRAM {} hash computation failed for algorithm '{}' - ErrorType: {}",
+                    getMechanismName(), getDigestAlgorithm(), e.getClass().getSimpleName());
+            throw new SaslException("Hash failed: " + getDigestAlgorithm(), e);
         }
     }
 

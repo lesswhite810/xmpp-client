@@ -201,14 +201,14 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             reader = INPUT_FACTORY.createXMLEventReader(new StringReader(wrappedXml));
             return parseWrappedFrame(reader);
         } catch (XMLStreamException e) {
-            log.warn("XML parsing error - ErrorType: {}", e.getClass().getSimpleName());
+            log.error("XML parsing error - ErrorType: {}", e.getClass().getSimpleName());
             return Optional.empty();
         } finally {
             if (reader != null) {
                 try {
                     reader.close();
                 } catch (XMLStreamException e) {
-                    log.debug("Error closing XML reader: {}", e.getMessage());
+                    log.error("Error closing XML reader: {}", e.getMessage());
                 }
             }
         }
@@ -556,7 +556,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         try {
             return Optional.ofNullable(extProvider.get().parse(reader));
         } catch (XmppParseException e) {
-            log.warn("Extension provider failed to parse {} - ErrorType: {}",
+            log.error("Extension provider failed to parse {} - ErrorType: {}",
                     localName, e.getClass().getSimpleName());
             return Optional.empty();
         }
@@ -857,7 +857,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         try {
             builder.priority(Integer.parseInt(XmlParserUtils.getElementText(reader)));
         } catch (NumberFormatException | XMLStreamException e) {
-            log.warn("Invalid priority value in presence stanza");
+            log.error("Invalid priority value in presence stanza");
         }
     }
 
@@ -900,7 +900,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         try {
             return Optional.of(GenericExtensionProvider.INSTANCE.parse(reader, start));
         } catch (XmppParseException e) {
-            log.warn("Generic parser failed for <{} xmlns=\"{}\"> - ErrorType: {}",
+            log.error("Generic parser failed for <{} xmlns=\"{}\"> - ErrorType: {}",
                     name, namespace, e.getClass().getSimpleName());
             return Optional.empty();
         }
@@ -921,7 +921,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             log.warn("Provider returned non-extension result for <{} xmlns=\"{}\">", name, namespace);
             return false;
         } catch (XmppParseException | XMLStreamException e) {
-            log.warn("Provider failed to parse <{} xmlns=\"{}\"> - ErrorType: {}",
+            log.error("Provider failed to parse <{} xmlns=\"{}\"> - ErrorType: {}",
                     name, namespace, e.getClass().getSimpleName());
             return false;
         } finally {
@@ -949,7 +949,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         try {
             reader.close();
         } catch (XMLStreamException e) {
-            log.debug("Error closing XML reader: {}", e.getMessage());
+            log.error("Error closing XML reader: {}", e.getMessage());
         }
     }
 

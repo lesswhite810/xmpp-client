@@ -22,6 +22,13 @@ import com.example.xmpp.protocol.model.stream.TlsElements;
 import com.example.xmpp.util.XmlStringBuilder;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +37,7 @@ import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -443,13 +451,21 @@ class XmppStreamDecoderTest {
     @Test
     @DisplayName("Presence priority 非数字时应忽略")
     void testIgnoreInvalidPresencePriority() {
-        sendStreamHeader();
-        sendXml("<presence id='pres-invalid'><priority>invalid</priority></presence>");
+        Logger logger = (Logger) LogManager.getLogger(XmppStreamDecoder.class);
+        TestLogAppender appender = attachAppender("invalidPriority", logger);
 
-        Object msg = channel.readInbound();
-        assertNotNull(msg);
-        assertInstanceOf(Presence.class, msg);
-        assertNull(((Presence) msg).getPriority());
+        try {
+            sendStreamHeader();
+            sendXml("<presence id='pres-invalid'><priority>invalid</priority></presence>");
+
+            Object msg = channel.readInbound();
+            assertNotNull(msg);
+            assertInstanceOf(Presence.class, msg);
+            assertNull(((Presence) msg).getPriority());
+            assertTrue(appender.containsAtLevel("Invalid priority value in presence stanza", Level.ERROR));
+        } finally {
+            detachAppender(appender, logger);
+        }
     }
 
     @Test
@@ -828,6 +844,48 @@ class XmppStreamDecoderTest {
                 throw new XmppParseException("broken provider", e);
             }
             throw new XmppParseException("broken provider after partial consumption");
+        }
+    }
+
+    private TestLogAppender attachAppender(String name, Logger... loggers) {
+        TestLogAppender appender = new TestLogAppender(name);
+        appender.start();
+        for (Logger logger : loggers) {
+            logger.addAppender(appender);
+            logger.setLevel(Level.ALL);
+        }
+        return appender;
+    }
+
+    private void detachAppender(Appender appender, Logger... loggers) {
+        for (Logger logger : loggers) {
+            logger.removeAppender(appender);
+        }
+        appender.stop();
+    }
+
+    private static final class TestLogAppender extends AbstractAppender {
+
+        private final List<LogEvent> events = new ArrayList<>();
+
+        private TestLogAppender(String name) {
+            super(name, null, PatternLayout.createDefaultLayout(), false, null);
+        }
+
+        @Override
+        public void append(LogEvent event) {
+            events.add(event.toImmutable());
+        }
+
+        private boolean containsAtLevel(String text, Level level) {
+            for (LogEvent event : events) {
+                if (event.getLevel() == level
+                        && event.getMessage() != null
+                        && event.getMessage().getFormattedMessage().contains(text)) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

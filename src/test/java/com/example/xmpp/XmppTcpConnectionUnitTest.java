@@ -244,6 +244,20 @@ class XmppTcpConnectionUnitTest {
     }
 
     @Test
+    void testSendStanzaLogsFailureAtErrorLevelWhenChannelInactive() {
+        Logger logger = (Logger) LogManager.getLogger(XmppTcpConnection.class);
+        TestLogAppender appender = attachAppender("sendStanzaInactive", logger);
+        XmppTcpConnection connection = new XmppTcpConnection(newConfig());
+
+        try {
+            connection.sendStanza(new TestStanza("<message id='m-log'/>"));
+            assertTrue(appender.containsAtLevel("Failed to send stanza - ErrorType: XmppNetworkException", Level.ERROR));
+        } finally {
+            detachAppender(appender, logger);
+        }
+    }
+
+    @Test
     void testDispatchStanzaFailsWhenSerializationReturnsBlankXml() throws Exception {
         XmppTcpConnection connection = new XmppTcpConnection(newConfig());
         XmppNettyHandler nettyHandler = new XmppNettyHandler(newConfig(), connection);
@@ -520,6 +534,17 @@ class XmppTcpConnectionUnitTest {
                     return true;
                 }
                 if (containsMessage(event.getThrown(), text)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private boolean containsAtLevel(String text, Level level) {
+            for (LogEvent event : events) {
+                if (event.getLevel() == level
+                        && event.getMessage() != null
+                        && event.getMessage().getFormattedMessage().contains(text)) {
                     return true;
                 }
             }

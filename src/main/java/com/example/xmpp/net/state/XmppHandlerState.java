@@ -193,7 +193,7 @@ public enum XmppHandlerState implements HandlerState {
                         "send SASL auth stanza",
                         () -> context.transitionTo(SASL_AUTH, ctx));
             } catch (XmppAuthException e) {
-                log.warn("Authentication error: {}", e.getMessage());
+                log.error("Authentication error - ErrorType: {}", e.getClass().getSimpleName());
                 context.closeConnectionOnError(ctx, e);
             }
         }
@@ -244,10 +244,11 @@ public enum XmppHandlerState implements HandlerState {
                 log.debug("SSL handler added to pipeline, handshake starting");
 
             } catch (XmppNetworkException e) {
-                log.warn("Network error while initializing SSL handler: {}", e.getMessage());
+                log.error("Network error while initializing SSL handler - ErrorType: {}",
+                        e.getClass().getSimpleName());
                 context.closeConnectionOnError(ctx, e);
             } catch (IllegalArgumentException e) {
-                log.warn("Invalid SSL configuration: {}", e.getMessage());
+                log.error("Invalid SSL configuration - ErrorType: {}", e.getClass().getSimpleName());
                 context.closeConnectionOnError(ctx, new XmppNetworkException("Invalid SSL configuration", e));
             }
         }
@@ -276,11 +277,11 @@ public enum XmppHandlerState implements HandlerState {
                     default -> log.debug("Received unexpected message during SASL auth: {}", msg.getClass().getSimpleName());
                 }
             } catch (XmppAuthException e) {
-                log.warn("SASL authentication error: {}", e.getMessage());
+                log.error("SASL authentication error - ErrorType: {}", e.getClass().getSimpleName());
                 context.setSaslNegotiator(null);
                 context.closeConnectionOnError(ctx, e);
             } catch (IllegalArgumentException e) {
-                log.warn("Invalid SASL authentication data: {}", e.getMessage());
+                log.error("Invalid SASL authentication data - ErrorType: {}", e.getClass().getSimpleName());
                 context.setSaslNegotiator(null);
                 context.closeConnectionOnError(ctx, new XmppAuthException("Invalid SASL authentication data"));
             }

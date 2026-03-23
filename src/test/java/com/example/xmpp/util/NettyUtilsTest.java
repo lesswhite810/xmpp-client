@@ -8,10 +8,19 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.CharsetUtil;
 import io.netty.util.concurrent.GenericFutureListener;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -65,27 +74,34 @@ class NettyUtilsTest {
     @Test
     @DisplayName("写失败时应释放 ByteBuf")
     void testWriteAndFlushStringAsyncReleasesBufferOnFailure() throws Exception {
+        Logger logger = (Logger) LogManager.getLogger(NettyUtils.class);
+        TestLogAppender appender = attachAppender("writeFailure", logger);
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         ByteBufAllocator allocator = mock(ByteBufAllocator.class);
         ByteBuf buf = mock(ByteBuf.class);
         ChannelFuture future = mock(ChannelFuture.class);
 
-        when(ctx.alloc()).thenReturn(allocator);
-        when(allocator.buffer(any(Integer.class))).thenReturn(buf);
-        when(ctx.writeAndFlush(buf)).thenReturn(future);
-        when(future.isSuccess()).thenReturn(false);
-        when(future.cause()).thenReturn(new IllegalStateException("write failed"));
-        when(buf.refCnt()).thenReturn(1);
-        doAnswer(invocation -> {
-            Object listener = invocation.getArgument(0);
-            GenericFutureListener genericListener = (GenericFutureListener) listener;
-            genericListener.operationComplete((io.netty.util.concurrent.Future) future);
-            return future;
-        }).when(future).addListener(any());
+        try {
+            when(ctx.alloc()).thenReturn(allocator);
+            when(allocator.buffer(any(Integer.class))).thenReturn(buf);
+            when(ctx.writeAndFlush(buf)).thenReturn(future);
+            when(future.isSuccess()).thenReturn(false);
+            when(future.cause()).thenReturn(new IllegalStateException("write failed"));
+            when(buf.refCnt()).thenReturn(1);
+            doAnswer(invocation -> {
+                Object listener = invocation.getArgument(0);
+                GenericFutureListener genericListener = (GenericFutureListener) listener;
+                genericListener.operationComplete((io.netty.util.concurrent.Future) future);
+                return future;
+            }).when(future).addListener(any());
 
-        assertSame(future, NettyUtils.writeAndFlushStringAsync(ctx, "data"));
-        verify(buf).writeCharSequence("data", CharsetUtil.UTF_8);
-        verify(buf).release();
+            assertSame(future, NettyUtils.writeAndFlushStringAsync(ctx, "data"));
+            verify(buf).writeCharSequence("data", CharsetUtil.UTF_8);
+            verify(buf).release();
+            assertTrue(appender.containsAtLevel("Failed to write ByteBuf, releasing buffer. ErrorType:", Level.ERROR));
+        } finally {
+            detachAppender(appender, logger);
+        }
     }
 
     @Test
@@ -100,5 +116,47 @@ class NettyUtilsTest {
         assertEquals(12, actualSize);
         assertEquals(18, estimatedSize);
         assertTrue(estimatedSize >= actualSize);
+    }
+
+    private TestLogAppender attachAppender(String name, Logger... loggers) {
+        TestLogAppender appender = new TestLogAppender(name);
+        appender.start();
+        for (Logger logger : loggers) {
+            logger.addAppender(appender);
+            logger.setLevel(Level.ALL);
+        }
+        return appender;
+    }
+
+    private void detachAppender(Appender appender, Logger... loggers) {
+        for (Logger logger : loggers) {
+            logger.removeAppender(appender);
+        }
+        appender.stop();
+    }
+
+    private static final class TestLogAppender extends AbstractAppender {
+
+        private final List<LogEvent> events = new ArrayList<>();
+
+        private TestLogAppender(String name) {
+            super(name, null, PatternLayout.createDefaultLayout(), false, null);
+        }
+
+        @Override
+        public void append(LogEvent event) {
+            events.add(event.toImmutable());
+        }
+
+        private boolean containsAtLevel(String text, Level level) {
+            for (LogEvent event : events) {
+                if (event.getLevel() == level
+                        && event.getMessage() != null
+                        && event.getMessage().getFormattedMessage().contains(text)) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }

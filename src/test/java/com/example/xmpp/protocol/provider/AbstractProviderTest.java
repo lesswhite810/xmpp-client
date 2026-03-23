@@ -4,12 +4,21 @@ import com.example.xmpp.exception.XmppParseException;
 import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmlStringBuilder;
 import com.example.xmpp.util.XmlParserUtils;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -48,15 +57,23 @@ class AbstractProviderTest {
     @Test
     @DisplayName("parse() 应将 XMLStreamException 转换为 XmppParseException")
     void testParseConvertsException() throws Exception {
+        Logger logger = (Logger) LogManager.getLogger(AbstractProvider.class);
+        TestLogAppender appender = attachAppender("providerParseFailure", logger);
         ThrowingProvider provider = new ThrowingProvider();
         String xml = "<test xmlns='urn:test'>content</test>";
 
-        XMLEventReader reader = XmlParserUtils.createReader(xml.getBytes());
-        reader.next();
+        try {
+            XMLEventReader reader = XmlParserUtils.createReader(xml.getBytes());
+            reader.next();
 
-        assertThrows(XmppParseException.class, () -> {
-            provider.parse(reader);
-        });
+            assertThrows(XmppParseException.class, () -> {
+                provider.parse(reader);
+            });
+            assertTrue(appender.containsAtLevel("Failed to parse <test xmlns=\"urn:test\"> - ErrorType: XMLStreamException",
+                    Level.ERROR));
+        } finally {
+            detachAppender(appender, logger);
+        }
     }
 
     @Test
@@ -255,6 +272,48 @@ class AbstractProviderTest {
         @Override
         protected void serializeInstance(TestElement object, XmlStringBuilder xml) {
             // no-op
+        }
+    }
+
+    private TestLogAppender attachAppender(String name, Logger... loggers) {
+        TestLogAppender appender = new TestLogAppender(name);
+        appender.start();
+        for (Logger logger : loggers) {
+            logger.addAppender(appender);
+            logger.setLevel(Level.ALL);
+        }
+        return appender;
+    }
+
+    private void detachAppender(Appender appender, Logger... loggers) {
+        for (Logger logger : loggers) {
+            logger.removeAppender(appender);
+        }
+        appender.stop();
+    }
+
+    private static final class TestLogAppender extends AbstractAppender {
+
+        private final List<LogEvent> events = new ArrayList<>();
+
+        private TestLogAppender(String name) {
+            super(name, null, PatternLayout.createDefaultLayout(), false, null);
+        }
+
+        @Override
+        public void append(LogEvent event) {
+            events.add(event.toImmutable());
+        }
+
+        private boolean containsAtLevel(String text, Level level) {
+            for (LogEvent event : events) {
+                if (event.getLevel() == level
+                        && event.getMessage() != null
+                        && event.getMessage().getFormattedMessage().contains(text)) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

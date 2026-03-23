@@ -89,10 +89,10 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             disconnect();
-            throw new XmppNetworkException("Interrupted while waiting for XMPP session to become ready");
+            throw new XmppNetworkException("Interrupted while waiting for XMPP session to become ready", e);
         } catch (TimeoutException e) {
             disconnect();
-            throw new XmppNetworkException("Timed out waiting for XMPP session to become ready");
+            throw new XmppNetworkException("Timed out waiting for XMPP session to become ready", e);
         } catch (ExecutionException e) {
             disconnect();
             throw unwrapXmppException(e.getCause());
@@ -236,7 +236,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
             try {
                 return attemptConnectionTarget(target);
             } catch (XmppNetworkException e) {
-                log.warn("Connection failed for target {} - ErrorType: {}", target, e.getClass().getSimpleName());
+                log.error("Connection failed for target {} - ErrorType: {}", target, e.getClass().getSimpleName());
                 if (primaryFailure == null) {
                     primaryFailure = e;
                 } else {
@@ -499,11 +499,8 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     private void logSendFailure(Throwable error) {
         Throwable cause = unwrapCompletionError(error);
-        if (cause instanceof XmppNetworkException) {
-            log.warn("Failed to send stanza: {}", cause.getMessage());
-            return;
-        }
-        log.error("Failed to send stanza: {}", cause.getMessage());
+        String errorType = cause != null ? cause.getClass().getSimpleName() : "unknown";
+        log.error("Failed to send stanza - ErrorType: {}", errorType);
     }
 
     private Throwable unwrapCompletionError(Throwable error) {

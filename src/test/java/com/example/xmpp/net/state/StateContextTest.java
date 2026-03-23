@@ -39,7 +39,7 @@ class StateContextTest {
 
         assertTrue(future.isSuccess() || !future.isDone());
         String outbound = fixture.readOutboundAsString();
-        assertTrue(outbound.startsWith("<?xml version='1.0'?>"));
+        assertTrue(outbound.startsWith("<?xml version='1.0' encoding='UTF-8'?>"));
         assertTrue(outbound.contains("<stream:stream"));
         assertTrue(outbound.contains("to=\"example.com\""));
 
@@ -161,7 +161,7 @@ class StateContextTest {
         fixture.context.resumeAfterTlsHandshake(fixture.channel.pipeline().lastContext());
 
         String outbound = fixture.readOutboundAsString();
-        assertTrue(outbound.startsWith("<?xml version='1.0'?>"));
+        assertTrue(outbound.startsWith("<?xml version='1.0' encoding='UTF-8'?>"));
         assertTrue(outbound.contains("<stream:stream"));
         assertEquals("AWAITING_FEATURES", fixture.context.getCurrentStateName());
 

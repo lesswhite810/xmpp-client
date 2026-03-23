@@ -74,7 +74,8 @@ public class AcsConnectionRequestExample {
      */
     private void onConnectionError(ConnectionEvent event) {
         Exception error = event.error();
-        log.error("连接异常关闭: {}", error != null ? error.getMessage() : "未知错误");
+        log.error("连接异常关闭 - ErrorType: {}",
+                error != null ? error.getClass().getSimpleName() : "unknown");
 
         if (error instanceof XmppAuthException) {
             log.error("认证失败 - ACS 配置的凭据无效，请检查用户名密码");
@@ -134,7 +135,8 @@ public class AcsConnectionRequestExample {
                     .exceptionally(throwable -> {
                         Throwable cause = throwable.getCause();
                         if (cause instanceof XmppAuthException) {
-                            log.error("CPE 认证失败: {}", cause.getMessage());
+                            log.error("CPE 认证失败 - ErrorType: {}",
+                                    cause.getClass().getSimpleName());
                         } else if (cause instanceof XmppStanzaErrorException stanzaError) {
                             XmppError error = stanzaError.getXmppError();
                             if (error != null && error.getCondition() == XmppError.Condition.NOT_AUTHORIZED) {
@@ -149,9 +151,9 @@ public class AcsConnectionRequestExample {
                     .get(XmppConstants.DEFAULT_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         } catch (XmppAuthException e) {
-            log.error("ACS 认证失败，请检查凭据配置: {}", e.getMessage());
+            log.error("ACS 认证失败，请检查凭据配置 - ErrorType: {}", e.getClass().getSimpleName());
         } catch (Exception e) {
-            log.error("发生错误: {}", e.getMessage());
+            log.error("发生错误 - ErrorType: {}", e.getClass().getSimpleName());
         }
     }
 }

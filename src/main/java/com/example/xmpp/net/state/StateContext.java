@@ -149,7 +149,9 @@ public class StateContext {
         }
         ctx.close().addListener(future -> {
             if (!future.isSuccess()) {
-                log.debug("Failed to close channel after error: {}", future.cause().getMessage());
+                Throwable cause = future.cause();
+                log.error("Failed to close channel after error - ErrorType: {}",
+                        cause != null ? cause.getClass().getSimpleName() : "unknown");
             }
         });
     }
