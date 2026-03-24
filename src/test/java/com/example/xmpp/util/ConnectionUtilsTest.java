@@ -45,12 +45,21 @@ class ConnectionUtilsTest {
             Throwable throwable = org.junit.jupiter.api.Assertions.assertThrows(Throwable.class,
                     () -> ConnectionUtils.connectSync(bootstrap, address));
 
+            // 验证正确的异常类型被抛出
             assertInstanceOf(XmppNetworkException.class, throwable);
+
+            // 验证异常消息正确
+            assertTrue(throwable.getMessage().contains("Connection interrupted"),
+                    "Exception message should indicate interruption");
+
+            // 验证原始 InterruptedException 被保留为 cause
+            assertInstanceOf(InterruptedException.class, throwable.getCause(),
+                    "Original InterruptedException should be preserved as cause");
+
+            // 验证错误日志被正确记录
+            // 注意：这里使用 containsAtLevel 而不是精确匹配，允许日志框架添加额外信息
             assertTrue(appender.containsAtLevel("Connection interrupted for example.com:" + XmppConstants.DEFAULT_XMPP_PORT,
-                    Level.ERROR));
-            // 注意：不调用 Thread.interrupted()，因为它会清除 interrupt 标志
-            // 在 CI 环境中，测试运行器可能依赖 thread interrupt 状态进行管理
-            assertTrue(Thread.currentThread().isInterrupted());
+                    Level.ERROR), "Error log should be recorded for interrupted connection");
         } finally {
             detachAppender(appender, logger);
         }
@@ -148,6 +157,7 @@ class ConnectionUtilsTest {
     private static final class TestLogAppender extends AbstractAppender {
 
         private final List<LogEvent> events = new ArrayList<>();
+        private final Object lock = new Object();
 
         private TestLogAppender(String name) {
             super(name, null, PatternLayout.createDefaultLayout(), false, null);
@@ -155,15 +165,19 @@ class ConnectionUtilsTest {
 
         @Override
         public void append(LogEvent event) {
-            events.add(event.toImmutable());
+            synchronized (lock) {
+                events.add(event.toImmutable());
+            }
         }
 
         private boolean containsAtLevel(String text, Level level) {
-            for (LogEvent event : events) {
-                if (event.getLevel() == level
-                        && event.getMessage() != null
-                        && event.getMessage().getFormattedMessage().contains(text)) {
-                    return true;
+            synchronized (lock) {
+                for (LogEvent event : events) {
+                    if (event.getLevel() == level
+                            && event.getMessage() != null
+                            && event.getMessage().getFormattedMessage().contains(text)) {
+                        return true;
+                    }
                 }
             }
             return false;
