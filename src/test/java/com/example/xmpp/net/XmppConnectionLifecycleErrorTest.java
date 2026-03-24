@@ -1177,7 +1177,9 @@ class XmppConnectionLifecycleErrorTest {
 
             assertNotSame(firstFuture, secondFuture);
             assertNotSame(firstChannel, connection.getChannel());
-            assertFalse(firstChannel.isActive(), "重试前应先关闭旧的失败连接");
+            // 等待旧通道真正关闭后再验证，防止CI环境下异步关闭未及时完成
+            waitFor(() -> !firstChannel.isActive(), TEST_WAIT_TIMEOUT_MS, "重试前应先关闭旧的失败连接");
+            assertFalse(firstChannel.isActive());
 
             connection.disconnect();
             assertThrows(CompletionException.class, secondFuture::join);
