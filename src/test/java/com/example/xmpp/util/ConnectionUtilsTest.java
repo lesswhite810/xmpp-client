@@ -48,8 +48,9 @@ class ConnectionUtilsTest {
             assertInstanceOf(XmppNetworkException.class, throwable);
             assertTrue(appender.containsAtLevel("Connection interrupted for example.com:" + XmppConstants.DEFAULT_XMPP_PORT,
                     Level.ERROR));
+            // 注意：不调用 Thread.interrupted()，因为它会清除 interrupt 标志
+            // 在 CI 环境中，测试运行器可能依赖 thread interrupt 状态进行管理
             assertTrue(Thread.currentThread().isInterrupted());
-            Thread.interrupted();
         } finally {
             detachAppender(appender, logger);
         }
