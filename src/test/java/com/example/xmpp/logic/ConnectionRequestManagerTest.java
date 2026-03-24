@@ -81,6 +81,21 @@ class ConnectionRequestManagerTest {
     }
 
     @Test
+    @DisplayName("sendConnectionRequestSecure 应支持字符数组密码而不修改调用方数组")
+    void testSendConnectionRequestSecure() {
+        char[] password = "test-password".toCharArray();
+
+        when(connection.isConnected()).thenReturn(true);
+        when(connection.sendIqPacketAsync(any(Iq.class), anyLong(), any(TimeUnit.class)))
+                .thenReturn(CompletableFuture.completedFuture(mock(XmppStanza.class)));
+
+        manager.sendConnectionRequestSecure("cpe@example.com", "test-user", password).join();
+
+        verify(connection).sendIqPacketAsync(any(Iq.class), eq(30000L), eq(TimeUnit.MILLISECONDS));
+        assertArrayEquals("test-password".toCharArray(), password);
+    }
+
+    @Test
     @DisplayName("sendConnectionRequest 应返回服务端成功响应")
     void testSendConnectionRequestReturnsResponse() {
         String cpeJid = "cpe@example.com";
@@ -251,6 +266,25 @@ class ConnectionRequestManagerTest {
         XmppEventBus.getInstance().publish(connection, ConnectionEventType.CONNECTED, null);
 
         assertSame(response, future.join());
+    }
+
+    @Test
+    @DisplayName("sendConnectionRequestWithRetrySecure 应支持字符数组密码")
+    void testSendConnectionRequestWithRetrySecure() {
+        ConnectionRequestManager retryManager = new ConnectionRequestManager(connection, 5000, 10);
+        XmppStanza response = mock(XmppStanza.class);
+        char[] password = "pass".toCharArray();
+        when(connection.isConnected()).thenReturn(false, true);
+        when(connection.sendIqPacketAsync(any(Iq.class), anyLong(), any(TimeUnit.class)))
+                .thenReturn(CompletableFuture.completedFuture(response));
+
+        CompletableFuture<XmppStanza> future = retryManager.sendConnectionRequestWithRetrySecure(
+                "cpe@example.com", "user", password, 1);
+
+        XmppEventBus.getInstance().publish(connection, ConnectionEventType.CONNECTED, null);
+
+        assertSame(response, future.join());
+        assertArrayEquals("pass".toCharArray(), password);
     }
 
     @Test

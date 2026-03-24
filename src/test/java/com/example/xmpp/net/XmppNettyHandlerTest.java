@@ -16,6 +16,7 @@ import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.protocol.model.extension.Bind;
 import com.example.xmpp.protocol.model.sasl.SaslChallenge;
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
+import com.example.xmpp.protocol.model.stream.StreamClose;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.net.state.StateContext;
 import com.example.xmpp.net.state.XmppHandlerState;
@@ -201,6 +202,24 @@ class XmppNettyHandlerTest {
         assertTrue(features.getMechanisms().contains("SCRAM-SHA-1"));
 
         channel.finish();
+    }
+
+    @Test
+    void testStreamCloseTriggersChannelShutdown() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = new EmbeddedChannel(handler);
+
+        channel.writeInbound(StreamClose.INSTANCE);
+
+        assertFalse(channel.isOpen());
+        channel.finishAndReleaseAll();
     }
 
     @Test
@@ -852,8 +871,9 @@ class XmppNettyHandlerTest {
 
         CompletionException exception = assertThrows(CompletionException.class,
                 () -> connection.getConnectionReadyFuture().join());
-        assertInstanceOf(XmppException.class, exception.getCause());
-        assertNull(exception.getCause().getCause());
+        XmppException cause = assertInstanceOf(XmppException.class, exception.getCause());
+        assertEquals("Connection error: IllegalStateException", cause.getMessage());
+        assertNull(cause.getCause());
         assertEquals(1, errorCount.get());
         assertEquals(1, closedCount.get());
 

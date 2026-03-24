@@ -15,6 +15,7 @@ import com.example.xmpp.protocol.model.sasl.SaslFailure;
 import com.example.xmpp.protocol.model.sasl.SaslResponse;
 import com.example.xmpp.protocol.model.sasl.SaslSuccess;
 import com.example.xmpp.protocol.model.stream.StreamError;
+import com.example.xmpp.protocol.model.stream.StreamClose;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.protocol.model.stream.TlsElements;
 import com.example.xmpp.protocol.provider.GenericExtensionProvider;
@@ -52,23 +53,24 @@ import java.util.function.Consumer;
 public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     // XML tag markers
-    private static final String PI_START = "<?";
-    private static final String COMMENT_START = "<!--";
-    private static final String CLOSING_TAG_START = "</";
-    private static final String CDATA_START = "<![CDATA[";
-    private static final String CDATA_END = "]]>";
-    private static final String COMMENT_END = "-->";
     private static final String DECODER_ROOT_TAG = "decoder-root";
+    private static final byte[] PI_START_BYTES = "<?".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] PI_END_BYTES = "?>".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] COMMENT_START_BYTES = "<!--".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] COMMENT_END_BYTES = "-->".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] CLOSING_TAG_START_BYTES = "</".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] CDATA_START_BYTES = "<![CDATA[".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] CDATA_END_BYTES = "]]>".getBytes(StandardCharsets.UTF_8);
 
     // XML tag length constants (for offset calculations)
-    private static final int PROCESSING_INSTRUCTION_PREFIX_LENGTH = 2;  // "<?".length()
-    private static final int COMMENT_PREFIX_LENGTH = 4;                  // "<!--".length()
-    private static final int CDATA_PREFIX_LENGTH = 9;                    // "<![CDATA[".length()
-    private static final int CLOSING_TAG_PREFIX_LENGTH = 2;              // "</".length()
-    private static final int OPENING_TAG_PREFIX_LENGTH = 1;               // "<".length()
-    private static final int SELF_CLOSING_CHECK_OFFSET = 2;              // position of '/' in "/>"
+    private static final int PROCESSING_INSTRUCTION_PREFIX_LENGTH = PI_START_BYTES.length;
+    private static final int COMMENT_PREFIX_LENGTH = COMMENT_START_BYTES.length;
+    private static final int CDATA_PREFIX_LENGTH = CDATA_START_BYTES.length;
+    private static final int CLOSING_TAG_PREFIX_LENGTH = CLOSING_TAG_START_BYTES.length;
+    private static final int OPENING_TAG_PREFIX_LENGTH = 1;
+    private static final int SELF_CLOSING_CHECK_OFFSET = 2;
 
-    private static final XMLInputFactory INPUT_FACTORY = XMLInputFactory.newFactory();
+    private static final XMLInputFactory INPUT_FACTORY = XmlParserUtils.createInputFactory();
     private static final int MAX_BUFFER_SIZE = 1024 * 1024;
     private static final int MAX_XML_NESTING_DEPTH = 256;
     private static final String STREAMS_NAMESPACE = "http://etherx.jabber.org/streams";
@@ -80,10 +82,27 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     private enum FrameType {
         ELEMENT,
-        SKIP
+        SKIP,
+        STREAM_CLOSE
     }
 
     private record FrameBoundary(FrameType type, int length) {
+    }
+
+    private record TagBoundary(int startIndex, int endIndex, boolean specialSection) {
+    }
+
+    private static final class FrameSearchState {
+        private final Deque<String> tagStack = new ArrayDeque<>();
+        private final int frameStartIndex;
+        private final String rootTagName;
+        private boolean skipMode;
+
+        private FrameSearchState(int frameStartIndex, String rootTagName) {
+            this.frameStartIndex = frameStartIndex;
+            this.rootTagName = rootTagName;
+            this.tagStack.addLast(rootTagName);
+        }
     }
 
     /**
@@ -140,6 +159,11 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 in.skipBytes(frameBoundary.length());
                 continue;
             }
+            if (frameBoundary.type() == FrameType.STREAM_CLOSE) {
+                in.skipBytes(frameBoundary.length());
+                out.add(StreamClose.INSTANCE);
+                continue;
+            }
 
             byte[] xmlBytes = new byte[frameBoundary.length()];
             in.readBytes(xmlBytes);
@@ -176,6 +200,8 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
                 byte[] xmlBytes = new byte[frameBoundary.length()];
                 buf.getBytes(readerIndex, xmlBytes);
                 parseFrame(xmlBytes).ifPresent(elements::add);
+            } else if (frameBoundary.type() == FrameType.STREAM_CLOSE) {
+                elements.add(StreamClose.INSTANCE);
             }
             readerIndex += frameBoundary.length();
         }
@@ -266,17 +292,17 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         }
 
         // 2. 特殊标签处理: XML声明/注释/裸闭合标签 → SKIP
-        if (matches(in, startIndex, PI_START)) {
-            return findSequence(in, startIndex + PROCESSING_INSTRUCTION_PREFIX_LENGTH, "?>")
+        if (matches(in, startIndex, PI_START_BYTES)) {
+            return findSequence(in, startIndex + PROCESSING_INSTRUCTION_PREFIX_LENGTH, PI_END_BYTES)
                     .map(end -> new FrameBoundary(FrameType.SKIP, end - startIndex));
         }
-        if (matches(in, startIndex, COMMENT_START)) {
-            return findSequence(in, startIndex + COMMENT_PREFIX_LENGTH, COMMENT_END)
+        if (matches(in, startIndex, COMMENT_START_BYTES)) {
+            return findSequence(in, startIndex + COMMENT_PREFIX_LENGTH, COMMENT_END_BYTES)
                     .map(end -> new FrameBoundary(FrameType.SKIP, end - startIndex));
         }
-        if (matches(in, startIndex, CLOSING_TAG_START)) {
+        if (matches(in, startIndex, CLOSING_TAG_START_BYTES)) {
             return findTagEnd(in, startIndex + CLOSING_TAG_PREFIX_LENGTH)
-                    .map(tagEnd -> new FrameBoundary(FrameType.SKIP, tagEnd - startIndex));
+                    .map(tagEnd -> createClosingTagBoundary(in, startIndex, tagEnd));
         }
 
         // 3. 开标签解析 → 自闭合/special stream tag → SKIP
@@ -305,72 +331,145 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
 
     private Optional<FrameBoundary> searchFrameEnd(ByteBuf in, int startIndex,
                                                    int openingTagEndIndex, String tagName) {
-        Deque<String> tagStack = new ArrayDeque<>();
-        tagStack.addLast(tagName);
+        FrameSearchState state = new FrameSearchState(startIndex, tagName);
         int index = openingTagEndIndex;
 
         while (index < in.writerIndex()) {
-            int nextTagStart = findNextTagStart(in, index);
-            if (nextTagStart < 0) {
+            Optional<TagBoundary> nextTag = readNextTagBoundary(in, index);
+            if (nextTag.isEmpty()) {
                 return Optional.empty();
             }
-
-            Optional<Integer> specialSectionEnd = advancePastSpecialSection(in, nextTagStart);
-            if (specialSectionEnd.isEmpty()) {
-                return Optional.empty();
-            }
-            int nextIndex = specialSectionEnd.orElseThrow();
-            if (nextIndex != nextTagStart) {
-                index = nextIndex;
+            TagBoundary boundary = nextTag.orElseThrow();
+            if (boundary.specialSection()) {
+                index = boundary.endIndex();
                 continue;
             }
-
-            Optional<Integer> tagEnd = findTagEnd(in, nextTagStart + OPENING_TAG_PREFIX_LENGTH);
-            if (tagEnd.isEmpty()) {
-                return Optional.empty();
+            Optional<FrameBoundary> frameBoundary = handleTagBoundary(in, state, boundary);
+            if (frameBoundary.isPresent()) {
+                return frameBoundary;
             }
-            int tagEndIndex = tagEnd.orElseThrow();
-
-            if (matches(in, nextTagStart, CLOSING_TAG_START)) {
-                Optional<FrameBoundary> boundary = handleClosingTag(
-                        in, startIndex, nextTagStart, tagEndIndex, tagStack, tagName);
-                if (boundary.isPresent()) {
-                    return boundary;
-                }
-                index = tagEndIndex;
-                continue;
-            }
-
-            Optional<FrameBoundary> boundary = handleNestedOpeningTag(
-                    in, startIndex, nextTagStart, tagEndIndex, tagStack);
-            if (boundary.isPresent()) {
-                return boundary;
-            }
-            index = tagEndIndex;
+            index = boundary.endIndex();
         }
         return Optional.empty();
     }
 
+    private FrameBoundary createClosingTagBoundary(ByteBuf in, int startIndex, int tagEndIndex) {
+        String tagName = readTagName(in, startIndex + CLOSING_TAG_PREFIX_LENGTH, tagEndIndex).orElse("");
+        FrameType frameType = isStreamOpenTag(tagName) ? FrameType.STREAM_CLOSE : FrameType.SKIP;
+        return new FrameBoundary(frameType, tagEndIndex - startIndex);
+    }
+
+    private Optional<TagBoundary> readNextTagBoundary(ByteBuf in, int index) {
+        int nextTagStart = findNextTagStart(in, index);
+        if (nextTagStart < 0) {
+            return Optional.empty();
+        }
+
+        Optional<Integer> specialSectionEnd = advancePastSpecialSection(in, nextTagStart);
+        if (specialSectionEnd.isEmpty()) {
+            return Optional.empty();
+        }
+        int sectionEnd = specialSectionEnd.orElseThrow();
+        if (sectionEnd != nextTagStart) {
+            return Optional.of(new TagBoundary(nextTagStart, sectionEnd, true));
+        }
+
+        return findTagEnd(in, nextTagStart + OPENING_TAG_PREFIX_LENGTH)
+                .map(tagEndIndex -> new TagBoundary(nextTagStart, tagEndIndex, false));
+    }
+
+    private Optional<FrameBoundary> handleTagBoundary(ByteBuf in, FrameSearchState state, TagBoundary boundary) {
+        if (matches(in, boundary.startIndex(), CLOSING_TAG_START_BYTES)) {
+            return handleClosingTag(in, state, boundary);
+        }
+        if (isSelfClosingTag(in, boundary.endIndex())) {
+            return Optional.empty();
+        }
+        handleNestedOpeningTag(in, state, boundary);
+        return Optional.empty();
+    }
+
+    private Optional<FrameBoundary> handleClosingTag(ByteBuf in, FrameSearchState state, TagBoundary boundary) {
+        String closingTagName = readTagName(in, boundary.startIndex() + CLOSING_TAG_PREFIX_LENGTH, boundary.endIndex())
+                .orElse("");
+        if (StringUtils.isBlank(closingTagName) || state.tagStack.isEmpty()) {
+            markMalformedClosingTag(state, boundary.startIndex());
+        } else {
+            closeTag(state, boundary.startIndex(), closingTagName);
+        }
+
+        if (!state.tagStack.isEmpty()) {
+            return Optional.empty();
+        }
+        log.trace("Frame complete: tagName={}, length={}", state.rootTagName, boundary.endIndex() - state.frameStartIndex);
+        return Optional.of(new FrameBoundary(state.skipMode ? FrameType.SKIP : FrameType.ELEMENT,
+                boundary.endIndex() - state.frameStartIndex));
+    }
+
+    private void markMalformedClosingTag(FrameSearchState state, int tagStartIndex) {
+        log.trace("Dropping malformed frame from {} to {}, tagName=invalid-closing-tag",
+                state.frameStartIndex, tagStartIndex);
+        state.skipMode = true;
+        if (!state.tagStack.isEmpty()) {
+            state.tagStack.removeLast();
+        }
+    }
+
+    private void closeTag(FrameSearchState state, int tagStartIndex, String closingTagName) {
+        String expectedTagName = state.tagStack.peekLast();
+        if (!closingTagName.equals(expectedTagName)) {
+            log.trace("Mismatched closing tag at {}, expected={}, actual={}",
+                    tagStartIndex, expectedTagName, closingTagName);
+            state.skipMode = true;
+        }
+        if (closingTagName.equals(state.rootTagName) && state.skipMode) {
+            state.tagStack.clear();
+            log.trace("Forced frame end on root tag due to skipMode: {}", closingTagName);
+            return;
+        }
+        state.tagStack.removeLast();
+        log.trace("Closing tag at {}, remainingDepth={}, tagName={}",
+                tagStartIndex, state.tagStack.size(), closingTagName);
+    }
+
+    private void handleNestedOpeningTag(ByteBuf in, FrameSearchState state, TagBoundary boundary) {
+        String nestedTagName = readTagName(in, boundary.startIndex() + OPENING_TAG_PREFIX_LENGTH, boundary.endIndex())
+                .orElse("");
+        if (StringUtils.isBlank(nestedTagName)) {
+            log.trace("Dropping malformed frame from {} to {}, tagName=invalid-opening-tag",
+                    state.frameStartIndex, boundary.startIndex());
+            state.skipMode = true;
+            state.tagStack.addLast("invalid");
+            return;
+        }
+        if (state.tagStack.size() >= MAX_XML_NESTING_DEPTH) {
+            log.warn("Dropping frame because XML nesting depth exceeds max, tagName={}, startIndex={}",
+                    nestedTagName, boundary.startIndex());
+            state.skipMode = true;
+        }
+        state.tagStack.addLast(nestedTagName);
+    }
+
     private Optional<Integer> advancePastSpecialSection(ByteBuf in, int nextTagStart) {
         Optional<Integer> commentEnd = advancePastDelimitedSection(
-                in, nextTagStart, COMMENT_START, COMMENT_PREFIX_LENGTH, COMMENT_END, "comment block");
+                in, nextTagStart, COMMENT_START_BYTES, COMMENT_PREFIX_LENGTH, COMMENT_END_BYTES, "comment block");
         if (commentEnd.isEmpty() || commentEnd.orElseThrow() != nextTagStart) {
             return commentEnd;
         }
 
         Optional<Integer> cdataEnd = advancePastDelimitedSection(
-                in, nextTagStart, CDATA_START, CDATA_PREFIX_LENGTH, CDATA_END, "CDATA block");
+                in, nextTagStart, CDATA_START_BYTES, CDATA_PREFIX_LENGTH, CDATA_END_BYTES, "CDATA block");
         if (cdataEnd.isEmpty() || cdataEnd.orElseThrow() != nextTagStart) {
             return cdataEnd;
         }
 
         return advancePastDelimitedSection(
-                in, nextTagStart, PI_START, PROCESSING_INSTRUCTION_PREFIX_LENGTH, "?>",
+                in, nextTagStart, PI_START_BYTES, PROCESSING_INSTRUCTION_PREFIX_LENGTH, PI_END_BYTES,
                 "processing instruction");
     }
 
-    private Optional<Integer> advancePastDelimitedSection(ByteBuf in, int nextTagStart, String prefix,
-                                                          int prefixLength, String suffix,
+    private Optional<Integer> advancePastDelimitedSection(ByteBuf in, int nextTagStart, byte[] prefix,
+                                                          int prefixLength, byte[] suffix,
                                                           String sectionDescription) {
         if (!matches(in, nextTagStart, prefix)) {
             return Optional.of(nextTagStart);
@@ -381,64 +480,6 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             log.trace("Skipping {} from {} to {}", sectionDescription, nextTagStart, sectionEnd.orElseThrow());
         }
         return sectionEnd;
-    }
-
-    private Optional<FrameBoundary> handleClosingTag(ByteBuf in, int startIndex, int nextTagStart,
-                                                     int tagEndIndex, Deque<String> tagStack,
-                                                     String rootTagName) {
-        String closingTagName = readTagName(in, nextTagStart + CLOSING_TAG_PREFIX_LENGTH, tagEndIndex).orElse("");
-        if (StringUtils.isBlank(closingTagName) || tagStack.isEmpty()) {
-            return malformedFrameBoundary(startIndex, tagEndIndex, "invalid-closing-tag", nextTagStart);
-        }
-
-        String expectedTagName = tagStack.peekLast();
-        if (!closingTagName.equals(expectedTagName)) {
-            log.trace("Mismatched closing tag at {}, expected={}, actual={}",
-                    nextTagStart, expectedTagName, closingTagName);
-            return malformedFrameBoundary(startIndex, tagEndIndex, closingTagName, nextTagStart);
-        }
-
-        tagStack.removeLast();
-        log.trace("Closing tag at {}, remainingDepth={}, tagName={}",
-                nextTagStart, tagStack.size(), closingTagName);
-        if (!tagStack.isEmpty()) {
-            return Optional.empty();
-        }
-
-        log.trace("Frame complete: tagName={}, length={}", rootTagName, tagEndIndex - startIndex);
-        return Optional.of(new FrameBoundary(FrameType.ELEMENT, tagEndIndex - startIndex));
-    }
-
-    private Optional<FrameBoundary> handleNestedOpeningTag(ByteBuf in, int startIndex, int nextTagStart,
-                                                           int tagEndIndex, Deque<String> tagStack) {
-        if (isSelfClosingTag(in, tagEndIndex)) {
-            return Optional.empty();
-        }
-
-        String nestedTagName = readTagName(in, nextTagStart + OPENING_TAG_PREFIX_LENGTH, tagEndIndex).orElse("");
-        if (StringUtils.isBlank(nestedTagName)) {
-            return malformedFrameBoundary(startIndex, tagEndIndex, "invalid-opening-tag", nextTagStart);
-        }
-        if (tagStack.size() >= MAX_XML_NESTING_DEPTH) {
-            return depthExceededFrameBoundary(startIndex, tagEndIndex,
-                    nestedTagName, nextTagStart, tagStack.size() + 1);
-        }
-
-        tagStack.addLast(nestedTagName);
-        return Optional.empty();
-    }
-
-    private Optional<FrameBoundary> depthExceededFrameBoundary(int startIndex, int tagEndIndex,
-                                                               String tagName, int tagStartIndex, int depth) {
-        log.warn("Dropping frame because XML nesting depth {} exceeds max {}, tagName={}, startIndex={}",
-                depth, MAX_XML_NESTING_DEPTH, tagName, tagStartIndex);
-        return Optional.of(new FrameBoundary(FrameType.SKIP, tagEndIndex - startIndex));
-    }
-
-    private Optional<FrameBoundary> malformedFrameBoundary(int startIndex, int tagEndIndex,
-                                                           String tagName, int tagStartIndex) {
-        log.trace("Dropping malformed frame from {} to {}, tagName={}", startIndex, tagStartIndex, tagName);
-        return Optional.of(new FrameBoundary(FrameType.SKIP, tagEndIndex - startIndex));
     }
 
     private int findNextTagStart(ByteBuf in, int startIndex) {
@@ -467,8 +508,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         return Optional.empty();
     }
 
-    private Optional<Integer> findSequence(ByteBuf in, int startIndex, String sequence) {
-        byte[] bytes = sequence.getBytes(StandardCharsets.UTF_8);
+    private Optional<Integer> findSequence(ByteBuf in, int startIndex, byte[] bytes) {
         for (int index = startIndex; index <= in.writerIndex() - bytes.length; index++) {
             boolean matched = true;
             for (int offset = 0; offset < bytes.length; offset++) {
@@ -484,8 +524,7 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
         return Optional.empty();
     }
 
-    private boolean matches(ByteBuf in, int startIndex, String value) {
-        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+    private boolean matches(ByteBuf in, int startIndex, byte[] bytes) {
         if (startIndex + bytes.length > in.writerIndex()) {
             return false;
         }
@@ -602,7 +641,9 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
     private StreamFeatures parseFeatures(XMLEventReader reader) throws XMLStreamException {
         List<String> mechanisms = new ArrayList<>();
         boolean startTls = false;
+        boolean startTlsRequired = false;
         boolean bind = false;
+        List<ExtensionElement> extensions = new ArrayList<>();
 
         while (reader.hasNext()) {
             XMLEvent event = reader.nextEvent();
@@ -617,30 +658,109 @@ public class XmppStreamDecoder extends ByteToMessageDecoder {
             String name = start.getName().getLocalPart();
             String namespace = start.getName().getNamespaceURI();
             switch (name) {
+                case "mechanisms" -> {
+                    if (SASL_NAMESPACE.equals(namespace)) {
+                        parseMechanisms(reader, mechanisms);
+                    } else {
+                        parseFeatureExtension(reader, start, name, namespace, extensions);
+                    }
+                }
                 case "mechanism" -> {
                     if (SASL_NAMESPACE.equals(namespace)) {
                         mechanisms.add(XmlParserUtils.getElementText(reader));
+                    } else {
+                        parseFeatureExtension(reader, start, name, namespace, extensions);
                     }
                 }
                 case "starttls" -> {
                     if (TLS_NAMESPACE.equals(namespace)) {
                         startTls = true;
+                        startTlsRequired = parseStartTlsRequired(reader);
+                    } else {
+                        parseFeatureExtension(reader, start, name, namespace, extensions);
                     }
                 }
                 case "bind" -> {
                     if (XmppConstants.NS_XMPP_BIND.equals(namespace)) {
                         bind = true;
+                        skipCurrentElement(reader, name);
+                    } else {
+                        parseFeatureExtension(reader, start, name, namespace, extensions);
                     }
                 }
-                default -> {
-                }
+                default -> parseFeatureExtension(reader, start, name, namespace, extensions);
             }
         }
         return StreamFeatures.builder()
                 .mechanisms(mechanisms)
                 .starttlsAvailable(startTls)
+                .starttlsRequired(startTlsRequired)
                 .bindAvailable(bind)
+                .extensions(extensions)
                 .build();
+    }
+
+    private void parseMechanisms(XMLEventReader reader, List<String> mechanisms) throws XMLStreamException {
+        while (reader.hasNext()) {
+            XMLEvent event = reader.nextEvent();
+            if (isEndElement(event, "mechanisms")) {
+                return;
+            }
+            if (!event.isStartElement()) {
+                continue;
+            }
+
+            StartElement mechanism = event.asStartElement();
+            if ("mechanism".equals(mechanism.getName().getLocalPart())
+                    && SASL_NAMESPACE.equals(mechanism.getName().getNamespaceURI())) {
+                mechanisms.add(XmlParserUtils.getElementText(reader));
+            } else {
+                skipCurrentElement(reader, mechanism.getName().getLocalPart());
+            }
+        }
+    }
+
+    private void parseFeatureExtension(XMLEventReader reader, StartElement start, String name, String namespace,
+                                       List<ExtensionElement> extensions) {
+        parseWithGenericProvider(reader, start, name, namespace).ifPresent(extensions::add);
+    }
+
+    private boolean parseStartTlsRequired(XMLEventReader reader) throws XMLStreamException {
+        boolean required = false;
+        while (reader.hasNext()) {
+            XMLEvent event = reader.nextEvent();
+            if (isEndElement(event, "starttls")) {
+                return required;
+            }
+            if (!event.isStartElement()) {
+                continue;
+            }
+
+            StartElement child = event.asStartElement();
+            String name = child.getName().getLocalPart();
+            String namespace = child.getName().getNamespaceURI();
+            if ("required".equals(name) && TLS_NAMESPACE.equals(namespace)) {
+                required = true;
+            }
+            skipCurrentElement(reader, name);
+        }
+        return required;
+    }
+
+    private void skipCurrentElement(XMLEventReader reader, String elementName) throws XMLStreamException {
+        int depth = 1;
+        while (reader.hasNext() && depth > 0) {
+            XMLEvent event = reader.nextEvent();
+            if (event.isStartElement()) {
+                depth++;
+            } else if (isMatchingEndElement(event, elementName)) {
+                depth--;
+            }
+        }
+    }
+
+    private boolean isMatchingEndElement(XMLEvent event, String elementName) {
+        return event.isEndElement() && elementName.equals(event.asEndElement().getName().getLocalPart());
     }
 
     private Auth parseSaslAuth(XMLEventReader reader, StartElement element) throws XMLStreamException {

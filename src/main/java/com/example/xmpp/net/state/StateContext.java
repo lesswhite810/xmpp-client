@@ -90,7 +90,9 @@ public class StateContext {
      * @return 当前状态名称
      */
     public String getCurrentStateName() {
-        return currentState.getName();
+        synchronized (stateLock) {
+            return currentState.getName();
+        }
     }
 
     /**
@@ -100,19 +102,23 @@ public class StateContext {
      * @param msg 接收到的消息
      */
     public void handleMessage(ChannelHandlerContext ctx, Object msg) {
-        if (terminated) {
-            log.debug("Ignoring inbound message because state context is cleared");
-            return;
+        synchronized (stateLock) {
+            if (terminated) {
+                log.debug("Ignoring inbound message because state context is cleared");
+                return;
+            }
+            currentState.handleMessage(this, ctx, msg);
         }
-        currentState.handleMessage(this, ctx, msg);
     }
 
     /**
      * 清除状态上下文。
      */
     public void invalidate() {
-        this.saslNegotiator = null;
-        this.terminated = true;
+        synchronized (stateLock) {
+            this.saslNegotiator = null;
+            this.terminated = true;
+        }
     }
 
     /**

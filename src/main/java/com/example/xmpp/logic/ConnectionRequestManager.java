@@ -16,6 +16,7 @@ import com.example.xmpp.util.StanzaIdGenerator;
 import com.example.xmpp.util.XmppScheduler;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.net.ConnectException;
@@ -86,7 +87,28 @@ public class ConnectionRequestManager {
      * @return 响应 future
      */
     public CompletableFuture<XmppStanza> sendConnectionRequest(String cpeJid, String username, String password) {
+        return sendConnectionRequestSecure(cpeJid, username, password != null ? password.toCharArray() : null);
+    }
+
+    /**
+     * 使用字符数组密码发送连接请求给 CPE。
+     *
+     * <p>此方法会复制输入密码，并在内部流程结束后清理副本。调用方仍应自行清理原始字符数组。</p>
+     *
+     * @param cpeJid CPE 的完整 JID
+     * @param username CPE 用户名
+     * @param password CPE 密码字符数组
+     * @return 响应 future
+     */
+    public CompletableFuture<XmppStanza> sendConnectionRequestSecure(String cpeJid, String username, char[] password) {
         validateRequestArguments(cpeJid, username, password);
+        char[] passwordCopy = password.clone();
+        CompletableFuture<XmppStanza> future = sendConnectionRequestInternal(cpeJid, username, passwordCopy);
+        future.whenComplete((response, error) -> SecurityUtils.clear(passwordCopy));
+        return future;
+    }
+
+    private CompletableFuture<XmppStanza> sendConnectionRequestInternal(String cpeJid, String username, char[] password) {
 
         if (!connection.isConnected()) {
             log.warn("ConnectionRequest failed: ACS not connected to XMPP server");
@@ -108,16 +130,19 @@ public class ConnectionRequestManager {
                 });
     }
 
-    private void validateRequestArguments(String cpeJid, String username, String password) {
+    private void validateRequestArguments(String cpeJid, String username, char[] password) {
         if (StringUtils.isBlank(cpeJid)) {
             throw new IllegalArgumentException("CPE JID cannot be null or blank");
         }
         if (username == null || password == null) {
             throw new IllegalArgumentException("Username and password cannot be null");
         }
+        if (ArrayUtils.isEmpty(password)) {
+            throw new IllegalArgumentException("Password cannot be empty");
+        }
     }
 
-    private Iq buildConnectionRequestIq(String cpeJid, String username, String password) {
+    private Iq buildConnectionRequestIq(String cpeJid, String username, char[] password) {
         return new Iq.Builder(Iq.Type.SET)
                 .id(StanzaIdGenerator.newId(CONNECTION_REQUEST_ID_PREFIX))
                 .to(cpeJid)
@@ -144,13 +169,34 @@ public class ConnectionRequestManager {
      */
     public CompletableFuture<XmppStanza> sendConnectionRequestWithRetry(
             String cpeJid, String username, String password, int maxRetries) {
-        return doSendWithRetry(cpeJid, username, password, maxRetries, 1);
+        return sendConnectionRequestWithRetrySecure(
+                cpeJid, username, password != null ? password.toCharArray() : null, maxRetries);
+    }
+
+    /**
+     * 使用字符数组密码发送连接请求并自动重试。
+     *
+     * <p>此方法会复制输入密码，并在内部流程结束后清理副本。调用方仍应自行清理原始字符数组。</p>
+     *
+     * @param cpeJid CPE 的完整 JID
+     * @param username CPE 用户名
+     * @param password CPE 密码字符数组
+     * @param maxRetries 最大重试次数
+     * @return 最终响应 future
+     */
+    public CompletableFuture<XmppStanza> sendConnectionRequestWithRetrySecure(
+            String cpeJid, String username, char[] password, int maxRetries) {
+        validateRequestArguments(cpeJid, username, password);
+        char[] passwordCopy = password.clone();
+        CompletableFuture<XmppStanza> future = doSendWithRetry(cpeJid, username, passwordCopy, maxRetries, 1);
+        future.whenComplete((response, error) -> SecurityUtils.clear(passwordCopy));
+        return future;
     }
 
     private CompletableFuture<XmppStanza> doSendWithRetry(
-            String cpeJid, String username, String password, int maxRetries, int currentRetry) {
+            String cpeJid, String username, char[] password, int maxRetries, int currentRetry) {
         return waitForConnection()
-                .thenCompose(v -> sendConnectionRequest(cpeJid, username, password))
+                .thenCompose(v -> sendConnectionRequestInternal(cpeJid, username, password))
                 .exceptionallyCompose(throwable -> {
                     Throwable cause = unwrap(throwable);
 
@@ -165,17 +211,14 @@ public class ConnectionRequestManager {
                         return CompletableFuture.failedFuture(throwable);
                     }
 
-                    long delaySeconds = (long) Math.pow(RETRY_BACKOFF_BASE, currentRetry - 1);
-                    log.warn("Retrying ConnectionRequest to {} in {} seconds (attempt {}/{})",
-                            cpeJid, delaySeconds, currentRetry + 1, maxRetries);
+                    long delayMs = retryDelayMs * (long) Math.pow(RETRY_BACKOFF_BASE, currentRetry - 1);
+                    log.warn("Retrying ConnectionRequest to {} in {} ms (attempt {}/{})",
+                            cpeJid, delayMs, currentRetry + 1, maxRetries);
 
-                    return CompletableFuture.runAsync(() -> {
-                        try {
-                            Thread.sleep(delaySeconds * 1000);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
-                    }).thenCompose(v -> doSendWithRetry(cpeJid, username, password, maxRetries, currentRetry + 1));
+                    CompletableFuture<Void> delayFuture = new CompletableFuture<>();
+                    XmppScheduler.getScheduler().schedule(() -> delayFuture.complete(null), delayMs, TimeUnit.MILLISECONDS);
+
+                    return delayFuture.thenCompose(v -> doSendWithRetry(cpeJid, username, password, maxRetries, currentRetry + 1));
                 });
     }
 

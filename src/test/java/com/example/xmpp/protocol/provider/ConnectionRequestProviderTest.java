@@ -35,7 +35,7 @@ class ConnectionRequestProviderTest {
         ConnectionRequest request = provider.parse(reader);
 
         assertEquals("acs-user", request.getUsername());
-        assertEquals("acs-pass", request.getPassword());
+        assertTrue(request.toXml().contains("<password>acs-pass</password>"));
     }
 
     @Test
@@ -52,7 +52,7 @@ class ConnectionRequestProviderTest {
         ConnectionRequest request = provider.parse(reader);
 
         assertEquals("acs-user", request.getUsername());
-        assertEquals("acs-pass", request.getPassword());
+        assertTrue(request.toXml().contains("<password>acs-pass</password>"));
     }
 
     @Test
@@ -70,7 +70,7 @@ class ConnectionRequestProviderTest {
         ConnectionRequest request = provider.parse(reader);
 
         assertEquals("acs-user", request.getUsername());
-        assertEquals("acs-pass", request.getPassword());
+        assertTrue(request.toXml().contains("<password>acs-pass</password>"));
     }
 
     @Test
@@ -88,7 +88,7 @@ class ConnectionRequestProviderTest {
         ConnectionRequest request = provider.parse(reader);
 
         assertEquals("acs-user", request.getUsername());
-        assertEquals("acs-pass", request.getPassword());
+        assertTrue(request.toXml().contains("<password>acs-pass</password>"));
     }
 
     @Test

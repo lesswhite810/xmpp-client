@@ -8,7 +8,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -91,6 +94,54 @@ class AsyncStanzaCollectorTest {
             assertTrue(result1);
             assertFalse(result2, "后续匹配应被忽略");
             assertEquals(firstMatch, collector.getFuture().join());
+        }
+
+        @Test
+        @DisplayName("不匹配节执行过滤期间后续匹配节仍应可被收集")
+        void testMatchingStanzaCanWinWhileNonMatchingFilterStillRunning() throws Exception {
+            CountDownLatch nonMatchingEntered = new CountDownLatch(1);
+            CountDownLatch matchingEntered = new CountDownLatch(1);
+            CountDownLatch releaseFilters = new CountDownLatch(1);
+            AsyncStanzaCollector racingCollector = new AsyncStanzaCollector(stanza -> {
+                if (stanza instanceof Iq iq && "slow".equals(iq.getId())) {
+                    nonMatchingEntered.countDown();
+                    try {
+                        assertTrue(releaseFilters.await(2, TimeUnit.SECONDS));
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        fail(e);
+                    }
+                    return false;
+                }
+                if (stanza instanceof Iq iq && "fast".equals(iq.getId())) {
+                    matchingEntered.countDown();
+                    try {
+                        assertTrue(releaseFilters.await(2, TimeUnit.SECONDS));
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        fail(e);
+                    }
+                    return true;
+                }
+                return false;
+            });
+            Iq slowNonMatch = new Iq.Builder(Iq.Type.GET).id("slow").build();
+            Iq fastMatch = new Iq.Builder(Iq.Type.RESULT).id("fast").build();
+
+            try (var executor = Executors.newFixedThreadPool(2)) {
+                Future<Boolean> first = executor.submit(() -> racingCollector.processStanza(slowNonMatch));
+                assertTrue(nonMatchingEntered.await(2, TimeUnit.SECONDS));
+
+                Future<Boolean> second = executor.submit(() -> racingCollector.processStanza(fastMatch));
+                assertTrue(matchingEntered.await(300, TimeUnit.MILLISECONDS),
+                        "匹配节应能在非匹配节仍在过滤时进入 filter");
+
+                releaseFilters.countDown();
+
+                assertFalse(first.get(2, TimeUnit.SECONDS));
+                assertTrue(second.get(2, TimeUnit.SECONDS));
+                assertEquals(fastMatch, racingCollector.getFuture().get(2, TimeUnit.SECONDS));
+            }
         }
     }
 

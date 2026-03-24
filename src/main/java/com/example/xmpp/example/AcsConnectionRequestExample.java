@@ -62,11 +62,26 @@ public class AcsConnectionRequestExample {
     }
 
     /**
+     * 使用字符数组密码发送 ConnectionRequest。
+     */
+    public CompletableFuture<XmppStanza> sendConnectionRequestSecure(String cpeJid, String username, char[] password) {
+        return requestManager.sendConnectionRequestSecure(cpeJid, username, password);
+    }
+
+    /**
      * 发送 ConnectionRequest 并自动重试。
      */
     public CompletableFuture<XmppStanza> sendConnectionRequestWithRetry(
             String cpeJid, String username, String password, int maxRetries) {
         return requestManager.sendConnectionRequestWithRetry(cpeJid, username, password, maxRetries);
+    }
+
+    /**
+     * 使用字符数组密码发送 ConnectionRequest 并自动重试。
+     */
+    public CompletableFuture<XmppStanza> sendConnectionRequestWithRetrySecure(
+            String cpeJid, String username, char[] password, int maxRetries) {
+        return requestManager.sendConnectionRequestWithRetrySecure(cpeJid, username, password, maxRetries);
     }
 
     /**

@@ -14,6 +14,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.apache.logging.log4j.Level;
@@ -27,6 +28,7 @@ import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -117,6 +119,32 @@ class XmppTcpConnectionUnitTest {
         } finally {
             workerGroup.shutdownGracefully().syncUninterruptibly();
         }
+    }
+
+    @Test
+    void testInitializeConnectionInfrastructureUsesSingleWorkerThread() throws Exception {
+        XmppTcpConnection connection = new XmppTcpConnection(newConfig());
+
+        try {
+            invoke(connection, "initializeConnectionInfrastructure");
+
+            NioEventLoopGroup workerGroup = (NioEventLoopGroup) getField(connection, "workerGroup");
+            assertNotNull(workerGroup);
+            assertEquals(1, workerGroup.executorCount());
+        } finally {
+            EventLoopGroup workerGroup = (EventLoopGroup) getField(connection, "workerGroup");
+            if (workerGroup != null) {
+                workerGroup.shutdownGracefully().syncUninterruptibly();
+            }
+        }
+    }
+
+    @Test
+    void testLifecycleFieldsUseVolatileVisibility() throws Exception {
+        assertTrue(Modifier.isVolatile(XmppTcpConnection.class.getDeclaredField("workerGroup").getModifiers()));
+        assertTrue(Modifier.isVolatile(XmppTcpConnection.class.getDeclaredField("channel").getModifiers()));
+        assertTrue(Modifier.isVolatile(XmppTcpConnection.class.getDeclaredField("nettyHandler").getModifiers()));
+        assertTrue(Modifier.isVolatile(XmppTcpConnection.class.getDeclaredField("terminalEventState").getModifiers()));
     }
 
     @Test
@@ -258,6 +286,16 @@ class XmppTcpConnectionUnitTest {
     }
 
     @Test
+    void testSendStanzaRejectsNullImmediately() {
+        XmppTcpConnection connection = new XmppTcpConnection(newConfig());
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> connection.sendStanza(null));
+
+        assertEquals("Stanza must not be null", exception.getMessage());
+    }
+
+    @Test
     void testDispatchStanzaFailsWhenSerializationReturnsBlankXml() throws Exception {
         XmppTcpConnection connection = new XmppTcpConnection(newConfig());
         XmppNettyHandler nettyHandler = new XmppNettyHandler(newConfig(), connection);
@@ -386,6 +424,21 @@ class XmppTcpConnectionUnitTest {
         }
     }
 
+    @Test
+    void testDisconnectRemovesEventBusSubscriptions() {
+        clearEventBusListeners();
+        XmppTcpConnection connection = new XmppTcpConnection(newConfig());
+
+        XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.ERROR, event -> {
+        });
+        XmppEventBus.getInstance().subscribe(connection, ConnectionEventType.CLOSED, event -> {
+        });
+
+        connection.disconnect();
+
+        assertFalse(getEventBusListeners().containsKey(connection));
+    }
+
     private XmppClientConfig newConfig() {
         return XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
@@ -435,6 +488,16 @@ class XmppTcpConnectionUnitTest {
             ((Map<?, ?>) listenersObject).clear();
         } catch (ReflectiveOperationException e) {
             throw new AssertionError("Failed to clear XmppEventBus listeners", e);
+        }
+    }
+
+    private Map<?, ?> getEventBusListeners() {
+        try {
+            var field = XmppEventBus.class.getDeclaredField("listeners");
+            field.setAccessible(true);
+            return (Map<?, ?>) field.get(XmppEventBus.getInstance());
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to inspect XmppEventBus listeners", e);
         }
     }
 

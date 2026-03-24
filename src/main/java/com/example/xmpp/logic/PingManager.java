@@ -1,6 +1,5 @@
 package com.example.xmpp.logic;
 
-import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.XmppConnection;
@@ -65,26 +64,6 @@ public final class PingManager {
                 ConnectionEventType.CLOSED, event -> shutdown(),
                 ConnectionEventType.ERROR, event -> stopKeepAlive()
         ));
-    }
-
-    /**
-     * 处理连接事件。
-     *
-     * @param event 连接事件
-     */
-    public void onEvent(ConnectionEvent event) {
-        ConnectionEventType eventType = event.eventType();
-        if (eventType == ConnectionEventType.CONNECTED) {
-            startKeepAlive();
-            return;
-        }
-        switch (eventType) {
-            case CLOSED -> shutdown();
-            case ERROR -> stopKeepAlive();
-            default -> {
-                // Ignore unrelated events.
-            }
-        }
     }
 
     /**

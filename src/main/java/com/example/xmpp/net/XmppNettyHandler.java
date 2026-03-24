@@ -8,6 +8,7 @@ import com.example.xmpp.exception.XmppStreamErrorException;
 import com.example.xmpp.net.state.StateContext;
 import com.example.xmpp.protocol.model.XmppStanza;
 import com.example.xmpp.protocol.model.XmlSerializable;
+import com.example.xmpp.protocol.model.stream.StreamClose;
 import com.example.xmpp.protocol.model.stream.StreamError;
 import com.example.xmpp.protocol.model.stream.StreamHeader;
 import com.example.xmpp.util.NettyUtils;
@@ -195,6 +196,11 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
 
         if (msg instanceof StreamHeader) {
             log.debug("Stream header received, waiting for features");
+            return;
+        }
+        if (msg == StreamClose.INSTANCE) {
+            log.info("Received stream close from server, closing channel");
+            ctx.close();
             return;
         }
         if (msg instanceof StreamError streamError) {

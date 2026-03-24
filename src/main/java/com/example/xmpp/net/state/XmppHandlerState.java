@@ -21,6 +21,7 @@ import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.protocol.model.stream.StreamHeader;
 import com.example.xmpp.protocol.model.stream.TlsElements.StartTls;
 import com.example.xmpp.protocol.model.stream.TlsElements.TlsProceed;
+import com.example.xmpp.util.SecurityUtils;
 import com.example.xmpp.util.StanzaIdGenerator;
 import com.example.xmpp.util.XmppConstants;
 import io.netty.channel.ChannelHandlerContext;
@@ -159,9 +160,15 @@ public enum XmppHandlerState implements HandlerState {
             }
 
             Set<String> enabledMechanisms = context.getConfig().getEnabledSaslMechanisms();
-            Optional<SaslMechanism> best = SaslMechanismFactory.getInstance()
-                    .createBestMechanism(serverMechanisms, enabledMechanisms,
-                            context.getConfig().getUsername(), context.getConfig().getPassword());
+            char[] password = context.getConfig().getPassword();
+            Optional<SaslMechanism> best;
+            try {
+                best = SaslMechanismFactory.getInstance()
+                        .createBestMechanism(serverMechanisms, enabledMechanisms,
+                                context.getConfig().getUsername(), password);
+            } finally {
+                SecurityUtils.clear(password);
+            }
 
             if (best.isPresent()) {
                 startResolvedSaslAuthentication(context, ctx, best.get());

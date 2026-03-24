@@ -16,6 +16,7 @@ import com.example.xmpp.protocol.model.sasl.SaslChallenge;
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
 import com.example.xmpp.protocol.model.sasl.SaslResponse;
 import com.example.xmpp.protocol.model.sasl.SaslSuccess;
+import com.example.xmpp.protocol.model.stream.StreamClose;
 import com.example.xmpp.protocol.model.stream.StreamError;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.protocol.model.stream.TlsElements;
@@ -89,6 +90,26 @@ class XmppStreamDecoderTest {
         assertEquals(2, features.getMechanisms().size());
         assertTrue(features.getMechanisms().contains("PLAIN"));
         assertTrue(features.getMechanisms().contains("SCRAM-SHA-256"));
+    }
+
+    @Test
+    @DisplayName("应保留 starttls required 和未知 feature 扩展")
+    void testParseStreamFeaturesRetainsRequiredAndUnknownExtensions() {
+        sendStreamHeader();
+        sendStreamFeatures(
+                "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'><required/></starttls>"
+                        + "<sm xmlns='urn:xmpp:sm:3'/>");
+
+        Object msg = channel.readInbound();
+        assertInstanceOf(StreamFeatures.class, msg);
+
+        StreamFeatures features = (StreamFeatures) msg;
+        assertTrue(features.isStarttlsAvailable());
+        assertTrue(features.isStarttlsRequired());
+        assertEquals(1, features.getExtensions().size());
+        assertInstanceOf(GenericExtensionElement.class, features.getExtensions().getFirst());
+        assertEquals("sm", features.getExtensions().getFirst().getElementName());
+        assertEquals("urn:xmpp:sm:3", features.getExtensions().getFirst().getNamespace());
     }
 
     @Test
@@ -764,6 +785,16 @@ class XmppStreamDecoderTest {
 
         assertTrue(elements.isEmpty());
         assertFalse(buffer.readerIndex() > 0);
+    }
+
+    @Test
+    @DisplayName("应将 stream close 作为有意义的帧输出")
+    void testStreamCloseIsEmitted() {
+        sendStreamHeader();
+        sendXml("</stream:stream>");
+
+        Object msg = channel.readInbound();
+        assertSame(StreamClose.INSTANCE, msg);
     }
 
     private void sendXml(String xml) {

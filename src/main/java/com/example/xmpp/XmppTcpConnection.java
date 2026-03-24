@@ -1,6 +1,7 @@
 package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
+import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.exception.XmppProtocolException;
@@ -53,15 +54,15 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
     private final XmppClientConfig config;
 
-    private EventLoopGroup workerGroup;
+    private volatile EventLoopGroup workerGroup;
 
-    private Channel channel;
+    private volatile Channel channel;
 
-    private XmppNettyHandler nettyHandler;
+    private volatile XmppNettyHandler nettyHandler;
 
     private volatile CompletableFuture<Void> connectionReadyFuture = new CompletableFuture<>();
 
-    private TerminalEventState terminalEventState = TerminalEventState.NONE;
+    private volatile TerminalEventState terminalEventState = TerminalEventState.NONE;
 
     /**
      * 创建 TCP XMPP 连接。
@@ -164,7 +165,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     private void initializeConnectionInfrastructure() {
-        workerGroup = new NioEventLoopGroup();
+        workerGroup = new NioEventLoopGroup(1);
         nettyHandler = new XmppNettyHandler(config, this);
     }
 
@@ -370,6 +371,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         failReadyFuture(new XmppNetworkException("Connection closed before session became ready"));
         clearHandlerState();
         publishClosedEvent(null);
+        XmppEventBus.getInstance().unsubscribeAll(this);
         closeCurrentChannelOrShutdownWorkerGroup();
     }
 
@@ -471,8 +473,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     @Override
     public void sendStanza(XmppStanza stanza) {
         if (stanza == null) {
-            log.warn("Stanza is null, ignoring send request");
-            return;
+            throw new IllegalArgumentException("Stanza must not be null");
         }
 
         dispatchStanza(stanza).whenComplete((unused, error) -> {

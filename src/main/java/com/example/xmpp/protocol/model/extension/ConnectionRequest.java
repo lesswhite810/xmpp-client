@@ -2,7 +2,9 @@ package com.example.xmpp.protocol.model.extension;
 
 import com.example.xmpp.protocol.model.ExtensionElement;
 import com.example.xmpp.util.XmlStringBuilder;
+import lombok.AccessLevel;
 import lombok.Getter;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -30,7 +32,8 @@ public class ConnectionRequest implements ExtensionElement {
     /**
      * CPE 密码。
      */
-    private final String password;
+    @Getter(AccessLevel.NONE)
+    private final char[] password;
 
     /**
      * 构造 ConnectionRequest。
@@ -38,16 +41,25 @@ public class ConnectionRequest implements ExtensionElement {
      * @param username 用户名
      * @param password 密码
      */
-    @lombok.Builder
     public ConnectionRequest(String username, String password) {
+        this(username, password != null ? password.toCharArray() : null);
+    }
+
+    /**
+     * 构造 ConnectionRequest。
+     *
+     * @param username 用户名
+     * @param password 密码
+     */
+    public ConnectionRequest(String username, char[] password) {
         if (StringUtils.isBlank(username)) {
             throw new IllegalArgumentException("username must not be null or blank");
         }
-        if (StringUtils.isBlank(password)) {
+        if (ArrayUtils.isEmpty(password)) {
             throw new IllegalArgumentException("password must not be null or blank");
         }
         this.username = username;
-        this.password = password;
+        this.password = password.clone();
     }
 
     /**
@@ -80,8 +92,52 @@ public class ConnectionRequest implements ExtensionElement {
         return new XmlStringBuilder()
                 .wrapElement(ELEMENT, NAMESPACE, xml -> {
                     xml.wrapElement("username", username);
-                    xml.wrapElement("password", password);
+                    xml.wrapElement("password", String.valueOf(password));
                 })
                 .toString();
+    }
+
+    /**
+     * 返回脱敏的字符串表示，隐藏密码。
+     *
+     * @return 脱敏的字符串
+     */
+    @Override
+    public String toString() {
+        return "ConnectionRequest{username=" + username + ", password=***}";
+    }
+
+    /**
+     * ConnectionRequest 构造器。
+     */
+    public static final class Builder {
+        private String username;
+        private char[] password;
+
+        private Builder() {
+        }
+
+        public Builder username(String username) {
+            this.username = username;
+            return this;
+        }
+
+        public Builder password(String password) {
+            this.password = password != null ? password.toCharArray() : null;
+            return this;
+        }
+
+        public Builder password(char[] password) {
+            this.password = password != null ? password.clone() : null;
+            return this;
+        }
+
+        public ConnectionRequest build() {
+            return new ConnectionRequest(username, password);
+        }
+    }
+
+    public static Builder builder() {
+        return new Builder();
     }
 }

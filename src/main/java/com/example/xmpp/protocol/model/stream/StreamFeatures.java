@@ -48,6 +48,12 @@ public class StreamFeatures implements ExtensionElement {
     private final boolean bindAvailable;
 
     /**
+     * 未识别但已保留的扩展特性。
+     */
+    @Singular
+    private final List<ExtensionElement> extensions;
+
+    /**
      * 获取元素名称。
      *
      * @return 元素名称
@@ -93,6 +99,11 @@ public class StreamFeatures implements ExtensionElement {
                     }
                     if (bindAvailable) {
                         xml.wrapElement(Bind.ELEMENT, XmppConstants.NS_XMPP_BIND, "");
+                    }
+                    if (CollectionUtils.isNotEmpty(extensions)) {
+                        for (ExtensionElement extension : extensions) {
+                            xml.append(extension.toXml());
+                        }
                     }
                 })
                 .toString();

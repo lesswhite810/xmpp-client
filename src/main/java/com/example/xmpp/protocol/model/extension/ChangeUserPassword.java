@@ -1,6 +1,7 @@
 package com.example.xmpp.protocol.model.extension;
 
 import com.example.xmpp.util.XmlStringBuilder;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
@@ -27,6 +28,8 @@ public class ChangeUserPassword extends AbstractAdminCommand {
     /**
      * 新密码。
      */
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
     private String newPassword;
 
     /**
@@ -95,5 +98,15 @@ public class ChangeUserPassword extends AbstractAdminCommand {
         }
         appendField(xml, "accountjid", accountJid);
         appendField(xml, "password", newPassword);
+    }
+
+    /**
+     * 返回脱敏的字符串表示，隐藏密码。
+     *
+     * @return 脱敏的字符串
+     */
+    @Override
+    public String toString() {
+        return "ChangeUserPassword{accountJid=" + accountJid + ", newPassword=***}";
     }
 }

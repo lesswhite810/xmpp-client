@@ -62,4 +62,14 @@ public record SaslChallenge(String content) implements ExtensionElement {
                 .wrapElement(ELEMENT, NAMESPACE, content)
                 .toString();
     }
+
+    /**
+     * 返回脱敏的字符串表示，隐藏挑战内容。
+     *
+     * @return 脱敏的字符串
+     */
+    @Override
+    public String toString() {
+        return "SaslChallenge[content=***]";
+    }
 }

@@ -57,4 +57,14 @@ public record Auth(String mechanism, String content) implements ExtensionElement
                 })
                 .toString();
     }
+
+    /**
+     * 返回脱敏的字符串表示，隐藏认证内容。
+     *
+     * @return 脱敏的字符串
+     */
+    @Override
+    public String toString() {
+        return "Auth[mechanism=" + mechanism + ", content=***]";
+    }
 }

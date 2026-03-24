@@ -420,5 +420,9 @@ public abstract class ScramMechanism implements SaslMechanism {
         SecurityUtils.clear(saltedPassword);
         saltedPassword = null;
         SecurityUtils.clear(password);
+        clientFirstMessageBare = null;
+        authMessage = null;
+        clientNonce = null;
+        serverNonce = null;
     }
 }

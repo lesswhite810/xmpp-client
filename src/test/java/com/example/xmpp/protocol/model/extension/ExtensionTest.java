@@ -76,7 +76,7 @@ class ExtensionTest {
                 .build();
         
         assertEquals("device-123", request.getUsername());
-        assertEquals("secret", request.getPassword());
+        assertTrue(request.toXml().contains("<password>secret</password>"));
     }
 
     @Test
@@ -84,5 +84,25 @@ class ExtensionTest {
     void testConnectionRequestProperties() {
         assertEquals("connectionRequest", ConnectionRequest.ELEMENT);
         assertNotNull(ConnectionRequest.NAMESPACE);
+    }
+
+    @Test
+    @DisplayName("ConnectionRequest 不应暴露密码 getter")
+    void testConnectionRequestDoesNotExposePasswordGetter() {
+        assertThrows(NoSuchMethodException.class, () -> ConnectionRequest.class.getMethod("getPassword"));
+    }
+
+    @Test
+    @DisplayName("ConnectionRequest 应复制 char[] 密码输入")
+    void testConnectionRequestCopiesCharArrayPassword() {
+        char[] password = "secret".toCharArray();
+
+        ConnectionRequest request = ConnectionRequest.builder()
+                .username("device-123")
+                .password(password)
+                .build();
+        password[0] = 'x';
+
+        assertTrue(request.toXml().contains("<password>secret</password>"));
     }
 }

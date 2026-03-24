@@ -81,8 +81,8 @@ class ExtensionComprehensiveTest {
         void testAddUserConstructor() {
             AddUser addUser = new AddUser("testuser", "password");
             assertEquals("testuser", addUser.getUsername());
-            assertEquals("password", addUser.getPassword());
             assertEquals(AddUser.ACTION_COMPLETE, addUser.getAction());
+            assertTrue(addUser.toXml().contains("<field var=\"password\"><value>password</value></field>"));
         }
 
         @Test
@@ -90,8 +90,8 @@ class ExtensionComprehensiveTest {
         void testAddUserConstructorWithEmail() {
             AddUser addUser = new AddUser("testuser", "password", "test@example.com");
             assertEquals("testuser", addUser.getUsername());
-            assertEquals("password", addUser.getPassword());
             assertEquals("test@example.com", addUser.getEmail());
+            assertTrue(addUser.toXml().contains("<field var=\"password\"><value>password</value></field>"));
         }
 
         @Test
@@ -107,9 +107,9 @@ class ExtensionComprehensiveTest {
             AddUser addUser = AddUser.createSubmitForm("session-123", "testuser", "password", "test@example.com");
             assertEquals("session-123", addUser.getSessionId());
             assertEquals("testuser", addUser.getUsername());
-            assertEquals("password", addUser.getPassword());
             assertEquals("test@example.com", addUser.getEmail());
             assertEquals(AddUser.ACTION_COMPLETE, addUser.getAction());
+            assertTrue(addUser.toXml().contains("<field var=\"password\"><value>password</value></field>"));
         }
 
         @Test
@@ -168,6 +168,13 @@ class ExtensionComprehensiveTest {
         }
 
         @Test
+        @DisplayName("AddUser 不应暴露密码 getter/setter")
+        void testAddUserDoesNotExposePasswordAccessors() {
+            assertThrows(NoSuchMethodException.class, () -> AddUser.class.getMethod("getPassword"));
+            assertThrows(NoSuchMethodException.class, () -> AddUser.class.getMethod("setPassword", String.class));
+        }
+
+        @Test
         @DisplayName("AddUser 构造函数在 username 为 null 时应抛出异常")
         void testAddUserConstructorShouldRejectNullUsername() {
             IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
@@ -202,7 +209,7 @@ class ExtensionComprehensiveTest {
         void testChangeUserPasswordConstructor() {
             ChangeUserPassword cmd = new ChangeUserPassword("user@domain.com", "newpass");
             assertEquals("user@domain.com", cmd.getAccountJid());
-            assertEquals("newpass", cmd.getNewPassword());
+            assertTrue(cmd.toXml().contains("<field var=\"password\"><value>newpass</value></field>"));
         }
 
         @Test
@@ -248,6 +255,14 @@ class ExtensionComprehensiveTest {
         void testChangeUserPasswordGetElementName() {
             ChangeUserPassword cmd = new ChangeUserPassword();
             assertEquals("command", cmd.getElementName());
+        }
+
+        @Test
+        @DisplayName("ChangeUserPassword 不应暴露密码 getter/setter")
+        void testChangeUserPasswordDoesNotExposePasswordAccessors() {
+            assertThrows(NoSuchMethodException.class, () -> ChangeUserPassword.class.getMethod("getNewPassword"));
+            assertThrows(NoSuchMethodException.class,
+                    () -> ChangeUserPassword.class.getMethod("setNewPassword", String.class));
         }
 
         @Test
@@ -383,6 +398,12 @@ class ExtensionComprehensiveTest {
         }
 
         @Test
+        @DisplayName("ConnectionRequest 不应暴露密码 getter")
+        void testConnectionRequestDoesNotExposePasswordGetter() {
+            assertThrows(NoSuchMethodException.class, () -> ConnectionRequest.class.getMethod("getPassword"));
+        }
+
+        @Test
         @DisplayName("ConnectionRequest builder 在缺少必填字段时应抛出异常")
         void testConnectionRequestBuilderShouldRejectMissingRequiredFields() {
             IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
@@ -401,15 +422,14 @@ class ExtensionComprehensiveTest {
         }
 
         @Test
-        @DisplayName("ConnectionRequest builder 在 password 为空白时应抛出异常")
-        void testConnectionRequestBuilderShouldRejectBlankPassword() {
-            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                    () -> ConnectionRequest.builder()
-                            .username("device-123")
-                            .password(" ")
-                            .build());
+        @DisplayName("ConnectionRequest builder 应允许空白 password")
+        void testConnectionRequestBuilderShouldAllowBlankPassword() {
+            ConnectionRequest request = ConnectionRequest.builder()
+                    .username("device-123")
+                    .password(" ")
+                    .build();
 
-            assertEquals("password must not be null or blank", exception.getMessage());
+            assertTrue(request.toXml().contains("<password> </password>"));
         }
     }
 

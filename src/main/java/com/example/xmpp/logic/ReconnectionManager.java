@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * 自动重连管理器。
@@ -31,6 +32,8 @@ public final class ReconnectionManager {
     private final XmppConnection connection;
 
     private volatile ScheduledFuture<?> currentTask;
+
+    private final ReentrantLock stateLock = new ReentrantLock();
 
     private Runnable unsubscribe;
 
@@ -54,33 +57,46 @@ public final class ReconnectionManager {
      * 关闭 ReconnectionManager。
      */
     public void shutdown() {
-        stopReconnectTask();
-        if (unsubscribe != null) {
-            unsubscribe.run();
+        Runnable unsubscribeAction;
+        stateLock.lock();
+        try {
+            stopReconnectTaskLocked();
+            unsubscribeAction = unsubscribe;
             unsubscribe = null;
+        } finally {
+            stateLock.unlock();
+        }
+        if (unsubscribeAction != null) {
+            unsubscribeAction.run();
         }
         log.debug("ReconnectionManager shutdown");
     }
 
     private void onConnectionClosed(ConnectionEvent event) {
-        if (isShutdown()) {
-            log.debug("Reconnection manager already shutdown, ignoring close event");
-            return;
-        }
         Exception disconnectError = event.error();
         if (disconnectError == null) {
             log.debug("Connection closed normally, shutting down reconnection manager");
             shutdown();
             return;
         }
-        stopReconnectTask();
-        if (isNonRecoverableError(disconnectError)) {
-            log.error("Connection closed after non-recoverable error. Skipping reconnection: {}",
-                    disconnectError.getClass().getSimpleName());
-            return;
+
+        stateLock.lock();
+        try {
+            if (isShutdownLocked()) {
+                log.debug("Reconnection manager already shutdown, ignoring close event");
+                return;
+            }
+            stopReconnectTaskLocked();
+            if (isNonRecoverableError(disconnectError)) {
+                log.error("Connection closed after non-recoverable error. Skipping reconnection: {}",
+                        disconnectError.getClass().getSimpleName());
+                return;
+            }
+            log.error("Connection closed after error. Starting reconnection.");
+            scheduleReconnectLocked(0);
+        } finally {
+            stateLock.unlock();
         }
-        log.error("Connection closed after error. Starting reconnection.");
-        scheduleReconnect(0);
     }
 
     private void onConnected() {
@@ -94,14 +110,23 @@ public final class ReconnectionManager {
                 || error instanceof XmppStanzaErrorException;
     }
 
-    private boolean isShutdown() {
+    private boolean isShutdownLocked() {
         return unsubscribe == null;
     }
 
     /**
      * 停止重连任务。
      */
-    private synchronized void stopReconnectTask() {
+    private void stopReconnectTask() {
+        stateLock.lock();
+        try {
+            stopReconnectTaskLocked();
+        } finally {
+            stateLock.unlock();
+        }
+    }
+
+    private void stopReconnectTaskLocked() {
         ScheduledFuture<?> task = currentTask;
         currentTask = null;
         if (task != null) {
@@ -115,24 +140,31 @@ public final class ReconnectionManager {
      * @param retryIndex 当前退避轮次
      */
     private void scheduleReconnect(int retryIndex) {
-        synchronized (this) {
-            if (isShutdown()) {
-                log.debug("Reconnection manager already shutdown, skipping schedule");
-                return;
-            }
-            if (currentTask != null && !currentTask.isDone()) {
-                log.debug("Reconnection task already scheduled, skipping");
-                return;
-            }
-
-            int delay = calculateReconnectDelay(retryIndex);
-            log.info("Reconnecting in {} seconds (Attempt {})...", delay, retryIndex + 1);
-            currentTask = XmppScheduler.getScheduler().schedule(
-                    () -> runReconnectAttempt(retryIndex),
-                    delay,
-                    TimeUnit.SECONDS
-            );
+        stateLock.lock();
+        try {
+            scheduleReconnectLocked(retryIndex);
+        } finally {
+            stateLock.unlock();
         }
+    }
+
+    private void scheduleReconnectLocked(int retryIndex) {
+        if (isShutdownLocked()) {
+            log.debug("Reconnection manager already shutdown, skipping schedule");
+            return;
+        }
+        if (currentTask != null && !currentTask.isDone()) {
+            log.debug("Reconnection task already scheduled, skipping");
+            return;
+        }
+
+        int delay = calculateReconnectDelay(retryIndex);
+        log.info("Reconnecting in {} seconds (Attempt {})...", delay, retryIndex + 1);
+        currentTask = XmppScheduler.getScheduler().schedule(
+                () -> runReconnectAttempt(retryIndex),
+                delay,
+                TimeUnit.SECONDS
+        );
     }
 
     /**
@@ -153,19 +185,22 @@ public final class ReconnectionManager {
      * @param retryIndex 当前退避轮次
      */
     private void runReconnectAttempt(int retryIndex) {
-        synchronized (this) {
-            currentTask = null;
-        }
+        stateLock.lock();
         try {
-            if (isShutdown()) {
+            currentTask = null;
+            if (isShutdownLocked()) {
                 log.debug("Reconnection manager already shutdown before scheduled attempt executed");
                 return;
             }
-            if (connection.isConnected()) {
-                log.debug("Already connected, skipping reconnection");
-                return;
-            }
+        } finally {
+            stateLock.unlock();
+        }
+        if (connection.isConnected()) {
+            log.debug("Already connected, skipping reconnection");
+            return;
+        }
 
+        try {
             log.info("Retrying connection...");
             connection.connect();
             log.info("Reconnection successful");
@@ -207,9 +242,14 @@ public final class ReconnectionManager {
     }
 
     private void scheduleNextReconnectIfActive(int nextRetryIndex) {
-        if (!isShutdown()) {
-            scheduleReconnect(nextRetryIndex);
-            return;
+        stateLock.lock();
+        try {
+            if (!isShutdownLocked()) {
+                scheduleReconnectLocked(nextRetryIndex);
+                return;
+            }
+        } finally {
+            stateLock.unlock();
         }
         log.debug("Reconnection manager already shutdown after failed attempt, not scheduling retry");
     }

@@ -42,7 +42,7 @@ public class SslUtils {
             log.debug("Creating SslHandler");
             validateTlsAuthenticationConfig(config);
 
-            SSLContext sslContext = SSLContext.getInstance(TLS_PROTOCOL);
+            SSLContext sslContext;
 
             TrustManager[] trustManagers = config.getCustomTrustManager();
             KeyManager[] keyManagers = config.getKeyManagers();
@@ -51,6 +51,7 @@ public class SslUtils {
                 log.debug("Using custom SSLContext");
                 sslContext = config.getCustomSslContext();
             } else {
+                sslContext = SSLContext.getInstance(TLS_PROTOCOL);
                 sslContext.init(keyManagers, trustManagers, new SecureRandom());
             }
 

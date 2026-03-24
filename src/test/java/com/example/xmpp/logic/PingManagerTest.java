@@ -2,7 +2,6 @@ package com.example.xmpp.logic;
 
 import com.example.xmpp.XmppConnection;
 import com.example.xmpp.config.XmppClientConfig;
-import com.example.xmpp.event.ConnectionEvent;
 import com.example.xmpp.event.ConnectionEventType;
 import com.example.xmpp.event.XmppEventBus;
 import com.example.xmpp.protocol.model.Iq;
@@ -81,7 +80,7 @@ class PingManagerTest {
     @DisplayName("setPingInterval 应重调度已运行的保活任务")
     void testSetPingIntervalReschedulesActiveTask() throws Exception {
         pingManager.setPingInterval(1);
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
+        XmppEventBus.getInstance().publish(connection, ConnectionEventType.CONNECTED);
         ScheduledFuture<?> firstTask = getKeepAliveTask();
 
         pingManager.setPingInterval(2);
@@ -106,21 +105,30 @@ class PingManagerTest {
     }
 
     @Test
-    @DisplayName("onEvent(CONNECTED) 应启动保活任务")
+    @DisplayName("PingManager 不应再暴露 onEvent 入口")
+    void testPingManagerDoesNotExposeOnEventMethod() {
+        assertThrows(NoSuchMethodException.class,
+                () -> PingManager.class.getDeclaredMethod(
+                        "onEvent",
+                        Class.forName("com.example.xmpp.event.ConnectionEvent")));
+    }
+
+    @Test
+    @DisplayName("CONNECTED 事件应启动保活任务")
     void testConnectedEventStartsKeepAlive() throws Exception {
         pingManager.setPingInterval(1);
 
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
+        XmppEventBus.getInstance().publish(connection, ConnectionEventType.CONNECTED);
 
         assertNotNull(getKeepAliveTask());
     }
 
     @Test
-    @DisplayName("onEvent(AUTHENTICATED) 不应启动保活任务")
+    @DisplayName("AUTHENTICATED 事件不应启动保活任务")
     void testAuthenticatedEventDoesNotStartKeepAlive() throws Exception {
         pingManager.setPingInterval(1);
 
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.AUTHENTICATED));
+        XmppEventBus.getInstance().publish(connection, ConnectionEventType.AUTHENTICATED);
 
         assertNull(getKeepAliveTask());
     }
@@ -145,15 +153,15 @@ class PingManagerTest {
     }
 
     @Test
-    @DisplayName("onEvent(ERROR) 应取消已启动的保活任务")
+    @DisplayName("ERROR 事件应取消已启动的保活任务")
     void testConnectionErrorEventShutsDown() throws Exception {
         pingManager.setPingInterval(1);
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
+        XmppEventBus.getInstance().publish(connection, ConnectionEventType.CONNECTED);
 
         ScheduledFuture<?> keepAliveTask = getKeepAliveTask();
         assertNotNull(keepAliveTask);
 
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.ERROR));
+        XmppEventBus.getInstance().publish(connection, ConnectionEventType.ERROR);
 
         assertNull(getKeepAliveTask());
         assertTrue(keepAliveTask.isCancelled());
@@ -164,7 +172,7 @@ class PingManagerTest {
     void testShutdownPreventsRestartOnConnectedEvent() throws Exception {
         pingManager.setPingInterval(1);
         pingManager.shutdown();
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
+        XmppEventBus.getInstance().publish(connection, ConnectionEventType.CONNECTED);
 
         verify(connection, never()).sendIqPacketAsync(any());
         assertNull(getKeepAliveTask());
@@ -195,10 +203,10 @@ class PingManagerTest {
     void testRepeatedConnectedEventReplacesPreviousKeepAliveTask() throws Exception {
         pingManager.setPingInterval(30);
 
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
+        XmppEventBus.getInstance().publish(connection, ConnectionEventType.CONNECTED);
         ScheduledFuture<?> firstTask = getKeepAliveTask();
 
-        pingManager.onEvent(new ConnectionEvent(connection, ConnectionEventType.CONNECTED));
+        XmppEventBus.getInstance().publish(connection, ConnectionEventType.CONNECTED);
         ScheduledFuture<?> secondTask = getKeepAliveTask();
 
         assertNotNull(firstTask);
