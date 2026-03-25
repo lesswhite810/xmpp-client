@@ -23,25 +23,16 @@ public interface HandlerState {
      * @param ctx Netty 通道上下文
      * @param msg 接收到的消息
      */
-    default void handleMessage(StateContext context, ChannelHandlerContext ctx, Object msg) {
-    }
+    void handleMessage(StateContext context, ChannelHandlerContext ctx, Object msg);
 
     /**
-     * 进入此状态时调用。
+     * 处理用户事件。
      *
      * @param context 状态上下文
      * @param ctx Netty 通道上下文
+     * @param evt 用户事件
      */
-    default void onEnter(StateContext context, ChannelHandlerContext ctx) {
-    }
-
-    /**
-     * 离开此状态时调用。
-     *
-     * @param context 状态上下文
-     * @param ctx Netty 通道上下文
-     */
-    default void onExit(StateContext context, ChannelHandlerContext ctx) {
+    default void handleUserEvent(StateContext context, ChannelHandlerContext ctx, Object evt) {
     }
 
     /**

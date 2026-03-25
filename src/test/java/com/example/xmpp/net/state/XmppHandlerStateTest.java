@@ -18,17 +18,6 @@ class XmppHandlerStateTest {
     class StateTransitionTests {
 
         @Test
-        @DisplayName("INITIAL 只能转换到 CONNECTING")
-        void testInitialTransitions() {
-            assertTrue(XmppHandlerState.INITIAL.canTransitionTo(XmppHandlerState.CONNECTING));
-            assertFalse(XmppHandlerState.INITIAL.canTransitionTo(XmppHandlerState.AWAITING_FEATURES));
-            assertFalse(XmppHandlerState.INITIAL.canTransitionTo(XmppHandlerState.TLS_NEGOTIATING));
-            assertFalse(XmppHandlerState.INITIAL.canTransitionTo(XmppHandlerState.SASL_AUTH));
-            assertFalse(XmppHandlerState.INITIAL.canTransitionTo(XmppHandlerState.BINDING));
-            assertFalse(XmppHandlerState.INITIAL.canTransitionTo(XmppHandlerState.SESSION_ACTIVE));
-        }
-
-        @Test
         @DisplayName("CONNECTING 可以转换到 AWAITING_FEATURES")
         void testConnectingTransitions() {
             assertTrue(XmppHandlerState.CONNECTING.canTransitionTo(XmppHandlerState.AWAITING_FEATURES));
@@ -92,7 +81,6 @@ class XmppHandlerStateTest {
         @Test
         @DisplayName("有效转换不应抛出异常")
         void testValidTransition() {
-            assertDoesNotThrow(() -> XmppHandlerState.INITIAL.validateTransition(XmppHandlerState.CONNECTING));
             assertDoesNotThrow(() -> XmppHandlerState.CONNECTING.validateTransition(XmppHandlerState.AWAITING_FEATURES));
             assertDoesNotThrow(() -> XmppHandlerState.AWAITING_FEATURES.validateTransition(XmppHandlerState.TLS_NEGOTIATING));
             assertDoesNotThrow(() -> XmppHandlerState.BINDING.validateTransition(XmppHandlerState.SESSION_ACTIVE));
@@ -102,7 +90,7 @@ class XmppHandlerStateTest {
         @DisplayName("无效转换应抛出 IllegalStateException")
         void testInvalidTransition() {
             assertThrows(IllegalStateException.class,
-                    () -> XmppHandlerState.INITIAL.validateTransition(XmppHandlerState.SESSION_ACTIVE));
+                    () -> XmppHandlerState.CONNECTING.validateTransition(XmppHandlerState.SESSION_ACTIVE));
             assertThrows(IllegalStateException.class,
                     () -> XmppHandlerState.SESSION_ACTIVE.validateTransition(XmppHandlerState.SASL_AUTH));
             assertThrows(IllegalStateException.class,
@@ -113,10 +101,10 @@ class XmppHandlerStateTest {
         @DisplayName("异常消息应包含源状态和目标状态")
         void testExceptionMessage() {
             IllegalStateException ex = assertThrows(IllegalStateException.class,
-                    () -> XmppHandlerState.INITIAL.validateTransition(XmppHandlerState.SESSION_ACTIVE));
+                    () -> XmppHandlerState.CONNECTING.validateTransition(XmppHandlerState.SESSION_ACTIVE));
 
             String message = ex.getMessage();
-            assertTrue(message.contains("INITIAL"));
+            assertTrue(message.contains("CONNECTING"));
             assertTrue(message.contains("SESSION_ACTIVE"));
         }
     }
@@ -128,7 +116,6 @@ class XmppHandlerStateTest {
         @Test
         @DisplayName("getName 应返回枚举名称")
         void testGetName() {
-            assertEquals("INITIAL", XmppHandlerState.INITIAL.getName());
             assertEquals("CONNECTING", XmppHandlerState.CONNECTING.getName());
             assertEquals("SESSION_ACTIVE", XmppHandlerState.SESSION_ACTIVE.getName());
         }
@@ -141,7 +128,6 @@ class XmppHandlerStateTest {
         @Test
         @DisplayName("只有 SESSION_ACTIVE 状态返回 true")
         void testIsSessionActive() {
-            assertFalse(XmppHandlerState.INITIAL.isSessionActive());
             assertFalse(XmppHandlerState.CONNECTING.isSessionActive());
             assertFalse(XmppHandlerState.AWAITING_FEATURES.isSessionActive());
             assertFalse(XmppHandlerState.TLS_NEGOTIATING.isSessionActive());

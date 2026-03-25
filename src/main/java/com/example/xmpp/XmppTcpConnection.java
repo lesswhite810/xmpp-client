@@ -246,9 +246,9 @@ public class XmppTcpConnection extends AbstractXmppConnection {
     }
 
     private Channel attemptConnectionTarget(ConnectionTarget target) throws XmppNetworkException {
-        log.debug("Attempting connection target {}", target);
+        log.info("Attempting connection target {}", target);
         Channel connectedChannel = ConnectionUtils.connectSync(createBootstrap(), target.toSocketAddress());
-        log.debug("Connection target {} established", target);
+        log.info("Connection target {} established", target);
         return connectedChannel;
     }
 

@@ -195,7 +195,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
         }
 
         if (msg instanceof StreamHeader) {
-            log.debug("Stream header received, waiting for features");
+            log.info("Stream header received, waiting for features");
             return;
         }
         if (msg == StreamClose.INSTANCE) {
@@ -204,7 +204,7 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
             return;
         }
         if (msg instanceof StreamError streamError) {
-            log.warn("Received stream error - condition: {}",
+            log.error("Received stream error - condition: {}",
                     streamError.getCondition());
             connection.failConnection(ctx.channel(), new XmppStreamErrorException(streamError));
             ctx.close().addListener(future -> {
@@ -249,8 +249,8 @@ public class XmppNettyHandler extends SimpleChannelInboundHandler<Object> {
             log.debug("Ignoring SSL handshake completion because state context is terminated");
             return;
         }
-        log.debug("SSL handshake completed successfully");
-        currentStateContext.resumeAfterTlsHandshake(ctx);
+        log.info("SSL handshake completed successfully");
+        currentStateContext.handleUserEvent(ctx, event);
     }
 
     private void handleTlsHandshakeFailure(ChannelHandlerContext ctx, SslHandshakeCompletionEvent event) {

@@ -10,6 +10,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -142,6 +143,20 @@ class StateContextTest {
     }
 
     @Test
+    void testHandleUserEventIgnoredAfterInvalidate() {
+        TestFixture fixture = new TestFixture(true);
+
+        fixture.context.invalidate();
+        fixture.context.handleUserEvent(fixture.channel.pipeline().lastContext(), SslHandshakeCompletionEvent.SUCCESS);
+
+        assertEquals("CONNECTING", fixture.context.getCurrentStateName());
+        assertFalse(fixture.context.isAuthenticated());
+        assertNull(fixture.channel.readOutbound());
+
+        fixture.channel.finishAndReleaseAll();
+    }
+
+    @Test
     void testTransitionToSameStateIsNoOp() {
         TestFixture fixture = new TestFixture(true);
 
@@ -154,11 +169,11 @@ class StateContextTest {
     }
 
     @Test
-    void testResumeAfterTlsHandshakeReopensStreamAndTransitionsToAwaitingFeatures() {
+    void testHandleUserEventReopensStreamAndTransitionsToAwaitingFeaturesAfterTlsHandshake() {
         TestFixture fixture = new TestFixture(true);
         fixture.readOutboundAsString();
 
-        fixture.context.resumeAfterTlsHandshake(fixture.channel.pipeline().lastContext());
+        fixture.context.handleUserEvent(fixture.channel.pipeline().lastContext(), SslHandshakeCompletionEvent.SUCCESS);
 
         String outbound = fixture.readOutboundAsString();
         assertTrue(outbound.startsWith("<?xml version='1.0' encoding='UTF-8'?>"));
@@ -169,17 +184,52 @@ class StateContextTest {
     }
 
     @Test
-    void testResumeAfterTlsHandshakeSkipsTransitionWhenStateIsNoLongerConnecting() throws Exception {
+    void testHandleUserEventDoesNotAdvanceAgainWhenStateChangesBeforeOpenStreamWriteCompletes() throws Exception {
         ControlledTlsFixture fixture = new ControlledTlsFixture();
 
-        fixture.context.clearTransitionRequests();
-        fixture.context.resumeAfterTlsHandshake(fixture.channel.pipeline().lastContext());
+        fixture.context.handleUserEvent(fixture.channel.pipeline().lastContext(), SslHandshakeCompletionEvent.SUCCESS);
+        assertEquals("AWAITING_FEATURES", fixture.context.getCurrentStateName());
         setCurrentState(fixture.context, XmppHandlerState.SESSION_ACTIVE);
 
         fixture.openStreamPromise.setSuccess();
 
-        assertTrue(fixture.context.getTransitionRequests().isEmpty());
         assertEquals("SESSION_ACTIVE", fixture.context.getCurrentStateName());
+
+        fixture.channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void testHandleUserEventTransitionsToAwaitingFeaturesBeforeOpenStreamWriteCompletesForStartTls()
+            throws Exception {
+        ControlledTlsFixture fixture = new ControlledTlsFixture();
+        setCurrentState(fixture.context, XmppHandlerState.TLS_NEGOTIATING);
+
+        fixture.context.handleUserEvent(fixture.channel.pipeline().lastContext(), SslHandshakeCompletionEvent.SUCCESS);
+
+        assertEquals("AWAITING_FEATURES", fixture.context.getCurrentStateName());
+        assertFalse(fixture.openStreamPromise.isDone());
+
+        fixture.channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void testTransitionBeforeWriteTransitionsImmediatelyAndDoesNotAdvanceAgainAfterWriteSucceeds() throws Exception {
+        ControlledTlsFixture fixture = new ControlledTlsFixture();
+        setCurrentState(fixture.context, XmppHandlerState.AWAITING_FEATURES);
+        fixture.context.clearTransitionRequests();
+
+        fixture.context.transitionBeforeWrite(XmppHandlerState.SASL_AUTH,
+                fixture.channel.pipeline().lastContext(),
+                "send SASL auth stanza",
+                () -> fixture.openStreamPromise);
+
+        assertEquals("SASL_AUTH", fixture.context.getCurrentStateName());
+        assertEquals(List.of(XmppHandlerState.SASL_AUTH), fixture.context.getTransitionRequests());
+
+        fixture.openStreamPromise.setSuccess();
+
+        assertEquals("SASL_AUTH", fixture.context.getCurrentStateName());
+        assertEquals(List.of(XmppHandlerState.SASL_AUTH), fixture.context.getTransitionRequests());
 
         fixture.channel.finishAndReleaseAll();
     }

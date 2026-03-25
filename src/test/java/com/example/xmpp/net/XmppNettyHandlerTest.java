@@ -8,6 +8,7 @@ import com.example.xmpp.exception.XmppAuthException;
 import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.exception.XmppStanzaErrorException;
+import com.example.xmpp.mechanism.PlainSaslMechanism;
 import com.example.xmpp.mechanism.SaslNegotiator;
 import com.example.xmpp.protocol.model.XmlSerializable;
 import com.example.xmpp.protocol.model.Iq;
@@ -16,7 +17,9 @@ import com.example.xmpp.protocol.model.extension.Ping;
 import com.example.xmpp.protocol.model.extension.Bind;
 import com.example.xmpp.protocol.model.sasl.SaslChallenge;
 import com.example.xmpp.protocol.model.sasl.SaslFailure;
+import com.example.xmpp.protocol.model.sasl.SaslSuccess;
 import com.example.xmpp.protocol.model.stream.StreamClose;
+import com.example.xmpp.protocol.model.stream.StreamError;
 import com.example.xmpp.protocol.model.stream.StreamFeatures;
 import com.example.xmpp.net.state.StateContext;
 import com.example.xmpp.net.state.XmppHandlerState;
@@ -160,6 +163,73 @@ class XmppNettyHandlerTest {
         assertTrue(connection.getConnectionReadyFuture().isDone());
 
         channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void testConnectionLifecycleLogsKeyMilestonesAtInfoLevel() {
+        Logger stateLogger = (Logger) LogManager.getLogger(StateContext.class);
+        Logger handlerStateLogger = (Logger) LogManager.getLogger(XmppHandlerState.class);
+        TestLogAppender appender = attachAppender("connectionLifecycleInfo", stateLogger, handlerStateLogger);
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .sendPresence(false)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            drainOutboundStrings(channel);
+            channel.writeInbound(StreamFeatures.builder()
+                    .bindAvailable(true)
+                    .build());
+            channel.writeInbound(new Iq.Builder(Iq.Type.RESULT)
+                    .id("bind-1")
+                    .childElement(Bind.builder().jid("user@example.com/resource").build())
+                    .build());
+
+            assertTrue(appender.containsAtLevel("Opening initial XMPP stream", Level.INFO));
+            assertTrue(appender.containsAtLevel("State transition: CONNECTING -> AWAITING_FEATURES", Level.INFO));
+            assertTrue(appender.containsAtLevel("Handling features - starttls: false, mechanisms: 0, bind: true",
+                    Level.INFO));
+            assertTrue(appender.containsAtLevel("Sending resource bind request", Level.INFO));
+        } finally {
+            detachAppender(appender, stateLogger, handlerStateLogger);
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testDirectTlsHandshakeSuccessLogsAtInfoLevel() {
+        Logger stateLogger = (Logger) LogManager.getLogger(StateContext.class);
+        Logger handlerStateLogger = (Logger) LogManager.getLogger(XmppHandlerState.class);
+        Logger handlerLogger = (Logger) LogManager.getLogger(XmppNettyHandler.class);
+        TestLogAppender appender = attachAppender("directTlsHandshakeInfo", stateLogger, handlerStateLogger, handlerLogger);
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .usingDirectTLS(true)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            channel.pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
+
+            assertTrue(appender.containsAtLevel("Using Direct TLS, waiting for SSL handshake to complete", Level.INFO));
+            assertTrue(appender.containsAtLevel("SSL handshake completed successfully", Level.INFO));
+            assertTrue(appender.containsAtLevel("Direct TLS handshake completed, opening initial XMPP stream",
+                    Level.INFO));
+        } finally {
+            detachAppender(appender, stateLogger, handlerStateLogger, handlerLogger);
+            channel.finishAndReleaseAll();
+        }
     }
 
     @Test
@@ -330,6 +400,8 @@ class XmppNettyHandlerTest {
 
     @Test
     void testTlsRequiredWithoutStartTlsFailsConnection() {
+        Logger handlerStateLogger = (Logger) LogManager.getLogger(XmppHandlerState.class);
+        TestLogAppender appender = attachAppender("tlsRequiredNoStartTls", handlerStateLogger);
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
@@ -348,7 +420,9 @@ class XmppNettyHandlerTest {
                     () -> connection.getConnectionReadyFuture().join());
             assertInstanceOf(XmppException.class, exception.getCause());
             assertTrue(exception.getCause().getMessage().contains("TLS required but not supported"));
+            assertTrue(appender.containsAtLevel("TLS required by configuration but not available on server", Level.ERROR));
         } finally {
+            detachAppender(appender, handlerStateLogger);
             channel.finishAndReleaseAll();
         }
     }
@@ -383,6 +457,8 @@ class XmppNettyHandlerTest {
 
     @Test
     void testNoSupportedMechanismFailsConnection() {
+        Logger handlerStateLogger = (Logger) LogManager.getLogger(XmppHandlerState.class);
+        TestLogAppender appender = attachAppender("noSupportedMechanism", handlerStateLogger);
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
@@ -404,7 +480,9 @@ class XmppNettyHandlerTest {
                     () -> connection.getConnectionReadyFuture().join());
             assertInstanceOf(XmppException.class, exception.getCause());
             assertTrue(exception.getCause().getMessage().contains("No supported SASL mechanism"));
+            assertTrue(appender.containsAtLevel("No supported SASL mechanism - Server offered:", Level.ERROR));
         } finally {
+            detachAppender(appender, handlerStateLogger);
             channel.finishAndReleaseAll();
         }
     }
@@ -440,7 +518,7 @@ class XmppNettyHandlerTest {
             assertTrue(cause.getMessage().contains("Failed to send SASL stanza"));
             assertNull(cause.getCause());
             assertTrue(appender.containsAtLevel("Failed to send SASL stanza - ErrorType:", Level.ERROR));
-            assertTrue(appender.containsAtLevel("XMPP exception caught - State: AWAITING_FEATURES", Level.ERROR));
+            assertTrue(appender.containsAtLevel("XMPP exception caught - State: SASL_AUTH", Level.ERROR));
         } finally {
             detachAppender(appender, saslLogger, handlerLogger);
             channel.finishAndReleaseAll();
@@ -483,6 +561,8 @@ class XmppNettyHandlerTest {
 
     @Test
     void testSaslFailureCompletesConnectionWithAuthException() {
+        Logger handlerStateLogger = (Logger) LogManager.getLogger(XmppHandlerState.class);
+        TestLogAppender appender = attachAppender("saslFailure", handlerStateLogger);
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
@@ -505,13 +585,73 @@ class XmppNettyHandlerTest {
                     () -> connection.getConnectionReadyFuture().join());
             assertInstanceOf(XmppAuthException.class, exception.getCause());
             assertTrue(exception.getCause().getMessage().contains("SASL authentication failed"));
+            assertTrue(appender.containsAtLevel("SASL authentication failed - condition: not-authorized", Level.ERROR));
+        } finally {
+            detachAppender(appender, handlerStateLogger);
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testStateTransitionsToAwaitingFeaturesBeforeInitialStreamWriteSucceeds() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        DelayedStreamWriteHandler delayedStreamWriteHandler = new DelayedStreamWriteHandler();
+        EmbeddedChannel channel = newBoundChannel(connection, handler, delayedStreamWriteHandler);
+
+        try {
+            assertEquals("AWAITING_FEATURES", currentStateName(handler));
+            assertFalse(connection.getConnectionReadyFuture().isDone());
+
+            delayedStreamWriteHandler.succeedPendingWrite();
+            channel.runPendingTasks();
+            channel.runScheduledPendingTasks();
+
+            assertEquals("AWAITING_FEATURES", currentStateName(handler));
         } finally {
             channel.finishAndReleaseAll();
         }
     }
 
     @Test
-    void testStateDoesNotAdvanceToSaslAuthBeforeInitialAuthWriteSucceeds() {
+    void testStateTransitionsToTlsNegotiatingBeforeStartTlsWriteSucceeds() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.REQUIRED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        DelayedStartTlsWriteHandler delayedStartTlsWriteHandler = new DelayedStartTlsWriteHandler();
+        EmbeddedChannel channel = newBoundChannel(connection, handler, delayedStartTlsWriteHandler);
+
+        try {
+            drainOutboundStrings(channel);
+            channel.writeInbound(StreamFeatures.builder()
+                    .starttlsAvailable(true)
+                    .build());
+
+            assertEquals("TLS_NEGOTIATING", currentStateName(handler));
+
+            delayedStartTlsWriteHandler.succeedPendingWrite();
+            channel.runPendingTasks();
+            channel.runScheduledPendingTasks();
+
+            assertEquals("TLS_NEGOTIATING", currentStateName(handler));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testStateTransitionsToSaslAuthBeforeInitialAuthWriteSucceeds() {
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
@@ -530,13 +670,86 @@ class XmppNettyHandlerTest {
                     .mechanisms(List.of("SCRAM-SHA-1"))
                     .build());
 
-            assertEquals("AWAITING_FEATURES", currentStateName(handler));
+            assertEquals("SASL_AUTH", currentStateName(handler));
 
             delayedAuthWriteHandler.succeedPendingWrite();
             channel.runPendingTasks();
             channel.runScheduledPendingTasks();
 
             assertEquals("SASL_AUTH", currentStateName(handler));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testStateTransitionsToBindingBeforeBindWriteSucceeds() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        DelayedBindWriteHandler delayedBindWriteHandler = new DelayedBindWriteHandler();
+        EmbeddedChannel channel = newBoundChannel(connection, handler, delayedBindWriteHandler);
+
+        try {
+            drainOutboundStrings(channel);
+            channel.writeInbound(StreamFeatures.builder()
+                    .bindAvailable(true)
+                    .build());
+
+            assertEquals("BINDING", currentStateName(handler));
+
+            delayedBindWriteHandler.succeedPendingWrite();
+            channel.runPendingTasks();
+            channel.runScheduledPendingTasks();
+
+            assertEquals("BINDING", currentStateName(handler));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testStateTransitionsToAwaitingFeaturesBeforeSaslReopenStreamWriteSucceeds() {
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .enabledSaslMechanisms(Set.of("PLAIN"))
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .usingDirectTLS(true)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        DelayedStreamWriteHandler delayedStreamWriteHandler = new DelayedStreamWriteHandler();
+        EmbeddedChannel channel = newBoundChannel(connection, handler, delayedStreamWriteHandler);
+
+        try {
+            StateContext stateContext = currentStateContext(handler);
+            ChannelHandlerContext ctx = channel.pipeline().lastContext();
+            stateContext.transitionTo(XmppHandlerState.AWAITING_FEATURES, ctx);
+            stateContext.transitionTo(XmppHandlerState.SASL_AUTH, ctx);
+            stateContext.setSaslNegotiator(new SaslNegotiator(new PlainSaslMechanism("user", "pass".toCharArray()), ctx) {
+                @Override
+                public boolean handleSuccess(String contentB64) {
+                    return true;
+                }
+            });
+            assertEquals("SASL_AUTH", currentStateName(handler));
+
+            channel.writeInbound(new SaslSuccess(null));
+
+            assertEquals("AWAITING_FEATURES", currentStateName(handler));
+
+            delayedStreamWriteHandler.succeedPendingWrite();
+            channel.runPendingTasks();
+            channel.runScheduledPendingTasks();
+
+            assertEquals("AWAITING_FEATURES", currentStateName(handler));
         } finally {
             channel.finishAndReleaseAll();
         }
@@ -569,7 +782,7 @@ class XmppNettyHandlerTest {
             channel.runScheduledPendingTasks();
 
             assertNull(currentStateName(handler));
-            assertEquals("AWAITING_FEATURES", capturedStateContext.getCurrentStateName());
+            assertEquals("SASL_AUTH", capturedStateContext.getCurrentStateName());
         } finally {
             channel.finishAndReleaseAll();
         }
@@ -593,7 +806,7 @@ class XmppNettyHandlerTest {
             channel.pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
             StateContext capturedStateContext = currentStateContext(handler);
 
-            assertEquals("CONNECTING", capturedStateContext.getCurrentStateName());
+            assertEquals("AWAITING_FEATURES", capturedStateContext.getCurrentStateName());
 
             handler.invalidateStateContext();
             delayedStreamWriteHandler.succeedPendingWrite();
@@ -601,7 +814,7 @@ class XmppNettyHandlerTest {
             channel.runScheduledPendingTasks();
 
             assertNull(currentStateName(handler));
-            assertEquals("CONNECTING", capturedStateContext.getCurrentStateName());
+            assertEquals("AWAITING_FEATURES", capturedStateContext.getCurrentStateName());
         } finally {
             channel.finishAndReleaseAll();
         }
@@ -817,6 +1030,8 @@ class XmppNettyHandlerTest {
 
     @Test
     void testBindErrorCompletesConnectionWithStanzaErrorException() {
+        Logger handlerStateLogger = (Logger) LogManager.getLogger(XmppHandlerState.class);
+        TestLogAppender appender = attachAppender("bindError", handlerStateLogger);
         XmppClientConfig config = XmppClientConfig.builder()
                 .xmppServiceDomain("example.com")
                 .username("user")
@@ -842,7 +1057,36 @@ class XmppNettyHandlerTest {
             XmppStanzaErrorException cause = assertInstanceOf(XmppStanzaErrorException.class, exception.getCause());
             assertTrue(cause.getMessage().contains("Resource binding failed"));
             assertTrue(cause.getMessage().contains("condition=NOT_AUTHORIZED"));
+            assertTrue(appender.containsAtLevel("Resource binding failed - condition=NOT_AUTHORIZED, type=auth",
+                    Level.ERROR));
         } finally {
+            detachAppender(appender, handlerStateLogger);
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testStreamErrorLogsAtErrorLevel() {
+        Logger handlerLogger = (Logger) LogManager.getLogger(XmppNettyHandler.class);
+        TestLogAppender appender = attachAppender("streamError", handlerLogger);
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
+        EmbeddedChannel channel = newBoundChannel(connection, handler);
+
+        try {
+            channel.writeInbound(StreamError.builder()
+                    .condition(StreamError.Condition.CONFLICT)
+                    .build());
+
+            assertTrue(appender.containsAtLevel("Received stream error - condition: CONFLICT", Level.ERROR));
+        } finally {
+            detachAppender(appender, handlerLogger);
             channel.finishAndReleaseAll();
         }
     }
@@ -1195,6 +1439,41 @@ class XmppNettyHandlerTest {
         }
     }
 
+    private static final class DelayedStartTlsWriteHandler extends ChannelDuplexHandler {
+
+        private ChannelHandlerContext context;
+
+        private ChannelPromise pendingPromise;
+
+        private ByteBuf pendingBuffer;
+
+        @Override
+        public void handlerAdded(ChannelHandlerContext ctx) {
+            this.context = ctx;
+        }
+
+        @Override
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+            if (msg instanceof ByteBuf byteBuf && byteBuf.toString(StandardCharsets.UTF_8).contains("<starttls")) {
+                pendingPromise = promise;
+                pendingBuffer = byteBuf;
+                return;
+            }
+            ctx.write(msg, promise);
+        }
+
+        private void succeedPendingWrite() {
+            if (pendingPromise == null || pendingBuffer == null) {
+                throw new AssertionError("No pending STARTTLS write to complete");
+            }
+            ChannelPromise promise = pendingPromise;
+            ByteBuf buffer = pendingBuffer;
+            pendingPromise = null;
+            pendingBuffer = null;
+            context.writeAndFlush(buffer, promise);
+        }
+    }
+
     private static final class DelayedStreamWriteHandler extends ChannelDuplexHandler {
 
         private ChannelHandlerContext context;
@@ -1222,6 +1501,42 @@ class XmppNettyHandlerTest {
         private void succeedPendingWrite() {
             if (pendingPromise == null || pendingBuffer == null) {
                 throw new AssertionError("No pending stream write to complete");
+            }
+            ChannelPromise promise = pendingPromise;
+            ByteBuf buffer = pendingBuffer;
+            pendingPromise = null;
+            pendingBuffer = null;
+            context.writeAndFlush(buffer, promise);
+        }
+    }
+
+    private static final class DelayedBindWriteHandler extends ChannelDuplexHandler {
+
+        private ChannelHandlerContext context;
+
+        private ChannelPromise pendingPromise;
+
+        private ByteBuf pendingBuffer;
+
+        @Override
+        public void handlerAdded(ChannelHandlerContext ctx) {
+            this.context = ctx;
+        }
+
+        @Override
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+            if (msg instanceof ByteBuf byteBuf
+                    && byteBuf.toString(StandardCharsets.UTF_8).contains("urn:ietf:params:xml:ns:xmpp-bind")) {
+                pendingPromise = promise;
+                pendingBuffer = byteBuf;
+                return;
+            }
+            ctx.write(msg, promise);
+        }
+
+        private void succeedPendingWrite() {
+            if (pendingPromise == null || pendingBuffer == null) {
+                throw new AssertionError("No pending bind write to complete");
             }
             ChannelPromise promise = pendingPromise;
             ByteBuf buffer = pendingBuffer;

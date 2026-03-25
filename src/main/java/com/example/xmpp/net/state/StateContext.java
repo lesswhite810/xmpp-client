@@ -30,7 +30,7 @@ public class StateContext {
 
     private final XmppTcpConnection connection;
 
-    private volatile XmppHandlerState currentState = XmppHandlerState.INITIAL;
+    private volatile XmppHandlerState currentState = XmppHandlerState.CONNECTING;
 
     private volatile boolean terminated;
 
@@ -47,7 +47,7 @@ public class StateContext {
     public StateContext(XmppClientConfig config, XmppTcpConnection connection, ChannelHandlerContext ctx) {
         this.config = config;
         this.connection = connection;
-        transitionTo(XmppHandlerState.CONNECTING, ctx);
+        startConnectionFlow(ctx);
     }
 
     /**
@@ -102,13 +102,19 @@ public class StateContext {
      * @param msg 接收到的消息
      */
     public void handleMessage(ChannelHandlerContext ctx, Object msg) {
-        synchronized (stateLock) {
-            if (terminated) {
-                log.debug("Ignoring inbound message because state context is cleared");
-                return;
-            }
-            currentState.handleMessage(this, ctx, msg);
-        }
+        dispatchWithStateLock("Ignoring inbound message because state context is cleared",
+                state -> state.handleMessage(this, ctx, msg));
+    }
+
+    /**
+     * 处理用户事件。
+     *
+     * @param ctx Netty 通道上下文
+     * @param evt 用户事件
+     */
+    public void handleUserEvent(ChannelHandlerContext ctx, Object evt) {
+        dispatchWithStateLock("Ignoring user event because state context is cleared",
+                state -> state.handleUserEvent(this, ctx, evt));
     }
 
     /**
@@ -193,67 +199,98 @@ public class StateContext {
         return NettyUtils.writeAndFlushStringAsync(ctx, xml.toString());
     }
 
-    /**
-     * 在 TLS 握手成功后恢复 XMPP 协议流程。
-     *
-     * <p>该方法会重新打开 XMPP 流，并在写成功后推进到等待服务端 features 的状态。</p>
-     *
-     * @param ctx 通道上下文
-     */
-    public void resumeAfterTlsHandshake(ChannelHandlerContext ctx) {
-        ChannelFuture openStreamFuture = openStream(ctx);
-        if (openStreamFuture == null) {
-            closeConnectionOnError(ctx, new XmppException("Failed to reopen stream after TLS handshake"));
-            return;
-        }
-
-        openStreamFuture.addListener(result -> {
-            if (!result.isSuccess()) {
-                closeConnectionOnError(ctx,
-                        new XmppNetworkException("Failed to reopen stream after TLS handshake", result.cause()));
-                return;
-            }
-            if (terminated) {
-                log.debug("Skipping post-handshake state transition because state context is cleared");
-                return;
-            }
-            if (!ctx.channel().isActive()) {
-                log.debug("Skipping post-handshake state transition because channel is inactive");
-                return;
-            }
-            transitionToIfCurrentState(XmppHandlerState.CONNECTING, XmppHandlerState.AWAITING_FEATURES, ctx);
-        });
-    }
-
     private void doTransition(XmppHandlerState newState, ChannelHandlerContext ctx) {
         currentState.validateTransition(newState);
 
         String connectionId = config.getXmppServiceDomain();
-        log.debug("[{}] State transition: {} -> {}", connectionId, currentState.name(), newState.name());
+        log.info("[{}] State transition: {} -> {}", connectionId, currentState.name(), newState.name());
 
-        currentState.onExit(this, ctx);
         currentState = newState;
-        newState.onEnter(this, ctx);
     }
 
-    private void transitionToIfCurrentState(XmppHandlerState expectedState, XmppHandlerState newState,
-                                            ChannelHandlerContext ctx) {
+    private void dispatchWithStateLock(String terminatedMessage, StateDispatcher dispatcher) {
         synchronized (stateLock) {
             if (terminated) {
-                log.debug("Ignoring transition to {} because state context is cleared", newState);
+                log.debug(terminatedMessage);
                 return;
             }
-            if (currentState != expectedState) {
-                log.debug("Skipping transition to {} because current state is {}, expected {}",
-                        newState, currentState, expectedState);
-                return;
-            }
-            if (currentState == newState) {
-                return;
-            }
-
-            doTransition(newState, ctx);
+            dispatcher.dispatch(currentState);
         }
+    }
+
+    private void startConnectionFlow(ChannelHandlerContext ctx) {
+        if (config.isUsingDirectTLS()) {
+            log.info("Using Direct TLS, waiting for SSL handshake to complete");
+            return;
+        }
+        log.info("Opening initial XMPP stream");
+        transitionBeforeWrite(XmppHandlerState.AWAITING_FEATURES,
+                ctx,
+                "open initial XMPP stream",
+                () -> openStream(ctx));
+    }
+
+    <E extends Exception> void transitionBeforeWrite(XmppHandlerState nextState,
+                                                     ChannelHandlerContext ctx,
+                                                     String action,
+                                                     CheckedWriteAction<E> writeAction) throws E {
+        transitionTo(nextState, ctx);
+        failOnWriteFailure(ctx, writeAction.execute(), action);
+    }
+
+    void transitionAfterSuccessfulWrite(ChannelHandlerContext ctx,
+                                        ChannelFuture future,
+                                        String action,
+                                        Runnable onSuccess) {
+        if (future == null) {
+            closeConnectionOnError(ctx, "Failed to " + action);
+            return;
+        }
+        future.addListener(result -> {
+            if (!result.isSuccess()) {
+                closeConnectionOnError(ctx,
+                        new XmppNetworkException("Failed to " + action, result.cause()));
+                return;
+            }
+            if (terminated) {
+                log.debug("Skipping state follow-up for {} because state context is cleared", action);
+                return;
+            }
+            if (!ctx.channel().isActive()) {
+                log.debug("Skipping state follow-up for {} because channel is inactive", action);
+                return;
+            }
+            onSuccess.run();
+        });
+    }
+
+    void failOnWriteFailure(ChannelHandlerContext ctx, ChannelFuture future, String action) {
+        if (future == null) {
+            closeConnectionOnError(ctx, "Failed to " + action);
+            return;
+        }
+        future.addListener(result -> {
+            if (!result.isSuccess()) {
+                closeConnectionOnError(ctx,
+                        new XmppNetworkException("Failed to " + action, result.cause()));
+            }
+        });
+    }
+
+    void activateSession(ChannelHandlerContext ctx) {
+        transitionTo(XmppHandlerState.SESSION_ACTIVE, ctx);
+        connection.markConnectionReady();
+        connection.notifyAuthenticated();
+    }
+
+    @FunctionalInterface
+    interface CheckedWriteAction<E extends Exception> {
+        ChannelFuture execute() throws E;
+    }
+
+    @FunctionalInterface
+    private interface StateDispatcher {
+        void dispatch(XmppHandlerState state);
     }
 
     private ChannelFuture createFailedSendFuture(ChannelHandlerContext ctx, String message) {
