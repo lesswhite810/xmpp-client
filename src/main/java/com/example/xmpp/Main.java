@@ -34,9 +34,23 @@ public class Main {
         try {
             runClient(domain, username, password);
         } catch (XmppException e) {
-            log.error("XMPP connection failed: {}", e.getMessage());
+            log.error("XMPP connection failed - ErrorChain: {}, Message: {}",
+                    describeErrorChain(e), e.getMessage());
             throw new RuntimeException("XMPP connection failed");
         }
+    }
+
+    private static String describeErrorChain(Throwable throwable) {
+        StringBuilder builder = new StringBuilder();
+        Throwable current = throwable;
+        while (current != null) {
+            if (!builder.isEmpty()) {
+                builder.append(" <- ");
+            }
+            builder.append(current.getClass().getSimpleName());
+            current = current.getCause();
+        }
+        return builder.toString();
     }
 
     /**

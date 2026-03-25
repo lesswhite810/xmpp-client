@@ -218,6 +218,14 @@ public class StateContext {
         }
     }
 
+    /**
+     * 启动连接阶段的首个状态动作。
+     *
+     * <p>这里遵循状态机的核心时序约束：只要下一步是在等待服务端响应，
+     * 就必须先进入等待态，再发出对应报文，避免服务端响应先到达而本地仍停留在旧状态。</p>
+     *
+     * @param ctx 通道上下文
+     */
     private void startConnectionFlow(ChannelHandlerContext ctx) {
         if (config.isUsingDirectTLS()) {
             log.info("Using Direct TLS, waiting for SSL handshake to complete");
@@ -230,6 +238,20 @@ public class StateContext {
                 () -> openStream(ctx));
     }
 
+    /**
+     * 先切换到等待态，再执行写出动作。
+     *
+     * <p>适用于“写出后立即等待服务端响应”的场景，例如开流、STARTTLS、SASL、bind。
+     * 先切状态可以消除一个关键竞态：如果服务端响应比 Netty 写回调更早到达，
+     * 入站消息仍会按新状态处理，而不是被旧状态误判为 unexpected message。</p>
+     *
+     * @param nextState 写出前要进入的等待状态
+     * @param ctx 通道上下文
+     * @param action 动作描述，用于错误日志
+     * @param writeAction 实际写出动作
+     * @param <E> 写出动作可能抛出的受检异常
+     * @throws E 写出动作抛出的异常
+     */
     <E extends Exception> void transitionBeforeWrite(XmppHandlerState nextState,
                                                      ChannelHandlerContext ctx,
                                                      String action,
@@ -238,6 +260,17 @@ public class StateContext {
         failOnWriteFailure(ctx, writeAction.execute(), action);
     }
 
+    /**
+     * 在写出成功后执行后续动作。
+     *
+     * <p>适用于“成功写出才算真正完成阶段切换”的场景，例如发送 initial presence 之后才激活会话。
+     * 这类动作不能像等待态那样提前推进，否则会在写出尚未完成时过早暴露 ready/authenticated 状态。</p>
+     *
+     * @param ctx 通道上下文
+     * @param future 写出 future
+     * @param action 动作描述，用于错误日志
+     * @param onSuccess 写出成功后的后续动作
+     */
     void transitionAfterSuccessfulWrite(ChannelHandlerContext ctx,
                                         ChannelFuture future,
                                         String action,
@@ -264,6 +297,13 @@ public class StateContext {
         });
     }
 
+    /**
+     * 监听写出失败并统一关闭连接。
+     *
+     * @param ctx 通道上下文
+     * @param future 写出 future
+     * @param action 动作描述，用于错误日志
+     */
     void failOnWriteFailure(ChannelHandlerContext ctx, ChannelFuture future, String action) {
         if (future == null) {
             closeConnectionOnError(ctx, "Failed to " + action);

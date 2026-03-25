@@ -2,12 +2,22 @@ package com.example.xmpp;
 
 import com.example.xmpp.config.XmppClientConfig;
 import com.example.xmpp.exception.XmppNetworkException;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 
+import java.net.ConnectException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -89,6 +99,70 @@ class MainTest {
             method.setAccessible(true);
 
             assertDoesNotThrow(() -> method.invoke(null, "xmpp.test", "alice", "secret"));
+        }
+    }
+
+    @Test
+    @DisplayName("main 连接失败时应记录异常链")
+    void testMainLogsErrorChainOnConnectionFailure() {
+        Logger logger = (Logger) LogManager.getLogger(Main.class);
+        TestLogAppender appender = attachAppender("mainFailure", logger);
+        XmppNetworkException cause = new XmppNetworkException("connect failed", new ConnectException("refused"));
+
+        try (MockedConstruction<XmppTcpConnection> ignored = Mockito.mockConstruction(
+                XmppTcpConnection.class,
+                (mock, context) -> doThrow(cause).when(mock).connect())) {
+            RuntimeException exception = assertThrows(RuntimeException.class, () -> Main.main(new String[0]));
+
+            assertEquals("XMPP connection failed", exception.getMessage());
+            assertNull(exception.getCause());
+            assertTrue(appender.containsAtLevel(
+                    "XMPP connection failed - ErrorChain: XmppNetworkException <- ConnectException",
+                    Level.ERROR));
+        } finally {
+            detachAppender(appender, logger);
+        }
+    }
+
+    private TestLogAppender attachAppender(String name, Logger... loggers) {
+        TestLogAppender appender = new TestLogAppender(name);
+        appender.start();
+        for (Logger logger : loggers) {
+            logger.addAppender(appender);
+            logger.setAdditive(false);
+            logger.setLevel(Level.ALL);
+        }
+        return appender;
+    }
+
+    private void detachAppender(Appender appender, Logger... loggers) {
+        for (Logger logger : loggers) {
+            logger.removeAppender(appender);
+        }
+        appender.stop();
+    }
+
+    private static final class TestLogAppender extends AbstractAppender {
+        private final List<LogEvent> events = new ArrayList<>();
+
+        private TestLogAppender(String name) {
+            super(name, null, PatternLayout.createDefaultLayout(), false, null);
+        }
+
+        @Override
+        public void append(LogEvent event) {
+            events.add(event.toImmutable());
+        }
+
+        private boolean containsAtLevel(String text, Level level) {
+            for (LogEvent event : events) {
+                if (event.getLevel() == level
+                        && event.getMessage() != null
+                        && event.getMessage().getFormattedMessage().contains(text)) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

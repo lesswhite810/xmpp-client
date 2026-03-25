@@ -478,15 +478,16 @@ public class XmppTcpConnection extends AbstractXmppConnection {
 
         dispatchStanza(stanza).whenComplete((unused, error) -> {
             if (error != null) {
-                logSendFailure(error);
+                logSendFailure(stanza, error);
             }
         });
     }
 
-    private void logSendFailure(Throwable error) {
+    private void logSendFailure(XmppStanza stanza, Throwable error) {
         Throwable cause = unwrapCompletionError(error);
         String errorType = cause != null ? cause.getClass().getSimpleName() : "unknown";
-        log.error("Failed to send stanza - ErrorType: {}", errorType);
+        log.error("Failed to send stanza - StanzaType: {}, StanzaId: {}, To: {}, ErrorType: {}",
+                stanza.getClass().getSimpleName(), stanza.getId(), stanza.getTo(), errorType);
     }
 
     private Throwable unwrapCompletionError(Throwable error) {

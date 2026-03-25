@@ -278,8 +278,10 @@ class XmppTcpConnectionUnitTest {
         XmppTcpConnection connection = new XmppTcpConnection(newConfig());
 
         try {
-            connection.sendStanza(new TestStanza("<message id='m-log'/>"));
-            assertTrue(appender.containsAtLevel("Failed to send stanza - ErrorType: XmppNetworkException", Level.ERROR));
+            connection.sendStanza(new TestStanza("<message id='m-log'/>", "m-log", "cpe@example.com"));
+            assertTrue(appender.containsAtLevel(
+                    "Failed to send stanza - StanzaType: TestStanza, StanzaId: m-log, To: cpe@example.com, ErrorType: XmppNetworkException",
+                    Level.ERROR));
         } finally {
             detachAppender(appender, logger);
         }
@@ -532,14 +534,22 @@ class XmppTcpConnectionUnitTest {
     private static final class TestStanza implements XmppStanza, XmlSerializable {
 
         private final String xml;
+        private final String id;
+        private final String to;
 
         private TestStanza(String xml) {
+            this(xml, "test-id", null);
+        }
+
+        private TestStanza(String xml, String id, String to) {
             this.xml = xml;
+            this.id = id;
+            this.to = to;
         }
 
         @Override
         public String getId() {
-            return "test-id";
+            return id;
         }
 
         @Override
@@ -549,7 +559,7 @@ class XmppTcpConnectionUnitTest {
 
         @Override
         public String getTo() {
-            return null;
+            return to;
         }
 
         @Override
