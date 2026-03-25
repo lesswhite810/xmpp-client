@@ -111,7 +111,7 @@ public class ConnectionRequestManager {
     private CompletableFuture<XmppStanza> sendConnectionRequestInternal(String cpeJid, String username, char[] password) {
 
         if (!connection.isConnected()) {
-            log.warn("ConnectionRequest failed: ACS not connected to XMPP server");
+            log.error("ConnectionRequest failed: ACS not connected to XMPP server");
             return CompletableFuture.failedFuture(
                     new ConnectException("ACS not connected to XMPP server"));
         }

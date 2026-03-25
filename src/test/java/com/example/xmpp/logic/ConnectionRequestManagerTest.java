@@ -9,6 +9,13 @@ import com.example.xmpp.exception.XmppStanzaErrorException;
 import com.example.xmpp.protocol.model.Iq;
 import com.example.xmpp.protocol.model.XmppError;
 import com.example.xmpp.protocol.model.XmppStanza;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,6 +26,7 @@ import org.mockito.MockitoAnnotations;
 
 import java.lang.reflect.Field;
 import java.net.ConnectException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -170,6 +178,26 @@ class ConnectionRequestManagerTest {
                 });
 
         verify(connection, never()).sendIqPacketAsync(any(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("未连接时应记录 ERROR 日志")
+    void testSendConnectionRequestWhenDisconnectedLogsError() {
+        Logger logger = (Logger) LogManager.getLogger(ConnectionRequestManager.class);
+        TestLogAppender appender = attachAppender("connectionRequestDisconnected", logger);
+
+        when(connection.isConnected()).thenReturn(false);
+
+        try {
+            CompletionException exception = assertThrows(CompletionException.class,
+                    () -> manager.sendConnectionRequest("cpe@example.com", "user", "pass").join());
+
+            assertInstanceOf(ConnectException.class, exception.getCause());
+            assertTrue(appender.containsAtLevel("ConnectionRequest failed: ACS not connected to XMPP server",
+                    Level.ERROR));
+        } finally {
+            detachAppender(appender, logger);
+        }
     }
 
     @Test
@@ -468,5 +496,47 @@ class ConnectionRequestManagerTest {
             return 0;
         }
         return handlerList.size();
+    }
+
+    private TestLogAppender attachAppender(String name, Logger... loggers) {
+        TestLogAppender appender = new TestLogAppender(name);
+        appender.start();
+        for (Logger logger : loggers) {
+            logger.addAppender(appender);
+            logger.setAdditive(false);
+            logger.setLevel(Level.ALL);
+        }
+        return appender;
+    }
+
+    private void detachAppender(Appender appender, Logger... loggers) {
+        for (Logger logger : loggers) {
+            logger.removeAppender(appender);
+        }
+        appender.stop();
+    }
+
+    private static final class TestLogAppender extends AbstractAppender {
+        private final List<LogEvent> events = new ArrayList<>();
+
+        private TestLogAppender(String name) {
+            super(name, null, PatternLayout.createDefaultLayout(), false, null);
+        }
+
+        @Override
+        public void append(LogEvent event) {
+            events.add(event.toImmutable());
+        }
+
+        private boolean containsAtLevel(String text, Level level) {
+            for (LogEvent event : events) {
+                if (event.getLevel() == level
+                        && event.getMessage() != null
+                        && event.getMessage().getFormattedMessage().contains(text)) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }

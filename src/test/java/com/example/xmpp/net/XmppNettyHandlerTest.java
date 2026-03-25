@@ -43,7 +43,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -490,41 +489,6 @@ class XmppNettyHandlerTest {
             assertTrue(appender.containsAtLevel(
                     "Server features missing both SASL mechanisms and bind capability",
                     Level.ERROR));
-        } finally {
-            detachAppender(appender, handlerStateLogger);
-            channel.finishAndReleaseAll();
-        }
-    }
-
-    @Test
-    void testNoSaslMechanismsLogsErrorWhenAuthenticationStartsWithEmptyList() throws Exception {
-        Logger handlerStateLogger = (Logger) LogManager.getLogger(XmppHandlerState.class);
-        TestLogAppender appender = attachAppender("noSaslMechanisms", handlerStateLogger);
-        XmppClientConfig config = XmppClientConfig.builder()
-                .xmppServiceDomain("example.com")
-                .username("user")
-                .password("pass".toCharArray())
-                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
-                .build();
-        XmppTcpConnection connection = new XmppTcpConnection(config);
-        XmppNettyHandler handler = new XmppNettyHandler(config, connection);
-        EmbeddedChannel channel = newBoundChannel(connection, handler);
-
-        try {
-            StateContext stateContext = currentStateContext(handler);
-            ChannelHandlerContext ctx = channel.pipeline().lastContext();
-            stateContext.transitionTo(XmppHandlerState.AWAITING_FEATURES, ctx);
-
-            Method method = XmppHandlerState.AWAITING_FEATURES.getClass()
-                    .getDeclaredMethod("startSaslAuthentication", StateContext.class, ChannelHandlerContext.class, List.class);
-            method.setAccessible(true);
-            method.invoke(XmppHandlerState.AWAITING_FEATURES, stateContext, ctx, List.of());
-
-            CompletionException exception = assertThrows(CompletionException.class,
-                    () -> connection.getConnectionReadyFuture().join());
-            assertInstanceOf(XmppException.class, exception.getCause());
-            assertTrue(exception.getCause().getMessage().contains("No SASL mechanisms available"));
-            assertTrue(appender.containsAtLevel("No SASL mechanisms available from server", Level.ERROR));
         } finally {
             detachAppender(appender, handlerStateLogger);
             channel.finishAndReleaseAll();

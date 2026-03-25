@@ -138,12 +138,6 @@ public enum XmppHandlerState implements HandlerState {
         }
 
         private void startSaslAuthentication(StateContext context, ChannelHandlerContext ctx, List<String> serverMechanisms) {
-            if (CollectionUtils.isEmpty(serverMechanisms)) {
-                log.error("No SASL mechanisms available from server");
-                context.closeConnectionOnError(ctx, "No SASL mechanisms available");
-                return;
-            }
-
             Set<String> enabledMechanisms = context.getConfig().getEnabledSaslMechanisms();
             char[] password = context.getConfig().getPassword();
             Optional<SaslMechanism> best;

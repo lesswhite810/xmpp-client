@@ -6,11 +6,20 @@ import com.example.xmpp.exception.XmppException;
 import com.example.xmpp.exception.XmppNetworkException;
 import com.example.xmpp.protocol.model.XmlSerializable;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -18,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -234,6 +244,59 @@ class StateContextTest {
         fixture.channel.finishAndReleaseAll();
     }
 
+    @Test
+    void testTransitionAfterSuccessfulWriteSkipsFollowUpWhenChannelInactive() {
+        Logger logger = (Logger) LogManager.getLogger(StateContext.class);
+        TestLogAppender appender = attachAppender("inactiveFollowUp", logger);
+        TestFixture fixture = new TestFixture();
+        ChannelPromise promise = fixture.captureHandler.context.newPromise();
+        AtomicInteger onSuccessCount = new AtomicInteger();
+
+        try {
+            fixture.context.transitionAfterSuccessfulWrite(fixture.channel.pipeline().lastContext(),
+                    promise,
+                    "send initial presence",
+                    onSuccessCount::incrementAndGet);
+
+            fixture.channel.close().syncUninterruptibly();
+            promise.setSuccess();
+
+            assertEquals(0, onSuccessCount.get());
+            assertTrue(appender.containsAtLevel(
+                    "Skipping state follow-up for send initial presence because channel is inactive",
+                    Level.DEBUG));
+        } finally {
+            detachAppender(appender, logger);
+            fixture.channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void testCloseConnectionOnErrorLogsWhenCloseFutureFails() {
+        Logger logger = (Logger) LogManager.getLogger(StateContext.class);
+        TestLogAppender appender = attachAppender("closeFailure", logger);
+        XmppClientConfig config = XmppClientConfig.builder()
+                .xmppServiceDomain("example.com")
+                .username("user")
+                .password("pass".toCharArray())
+                .securityMode(XmppClientConfig.SecurityMode.DISABLED)
+                .build();
+        XmppTcpConnection connection = new XmppTcpConnection(config);
+        ContextCaptureHandler captureHandler = new ContextCaptureHandler();
+        EmbeddedChannel channel = new EmbeddedChannel(new CloseFailingHandler(), captureHandler);
+        StateContext context = new StateContext(config, connection, captureHandler.context);
+
+        try {
+            context.closeConnectionOnError(channel.pipeline().lastContext(), new XmppException("boom"));
+
+            assertTrue(appender.containsAtLevel("Failed to close channel after error - ErrorType: IllegalStateException",
+                    Level.ERROR));
+        } finally {
+            detachAppender(appender, logger);
+            channel.finishAndReleaseAll();
+        }
+    }
+
     private static final class TestFixture {
         private final XmppClientConfig config;
         private final XmppTcpConnection connection;
@@ -332,9 +395,58 @@ class StateContextTest {
         }
     }
 
+    private static final class CloseFailingHandler extends ChannelDuplexHandler {
+        @Override
+        public void close(ChannelHandlerContext ctx, ChannelPromise promise) {
+            promise.setFailure(new IllegalStateException("close failed"));
+        }
+    }
+
     private static void setCurrentState(StateContext context, XmppHandlerState state) throws Exception {
         Field field = StateContext.class.getDeclaredField("currentState");
         field.setAccessible(true);
         field.set(context, state);
+    }
+
+    private TestLogAppender attachAppender(String name, Logger... loggers) {
+        TestLogAppender appender = new TestLogAppender(name);
+        appender.start();
+        for (Logger logger : loggers) {
+            logger.addAppender(appender);
+            logger.setAdditive(false);
+            logger.setLevel(Level.ALL);
+        }
+        return appender;
+    }
+
+    private void detachAppender(Appender appender, Logger... loggers) {
+        for (Logger logger : loggers) {
+            logger.removeAppender(appender);
+        }
+        appender.stop();
+    }
+
+    private static final class TestLogAppender extends AbstractAppender {
+        private final List<LogEvent> events = new ArrayList<>();
+
+        private TestLogAppender(String name) {
+            super(name, null, PatternLayout.createDefaultLayout(), false, null);
+        }
+
+        @Override
+        public void append(LogEvent event) {
+            events.add(event.toImmutable());
+        }
+
+        private boolean containsAtLevel(String text, Level level) {
+            for (LogEvent event : events) {
+                if (event.getLevel() == level
+                        && event.getMessage() != null
+                        && event.getMessage().getFormattedMessage().contains(text)) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }
