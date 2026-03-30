@@ -35,20 +35,26 @@ import static org.mockito.Mockito.when;
 class AdminManagerBehaviorTest {
 
     @Test
-    @DisplayName("extractSessionId 回退到 XML 时应支持单引号属性")
-    void testExtractSessionIdFallbackSupportsSingleQuotedAttribute() throws Exception {
+    @DisplayName("extractSessionId 应从 GenericExtensionElement 正确提取 sessionid")
+    void testExtractSessionIdExtractsFromGenericExtensionElement() throws Exception {
         XmppConnection connection = mock(XmppConnection.class);
         AdminManager manager = new AdminManager(connection, "admin", "example.com", 3000);
+
+        GenericExtensionElement commandElement = GenericExtensionElement.builder("command",
+                        "http://jabber.org/protocol/commands")
+                .addAttribute("sessionid", "test-session-123")
+                .addAttribute("status", "executing")
+                .build();
         Iq response = new Iq.Builder(Iq.Type.RESULT)
                 .id("cmd-1")
-                .childElement(new SingleQuotedCommandElement("single-quoted-session"))
+                .childElement(commandElement)
                 .build();
 
         Method method = AdminManager.class.getDeclaredMethod("extractSessionId", XmppStanza.class);
         method.setAccessible(true);
         Object result = method.invoke(manager, response);
 
-        assertEquals(Optional.of("single-quoted-session"), result);
+        assertEquals(Optional.of("test-session-123"), result);
     }
 
     @Test
@@ -61,19 +67,6 @@ class AdminManagerBehaviorTest {
         method.setAccessible(true);
 
         Object result = assertDoesNotThrow(() -> method.invoke(manager, new Object[] {null}));
-        assertEquals(Optional.empty(), result);
-    }
-
-    @Test
-    @DisplayName("extractSessionIdFromXml 遇到格式错误属性时应返回空")
-    void testExtractSessionIdFromXmlReturnsEmptyForMalformedAttribute() throws Exception {
-        XmppConnection connection = mock(XmppConnection.class);
-        AdminManager manager = new AdminManager(connection, "admin", "example.com", 3000);
-
-        Method method = AdminManager.class.getDeclaredMethod("extractSessionIdFromXml", String.class);
-        method.setAccessible(true);
-        Object result = method.invoke(manager, "<command sessionid=test-session/>");
-
         assertEquals(Optional.empty(), result);
     }
 
@@ -242,22 +235,4 @@ class AdminManagerBehaviorTest {
                 .orElseThrow();
     }
 
-    private record SingleQuotedCommandElement(String sessionId) implements ExtensionElement {
-
-        @Override
-        public String getElementName() {
-            return "command";
-        }
-
-        @Override
-        public String getNamespace() {
-            return "http://jabber.org/protocol/commands";
-        }
-
-        @Override
-        public String toXml() {
-            return "<command xmlns='http://jabber.org/protocol/commands' sessionid='"
-                    + sessionId + "' status='executing'/>";
-        }
-    }
 }
