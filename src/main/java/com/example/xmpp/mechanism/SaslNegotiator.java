@@ -146,7 +146,7 @@ public class SaslNegotiator {
             Throwable cause = result.cause();
             log.error("Failed to send SASL stanza - ErrorType: {}",
                     cause != null ? cause.getClass().getSimpleName() : "unknown");
-            ctx.pipeline().fireExceptionCaught(new XmppAuthException("Failed to send SASL stanza"));
+            ctx.pipeline().fireExceptionCaught(new XmppAuthException("Failed to send SASL stanza", cause));
         });
         return future;
     }

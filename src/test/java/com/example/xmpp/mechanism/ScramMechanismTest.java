@@ -18,6 +18,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -373,4 +374,353 @@ class ScramMechanismTest {
         field.setAccessible(true);
         return (char[]) field.get(mechanism);
     }
+
+    /**
+     * Test subclass that returns an invalid digest algorithm to trigger exception handling.
+     */
+    @Test
+    @DisplayName("Constructor with null password should not throw")
+    void testConstructorWithNullPassword() {
+        ScramSha256SaslMechanism mechanismWithNull = new ScramSha256SaslMechanism(TEST_USERNAME, null);
+        assertNotNull(mechanismWithNull);
+        assertFalse(mechanismWithNull.isComplete());
+    }
+
+    @Test
+    @DisplayName("Iterations below OWASP recommendation should log warning but not throw")
+    void testOwaspWarningBranch() throws SaslException {
+        // Use iterations between 4096 (EFFECTIVE_MIN_ITERATIONS) and 600000 (OWASP_RECOMMENDED_ITERATIONS)
+        // This should trigger the OWASP warning log but not throw
+        String clientFirst = new String(mechanism.processChallenge(null), StandardCharsets.UTF_8);
+        Pattern noncePattern = Pattern.compile("r=([A-Za-z0-9_-]+)");
+        Matcher matcher = noncePattern.matcher(clientFirst);
+        matcher.find();
+        String clientNonce = matcher.group(1);
+
+        // Use 10000 iterations - between MIN (4096) and OWASP (600000)
+        String serverNonce = clientNonce + "ServerNonce";
+        String salt = Base64.getEncoder().encodeToString("salt".getBytes(StandardCharsets.UTF_8));
+        int iterations = 10000; // Valid but below OWASP recommendation
+        String serverFirstMessage = String.format("r=%s,s=%s,i=%d", serverNonce, salt, iterations);
+
+        // Should NOT throw - just log warning
+        byte[] clientFinal = mechanism.processChallenge(serverFirstMessage.getBytes(StandardCharsets.UTF_8));
+        assertNotNull(clientFinal);
+        assertTrue(mechanism.isComplete());
+    }
+
+    /**
+     * Test subclass with invalid digest algorithm to trigger hash() catch block.
+     */
+    private static class ScramMechanismHashFails extends ScramSha256SaslMechanism {
+        ScramMechanismHashFails() {
+            super("user", "password".toCharArray());
+        }
+
+        @Override
+        protected String getDigestAlgorithm() {
+            return "INVALID-DIGEST-ALGORITHM";
+        }
+    }
+
+    /**
+     * Test subclass with invalid HMAC algorithm to trigger hmac() catch block.
+     */
+    private static class ScramMechanismHmacFails extends ScramSha256SaslMechanism {
+        ScramMechanismHmacFails() {
+            super("user", "password".toCharArray());
+        }
+
+        @Override
+        protected String getHmacAlgorithm() {
+            return "INVALID-HMAC-ALGORITHM";
+        }
+    }
+
+    /**
+     * Test subclass with invalid PBKDF2 algorithm to trigger hi() catch block.
+     */
+    private static class ScramMechanismHiFails extends ScramSha256SaslMechanism {
+        ScramMechanismHiFails() {
+            super("user", "password".toCharArray());
+        }
+
+        @Override
+        protected String getPBKDF2Algorithm() {
+            return "INVALID-PBKDF2-ALGORITHM";
+        }
+    }
+
+    @Test
+    @DisplayName("hash() should catch NoSuchAlgorithmException and throw SaslException")
+    void testHashCatchesNoSuchAlgorithmException() throws SaslException {
+        ScramMechanismHashFails mechanismFails = new ScramMechanismHashFails();
+        byte[] clientFirst = mechanismFails.processChallenge(null);
+        String clientFirstMsg = new String(clientFirst, StandardCharsets.UTF_8);
+
+        Pattern noncePattern = Pattern.compile("r=([A-Za-z0-9_-]+)");
+        Matcher matcher = noncePattern.matcher(clientFirstMsg);
+        assertTrue(matcher.find());
+        String clientNonce = matcher.group(1);
+
+        String serverNonce = clientNonce + "ServerNonce";
+        String serverFirstMessage = String.format("r=%s,s=cmFuZG9tc2FsdA==,i=4096", serverNonce);
+
+        SaslException exception = assertThrows(SaslException.class,
+                () -> mechanismFails.processChallenge(serverFirstMessage.getBytes(StandardCharsets.UTF_8)));
+
+        assertTrue(exception.getMessage().contains("Hash failed"));
+    }
+
+    @Test
+    @DisplayName("hmac() should catch NoSuchAlgorithmException and throw SaslException")
+    void testHmacCatchesNoSuchAlgorithmException() throws SaslException {
+        ScramMechanismHmacFails mechanismFails = new ScramMechanismHmacFails();
+        byte[] clientFirst = mechanismFails.processChallenge(null);
+        String clientFirstMsg = new String(clientFirst, StandardCharsets.UTF_8);
+
+        Pattern noncePattern = Pattern.compile("r=([A-Za-z0-9_-]+)");
+        Matcher matcher = noncePattern.matcher(clientFirstMsg);
+        assertTrue(matcher.find());
+        String clientNonce = matcher.group(1);
+
+        String serverNonce = clientNonce + "ServerNonce";
+        String serverFirstMessage = String.format("r=%s,s=cmFuZG9tc2FsdA==,i=4096", serverNonce);
+
+        SaslException exception = assertThrows(SaslException.class,
+                () -> mechanismFails.processChallenge(serverFirstMessage.getBytes(StandardCharsets.UTF_8)));
+
+        assertTrue(exception.getMessage().contains("HMAC failed"));
+    }
+
+    @Test
+    @DisplayName("hi() should catch NoSuchAlgorithmException and throw SaslException")
+    void testHiCatchesNoSuchAlgorithmException() throws SaslException {
+        ScramMechanismHiFails mechanismFails = new ScramMechanismHiFails();
+        byte[] clientFirst = mechanismFails.processChallenge(null);
+        String clientFirstMsg = new String(clientFirst, StandardCharsets.UTF_8);
+
+        Pattern noncePattern = Pattern.compile("r=([A-Za-z0-9_-]+)");
+        Matcher matcher = noncePattern.matcher(clientFirstMsg);
+        assertTrue(matcher.find());
+        String clientNonce = matcher.group(1);
+
+        String serverNonce = clientNonce + "ServerNonce";
+        String serverFirstMessage = String.format("r=%s,s=cmFuZG9tc2FsdA==,i=4096", serverNonce);
+
+        SaslException exception = assertThrows(SaslException.class,
+                () -> mechanismFails.processChallenge(serverFirstMessage.getBytes(StandardCharsets.UTF_8)));
+
+        assertTrue(exception.getMessage().contains("PBKDF2 failed"));
+    }
+
+    @Test
+    @DisplayName("createClientFinalMessage with missing nonce should throw SaslException")
+    void testCreateClientFinalMessageWithMissingNonce() throws SaslException {
+        mechanism.processChallenge(null);
+
+        String serverFirstNoNonce = "s=cmFuZG9tc2FsdA==,i=4096";
+
+        SaslException exception = assertThrows(SaslException.class,
+                () -> mechanism.processChallenge(serverFirstNoNonce.getBytes(StandardCharsets.UTF_8)));
+
+        assertTrue(exception.getMessage().contains("Invalid server nonce"));
+    }
+
+    @Test
+    @DisplayName("createClientFinalMessage with null iterations should throw SaslException")
+    void testCreateClientFinalMessageWithNullIterations() throws Exception {
+        mechanism.processChallenge(null);
+
+        // Get the actual clientNonce via reflection so server nonce starts with it
+        Field clientNonceField = ScramMechanism.class.getDeclaredField("clientNonce");
+        clientNonceField.setAccessible(true);
+        String clientNonce = (String) clientNonceField.get(mechanism);
+
+        // Server nonce must start with clientNonce (validated at line 210)
+        String serverNonce = clientNonce + "Server";
+        String serverFirstNoIterations = "r=" + serverNonce + ",s=cmFuZG9tc2FsdA==";
+
+        SaslException exception = assertThrows(SaslException.class,
+                () -> mechanism.processChallenge(serverFirstNoIterations.getBytes(StandardCharsets.UTF_8)));
+
+        assertTrue(exception.getMessage().contains("Missing salt or iterations"));
+    }
+
+    @Test
+    @DisplayName("createClientFinalMessage with non-numeric iterations should throw SaslException")
+    void testCreateClientFinalMessageWithNonNumericIterations() throws Exception {
+        mechanism.processChallenge(null);
+
+        // Get the actual clientNonce via reflection so server nonce starts with it
+        Field clientNonceField = ScramMechanism.class.getDeclaredField("clientNonce");
+        clientNonceField.setAccessible(true);
+        String clientNonce = (String) clientNonceField.get(mechanism);
+
+        // Server nonce must start with clientNonce (validated at line 210)
+        String serverNonce = clientNonce + "Server";
+        String serverFirstWithNonNumericIterations = "r=" + serverNonce + ",s=cmFuZG9tc2FsdA==,i=abc";
+
+        SaslException exception = assertThrows(SaslException.class,
+                () -> mechanism.processChallenge(serverFirstWithNonNumericIterations.getBytes(StandardCharsets.UTF_8)));
+
+        assertTrue(exception.getMessage().contains("Invalid SCRAM iterations"));
+    }
+
+    @Test
+    @DisplayName("parseAttributes should skip parts with missing equals sign")
+    void testParseAttributesSkipsPartWithMissingEquals() throws Exception {
+        Method parseAttributes = ScramMechanism.class.getDeclaredMethod("parseAttributes", String.class);
+        parseAttributes.setAccessible(true);
+
+        Map<Character, String> result = (Map<Character, String>) parseAttributes.invoke(mechanism, "r,s=salt,i=4096");
+
+        assertEquals(2, result.size());
+        assertEquals("salt", result.get('s'));
+        assertEquals("4096", result.get('i'));
+        assertFalse(result.containsKey('r'));
+    }
+
+    @Test
+    @DisplayName("parseAttributes should skip parts with length less than 2")
+    void testParseAttributesSkipsShortParts() throws Exception {
+        Method parseAttributes = ScramMechanism.class.getDeclaredMethod("parseAttributes", String.class);
+        parseAttributes.setAccessible(true);
+
+        // "r,,s=salt" contains an empty string part (length 0) between the two commas
+        Map<Character, String> result = (Map<Character, String>) parseAttributes.invoke(mechanism, "r,,s=salt,i=4096");
+
+        assertEquals(2, result.size());
+        assertEquals("salt", result.get('s'));
+        assertEquals("4096", result.get('i'));
+        assertFalse(result.containsKey('r'));
+    }
+
+    @Test
+    @DisplayName("processChallenge should catch RuntimeException thrown in CHALLENGE_RECEIVED state")
+    void testProcessChallengeCatchesRuntimeException() throws SaslException {
+        ScramMechanismXorFails mechanismFails = new ScramMechanismXorFails();
+
+        mechanismFails.processChallenge(null);
+
+        assertThrows(SaslException.class,
+                () -> mechanismFails.processChallenge("r=nonce,s=salt,i=4096".getBytes(StandardCharsets.UTF_8)));
+    }
+
+    // ========================================
+    // Additional targeted coverage tests
+    // ========================================
+
+    /**
+     * Covers line 174: default case branch and RuntimeException handler.
+     * With state=null, the switch throws NPE which is caught as RuntimeException
+     * and rethrown as SaslException("SCRAM processing failed").
+     * The default: throw new SaslException("Invalid state") is unreachable through
+     * normal enum values since all State enum constants are handled in cases.
+     * 
+     * @since 2026-03-30
+     */
+    @Test
+    @DisplayName("processChallenge with null state should throw SaslException")
+    void testProcessChallengeWithNullStateThrowsSaslException() throws Exception {
+        // Set state to null via reflection - this causes switch(state) to throw NPE
+        // which is caught by catch (RuntimeException e) and rethrown as SaslException
+        Field stateField = ScramMechanism.class.getDeclaredField("state");
+        stateField.setAccessible(true);
+        stateField.set(mechanism, null);
+        
+        SaslException exception = assertThrows(SaslException.class,
+                () -> mechanism.processChallenge(null));
+        
+        assertNotNull(exception.getMessage());
+    }
+
+    /**
+     * Covers line 218: saltBase64 == null && iterationsStr != null branch.
+     * Server message has i= but no s= attribute.
+     * 
+     * @since 2026-03-30
+     */
+    @Test
+    @DisplayName("createClientFinalMessage with null salt but valid iterations should throw SaslException")
+    void testCreateClientFinalMessageWithNullSalt() throws Exception {
+        mechanism.processChallenge(null);
+        
+        Field clientNonceField = ScramMechanism.class.getDeclaredField("clientNonce");
+        clientNonceField.setAccessible(true);
+        String clientNonce = (String) clientNonceField.get(mechanism);
+        
+        // Server nonce must start with clientNonce (validated at line 210)
+        String serverNonce = clientNonce + "Server";
+        // Server message has i= (iterations) but no s= (salt)
+        String serverFirstNoSalt = "r=" + serverNonce + ",i=4096";
+        
+        SaslException exception = assertThrows(SaslException.class,
+                () -> mechanism.processChallenge(serverFirstNoSalt.getBytes(StandardCharsets.UTF_8)));
+        
+        assertTrue(exception.getMessage().contains("Missing salt or iterations"));
+    }
+
+    /**
+     * Covers line 246: iterations >= OWASP_RECOMMENDED_ITERATIONS else branch.
+     * Server message has iterations >= 600000 so the OWASP warning is NOT logged.
+     * 
+     * @since 2026-03-30
+     */
+    @Test
+    @DisplayName("createClientFinalMessage with high iterations should not trigger OWASP warning branch")
+    void testCreateClientFinalMessageWithHighIterations() throws Exception {
+        mechanism.processChallenge(null);
+        
+        Field clientNonceField = ScramMechanism.class.getDeclaredField("clientNonce");
+        clientNonceField.setAccessible(true);
+        String clientNonce = (String) clientNonceField.get(mechanism);
+        
+        String serverNonce = clientNonce + "Server";
+        // Use iterations >= 600000 (OWASP_RECOMMENDED_ITERATIONS = 600000)
+        // This covers the else branch of: if (iterations < OWASP_RECOMMENDED_ITERATIONS)
+        String serverFirstHighIterations = "r=" + serverNonce + ",s=cmFuZG9tc2FsdA==,i=600000";
+        
+        // Should NOT throw - just takes the else branch (no warning logged)
+        byte[] result = mechanism.processChallenge(serverFirstHighIterations.getBytes(StandardCharsets.UTF_8));
+        
+        assertNotNull(result);
+    }
+
+    /**
+     * Covers line 407: part.length() >= 2 but part.charAt(1) != '=' branch.
+     * Message contains attribute "aX" (2+ chars, second char is not '=').
+     * 
+     * @since 2026-03-30
+     */
+    @Test
+    @DisplayName("parseAttributes should skip parts where second char is not equals sign")
+    void testParseAttributesSkipsPartWithInvalidSecondChar() throws Exception {
+        Method parseAttributes = ScramMechanism.class.getDeclaredMethod("parseAttributes", String.class);
+        parseAttributes.setAccessible(true);
+        
+        // "aXvalue" looks like an attribute (2+ chars) but second char is 'X' not '='
+        // Should be skipped entirely
+        Map<Character, String> result = (Map<Character, String>) parseAttributes.invoke(
+                mechanism, "r=abc123,aXvalue,s=salt,i=4096");
+        
+        // Only r, s, i should be parsed; 'a' attribute should NOT be added
+        assertEquals(3, result.size());
+        assertEquals("abc123", result.get('r'));
+        assertEquals("salt", result.get('s'));
+        assertEquals("4096", result.get('i'));
+        assertFalse(result.containsKey('a'), "Attribute 'a' should not be present due to invalid second char");
+    }
+
+    private static class ScramMechanismXorFails extends ScramSha256SaslMechanism {
+        ScramMechanismXorFails() {
+            super("user", "password".toCharArray());
+        }
+
+        @Override
+        protected String getHmacAlgorithm() {
+            throw new RuntimeException("HMAC failure for test");
+        }
+    }
+
 }

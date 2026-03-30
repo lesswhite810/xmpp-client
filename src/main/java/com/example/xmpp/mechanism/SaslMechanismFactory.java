@@ -54,6 +54,15 @@ public class SaslMechanismFactory {
                 ScramSha256SaslMechanism::new);
         register(XmppConstants.SASL_MECH_SCRAM_SHA1, XmppConstants.PRIORITY_SCRAM_SHA1, ScramSha1SaslMechanism::new);
         register(XmppConstants.SASL_MECH_PLAIN, XmppConstants.PRIORITY_PLAIN, PlainSaslMechanism::new);
+        // EXTERNAL: username param is used as authorizationIdentity (authzid)
+        register(XmppConstants.SASL_MECH_EXTERNAL, XmppConstants.PRIORITY_EXTERNAL,
+                (username, password) -> new ExternalSaslMechanism(username));
+        // ANONYMOUS: no credentials needed
+        register(XmppConstants.SASL_MECH_ANONYMOUS, XmppConstants.PRIORITY_ANONYMOUS,
+                (username, password) -> new AnonymousSaslMechanism());
+        // OAUTHBEARER: username=authcid, password=token, authzid=null
+        register(XmppConstants.SASL_MECH_OAUTHBEARER, XmppConstants.PRIORITY_OAUTHBEARER,
+                (username, password) -> new OAuthBearerSaslMechanism(username, password, null));
 
         for (SaslMechanismProvider provider : this.providerLoader) {
             register(provider.getMechanismName(), provider.getPriority(), provider::create);

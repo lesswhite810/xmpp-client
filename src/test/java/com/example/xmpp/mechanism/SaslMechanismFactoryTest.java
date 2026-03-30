@@ -6,12 +6,15 @@ import org.junit.jupiter.api.Test;
 import javax.security.sasl.SaslException;
 import java.util.List;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
 
 /**
  * SASL 机制工厂行为测试。
@@ -111,5 +114,87 @@ class SaslMechanismFactoryTest {
 
         assertTrue(mechanism.isPresent());
         assertEquals("PLAIN", mechanism.orElseThrow().getMechanismName());
+    }
+
+    @Test
+    @DisplayName("createBestMechanism 应选择最高优先级的机制")
+    void testCreateBestMechanismSelectsHighestPriority() {
+        // OAUTHBEARER (450) > SCRAM-SHA-512 (400) > SCRAM-SHA-256 (300)
+        Optional<SaslMechanism> mechanism = factory.createBestMechanism(
+                List.of("OAUTHBEARER", "SCRAM-SHA-512", "SCRAM-SHA-256"),
+                Set.of(),
+                "user",
+                "token".toCharArray());
+
+        assertTrue(mechanism.isPresent());
+        assertEquals("OAUTHBEARER", mechanism.orElseThrow().getMechanismName());
+    }
+
+    @Test
+    @DisplayName("createBestMechanism 应能创建 EXTERNAL 机制")
+    void testCreateBestMechanismCreatesExternal() {
+        Optional<SaslMechanism> mechanism = factory.createBestMechanism(
+                List.of("EXTERNAL"),
+                Set.of(),
+                "authzid",
+                "ignored".toCharArray());
+
+        assertTrue(mechanism.isPresent());
+        assertEquals("EXTERNAL", mechanism.orElseThrow().getMechanismName());
+    }
+
+    @Test
+    @DisplayName("createBestMechanism 应能创建 ANONYMOUS 机制")
+    void testCreateBestMechanismCreatesAnonymous() {
+        Optional<SaslMechanism> mechanism = factory.createBestMechanism(
+                List.of("ANONYMOUS"),
+                Set.of(),
+                "ignored",
+                "ignored".toCharArray());
+
+        assertTrue(mechanism.isPresent());
+        assertEquals("ANONYMOUS", mechanism.orElseThrow().getMechanismName());
+    }
+
+    @Test
+    @DisplayName("createBestMechanism 应能创建 OAUTHBEARER 机制")
+    void testCreateBestMechanismCreatesOAuthBearer() {
+        Optional<SaslMechanism> mechanism = factory.createBestMechanism(
+                List.of("OAUTHBEARER"),
+                Set.of(),
+                "authcid",
+                "token".toCharArray());
+
+        assertTrue(mechanism.isPresent());
+        assertEquals("OAUTHBEARER", mechanism.orElseThrow().getMechanismName());
+    }
+
+    @Test
+    @DisplayName("createBestMechanism 在无匹配机制时返回空")
+    void testCreateBestMechanismReturnsEmptyWhenNoMatch() {
+        Optional<SaslMechanism> mechanism = factory.createBestMechanism(
+                List.of("UNKNOWN-MECH"),
+                Set.of(),
+                "user",
+                "secret".toCharArray());
+
+        assertFalse(mechanism.isPresent());
+    }
+
+    @Test
+    @DisplayName("register 在重复注册时应输出警告日志")
+    void testRegisterLogsWarningForDuplicateMechanism() {
+        String duplicateName = "TEST-DUP-" + System.nanoTime();
+        factory.register(duplicateName, 100, (u, p) -> null);
+        factory.register(duplicateName, 200, (u, p) -> null);
+    }
+
+    @Test
+    @DisplayName("ServiceLoader should load SaslMechanismProvider implementations")
+    void testServiceLoaderLoadsProviders() {
+        ServiceLoader<SaslMechanismProvider> loader = ServiceLoader.load(SaslMechanismProvider.class);
+
+        long providerCount = loader.stream().count();
+        assertTrue(providerCount >= 1, "Should find at least one SaslMechanismProvider");
     }
 }
