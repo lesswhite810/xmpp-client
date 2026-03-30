@@ -151,6 +151,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         Channel previousChannel = channel;
         channel = null;
         clearHandlerState();
+        XmppEventBus.getInstance().unsubscribeAll(this);
         EventLoopGroup previousWorkerGroup = workerGroup;
         workerGroup = null;
         closeChannel(previousChannel);
@@ -283,6 +284,7 @@ public class XmppTcpConnection extends AbstractXmppConnection {
         failPendingCollectors(exception);
         clearHandlerState();
         publishTerminalError(exception);
+        XmppEventBus.getInstance().unsubscribeAll(this);
         closeCurrentChannelOrShutdownWorkerGroup();
     }
 

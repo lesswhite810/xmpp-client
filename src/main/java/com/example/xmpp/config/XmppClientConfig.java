@@ -230,7 +230,43 @@ public class XmppClientConfig {
      * @return 密码字符数组副本
      */
     public char[] getPassword() {
-        return password.clone();
+        return password == null ? null : password.clone();
+    }
+
+    /**
+     * 获取自定义 TrustManager 数组副本。
+     *
+     * @return TrustManager 数组副本
+     */
+    public TrustManager[] getCustomTrustManager() {
+        return customTrustManager == null ? null : customTrustManager.clone();
+    }
+
+    /**
+     * 获取自定义 KeyManager 数组副本。
+     *
+     * @return KeyManager 数组副本
+     */
+    public KeyManager[] getKeyManagers() {
+        return keyManagers == null ? null : keyManagers.clone();
+    }
+
+    /**
+     * 获取启用的 SSL 协议数组副本。
+     *
+     * @return 启用的 SSL 协议数组副本
+     */
+    public String[] getEnabledSSLProtocols() {
+        return enabledSSLProtocols == null ? null : enabledSSLProtocols.clone();
+    }
+
+    /**
+     * 获取启用的 SSL 套件数组副本。
+     *
+     * @return 启用的 SSL 套件数组副本
+     */
+    public String[] getEnabledSSLCiphers() {
+        return enabledSSLCiphers == null ? null : enabledSSLCiphers.clone();
     }
 
     /**

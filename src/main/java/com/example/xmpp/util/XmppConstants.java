@@ -50,6 +50,16 @@ public final class XmppConstants {
 
     public static final int PRIORITY_SCRAM_SHA1 = 200;
 
+    public static final int PRIORITY_SCRAM_SHA1_PLUS = 210;
+
+    public static final int PRIORITY_SCRAM_SHA256_PLUS = 310;
+
+    public static final int PRIORITY_EXTERNAL = 500;
+
+    public static final int PRIORITY_OAUTHBEARER = 450;
+
+    public static final int PRIORITY_ANONYMOUS = 50;
+
     public static final int PRIORITY_PLAIN = 100;
 
     public static final int SHA1_HASH_SIZE_BYTES = 20;
@@ -87,6 +97,12 @@ public final class XmppConstants {
     public static final String SASL_MECH_SCRAM_SHA512 = "SCRAM-SHA-512";
 
     public static final String SASL_MECH_PLAIN = "PLAIN";
+
+    public static final String SASL_MECH_EXTERNAL = "EXTERNAL";
+
+    public static final String SASL_MECH_ANONYMOUS = "ANONYMOUS";
+
+    public static final String SASL_MECH_OAUTHBEARER = "OAUTHBEARER";
 
     public static final long DEFAULT_IQ_TIMEOUT_SECONDS = 30L;
 

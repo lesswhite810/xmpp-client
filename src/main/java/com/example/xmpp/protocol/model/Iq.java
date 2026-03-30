@@ -152,20 +152,6 @@ public final class Iq extends Stanza {
         return attributes;
     }
 
-    /**
-     * 追加扩展元素到 XML 构建器。
-     *
-     * @param xml XML 构建器
-     */
-    @Override
-    protected void appendExtensions(XmlStringBuilder xml) {
-        if (childElement != null) {
-            xml.append(childElement.toXml());
-        }
-        if (error != null) {
-            xml.append(error.toXml());
-        }
-    }
 
     /**
      * IQ Builder。

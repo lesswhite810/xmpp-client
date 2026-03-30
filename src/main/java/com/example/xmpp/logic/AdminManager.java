@@ -133,48 +133,29 @@ public class AdminManager {
         }
 
         if (childElement instanceof GenericExtensionElement genericElement) {
-            String sessionId = genericElement.getAttributeValue(ATTR_SESSION_ID);
-            if (sessionId != null) {
-                log.debug("Extracted sessionId: {}", sessionId);
-                return Optional.of(sessionId);
+            Optional<String> sessionId = extractSessionIdRecursive(genericElement);
+            if (sessionId.isPresent()) {
+                log.debug("Extracted sessionId: {}", sessionId.get());
+                return sessionId;
             }
         }
 
-        return extractSessionIdFromXml(iq.toXml());
+        log.debug("No sessionid found in response element tree");
+        return Optional.empty();
     }
 
-    /**
-     * 从 XML 字符串中解析 sessionid 属性。
-     *
-     * @param xml XML 字符串
-     * @return 会话 ID，或空
-     */
-    private Optional<String> extractSessionIdFromXml(String xml) {
-        int sessionidIndex = xml.indexOf(ATTR_SESSION_ID + "=");
-        if (sessionidIndex == -1) {
-            log.debug("No sessionid found in response XML");
-            return Optional.empty();
+    private Optional<String> extractSessionIdRecursive(GenericExtensionElement element) {
+        String sessionId = element.getAttributeValue(ATTR_SESSION_ID);
+        if (sessionId != null) {
+            return Optional.of(sessionId);
         }
-
-        int valueStart = sessionidIndex + ATTR_SESSION_ID.length() + 1;
-        if (valueStart >= xml.length()) {
-            log.warn("Malformed sessionid attribute in XML");
-            return Optional.empty();
+        for (GenericExtensionElement child : element.getChildren()) {
+            Optional<String> childSessionId = extractSessionIdRecursive(child);
+            if (childSessionId.isPresent()) {
+                return childSessionId;
+            }
         }
-
-        char quote = xml.charAt(valueStart);
-        if (quote != '"' && quote != '\'') {
-            log.warn("Malformed sessionid attribute: missing quote");
-            return Optional.empty();
-        }
-
-        int valueEnd = xml.indexOf(quote, valueStart + 1);
-        if (valueEnd == -1) {
-            log.warn("Malformed sessionid attribute: unclosed quote");
-            return Optional.empty();
-        }
-
-        return Optional.of(xml.substring(valueStart + 1, valueEnd));
+        return Optional.empty();
     }
 
     /**
